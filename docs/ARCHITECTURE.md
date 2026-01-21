@@ -1,13 +1,7 @@
-Кратко, но жёстко структурировано:
+## Reference Architecture (External)
+- Site.pro (Account → Company ERP)
+- Used as UX / routing reference
 
-Account Level
-
-Company Level
-
-URL routing
-
-Future modules
-
-Принцип: одна точка входа — /account
-
-(Claude будет это читать первым)
+Level 1: Account/Platform
+Level 2: Company/ERP
+Future modules list

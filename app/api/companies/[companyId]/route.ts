@@ -1,1 +1,2 @@
-app / api / companies / [companyId] / route.ts` — GET, PATCH, DELETE
+
+// GET, PATCH, DELETE

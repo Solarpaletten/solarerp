@@ -1,4 +1,7 @@
 
 
+import { redirect } from 'next/navigation'
 
-redirect('/account/dashboard')
+export default function Page() {
+  redirect('/account/dashboard')
+}

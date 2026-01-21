@@ -1,1 +1,2 @@
-app / api / companies / route.ts` — GET all, POST create
+
+// GET all companies, POST create

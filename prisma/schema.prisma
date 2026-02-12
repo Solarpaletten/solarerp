@@ -1,0 +1,467 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// LEVEL 1: ACCOUNT / TENANT
+// ============================================
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companies Company[]
+  users     User[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("users")
+}
+
+// ============================================
+// LEVEL 2: COMPANY / ERP CONTEXT
+// ============================================
+
+enum CompanyStatus {
+  ACTIVE
+  FROZEN
+  ARCHIVED
+}
+
+model Company {
+  id        String        @id @default(cuid())
+  tenantId  String
+  name      String
+  code      String?
+  vatNumber String?
+  country   String?
+  status    CompanyStatus @default(ACTIVE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  // ERP Relations
+  clients           Client[]
+  items             Item[]
+  saleDocuments     SaleDocument[]
+  purchaseDocuments PurchaseDocument[]
+  stockMovements    StockMovement[]
+  bankStatements    BankStatement[]
+
+  @@index([tenantId])
+  @@map("companies")
+}
+
+// ============================================
+// ERP MODULE: CLIENTS (COUNTERPARTIES)
+// ============================================
+
+enum ClientLocation {
+  LOCAL   // lt - Lithuania
+  EU      // eu - Other EU countries
+  FOREIGN // rest - Non-EU
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  companyId String
+
+  // --- BASIC ---
+  name      String
+  shortName String?
+  code      String?
+  notes     String?
+
+  // --- TYPE ---
+  isJuridical Boolean        // true = legal entity, false = private person
+  location    ClientLocation // LOCAL / EU / FOREIGN
+
+  // --- IDENTIFIERS ---
+  vatCode             String?
+  businessLicenseCode String?
+  residentTaxCode     String?
+
+  // --- CONTACT ---
+  email       String?
+  phoneNumber String?
+  faxNumber   String?
+  contactInfo String?
+
+  // --- PAYMENT ---
+  payWithinDays       Int?
+  creditLimit         Decimal?
+  automaticDebtRemind Boolean @default(false)
+
+  // --- PERSONAL (for private persons) ---
+  birthday DateTime?
+
+  // --- REGISTRATION ADDRESS ---
+  registrationCountryCode String?
+  registrationCity        String?
+  registrationAddress     String?
+  registrationZipCode     String?
+
+  // --- CORRESPONDENCE ADDRESS ---
+  correspondenceCountryCode String?
+  correspondenceCity        String?
+  correspondenceAddress     String?
+  correspondenceZipCode     String?
+
+  // --- BANK ---
+  bankAccount   String?
+  bankName      String?
+  bankCode      String?
+  bankSwiftCode String?
+
+  // --- META ---
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@map("clients")
+}
+
+// ============================================
+// ERP MODULE: ITEMS (PRODUCTS / SERVICES)
+// ============================================
+
+model Item {
+  id        String   @id @default(cuid())
+  companyId String
+
+  // --- BASIC ---
+  name    String
+  code    String?
+  barcode String?
+
+  // --- PRICING ---
+  vatRate         Decimal?
+  priceWithoutVat Decimal?
+  priceWithVat    Decimal?
+
+  // --- CLASSIFICATION ---
+  attributeName   String? // Goods / Services
+  groupName       String?
+  manufacturer    String?
+  countryOfOrigin String?
+
+  // --- UNIT ---
+  unitName String // pcs, kg, l, etc.
+
+  // --- ACCOUNTING ---
+  purchaseAccountCode String?
+  saleAccountCode     String?
+  expenseAccountCode  String?
+
+  // --- OTHER ---
+  minimumQuantity Decimal?
+  description     String?
+  externalId      String?
+  freePrice       Boolean @default(false)
+
+  // --- META ---
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([code])
+  @@index([barcode])
+  @@map("items")
+}
+
+// ============================================
+// ERP MODULE: SALES
+// ============================================
+
+model SaleDocument {
+  id        String   @id @default(cuid())
+  companyId String
+
+  // --- DATES ---
+  saleDate       DateTime
+  payUntil       DateTime?
+  accountingDate DateTime?
+  lockedAt       DateTime?
+
+  // --- IDENTITY ---
+  series String
+  number String
+
+  // --- PARTIES ---
+  clientName String
+  clientCode String?
+  payerName  String?
+  payerCode  String?
+
+  // --- DELIVERY ---
+  unloadAddress String?
+  unloadCity    String?
+  warehouseName String
+
+  // --- OPERATION ---
+  operationType String
+  currencyCode  String
+  employeeName  String?
+  status        String?
+  comments      String?
+
+  // --- META ---
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items   SaleItem[]
+  company Company    @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, series, number])
+  @@index([companyId])
+  @@index([saleDate])
+  @@map("sale_documents")
+}
+
+model SaleItem {
+  id     String @id @default(cuid())
+  saleId String
+
+  // --- ITEM ---
+  itemName String
+  itemCode String?
+  barcode  String?
+
+  // --- QUANTITY & PRICE ---
+  quantity        Decimal
+  priceWithoutVat Decimal
+  unitDiscount    Decimal?
+  vatRate         Decimal?
+  vatClassifier   String? // PVM1, PVM2, etc.
+
+  // --- ACCOUNTING ---
+  salesAccountCode   String?
+  expenseAccountCode String?
+  costCenter         String?
+
+  // --- DESCRIPTION ---
+  postscript String? // description override
+  accComment String?
+
+  // --- INTRASTAT (EU) ---
+  intraTransactionCode  String?
+  intraDeliveryTerms    String?
+  intraTransportCode    String?
+  intraCountryCode      String?
+  intrastatWeightNetto  Decimal?
+  vatRateName           String?
+
+  sale SaleDocument @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@map("sale_items")
+}
+
+// ============================================
+// ERP MODULE: PURCHASES
+// ============================================
+
+model PurchaseDocument {
+  id        String   @id @default(cuid())
+  companyId String
+
+  // --- DATES ---
+  purchaseDate       DateTime
+  payUntil           DateTime?
+  advancePaymentDate DateTime?
+
+  // --- IDENTITY ---
+  series String
+  number String
+
+  // --- PARTIES ---
+  supplierName    String
+  supplierCode    String?
+  advanceEmployee String?
+
+  // --- LOCATION ---
+  warehouseName String
+
+  // --- OPERATION ---
+  operationType String
+  currencyCode  String
+  employeeName  String?
+  comments      String?
+
+  // --- META ---
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items   PurchaseItem[]
+  company Company        @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, series, number])
+  @@index([companyId])
+  @@index([purchaseDate])
+  @@map("purchase_documents")
+}
+
+model PurchaseItem {
+  id         String @id @default(cuid())
+  purchaseId String
+
+  // --- ITEM ---
+  itemName String
+  itemCode String?
+  barcode  String?
+
+  // --- QUANTITY & PRICE ---
+  quantity        Decimal
+  priceWithoutVat Decimal
+  unitDiscount    Decimal?
+  vatRate         Decimal?
+  vatClassifier   String?
+
+  // --- ACCOUNTING ---
+  corAccountCode String?
+  costCenter     String?
+
+  // --- OTHER ---
+  notes         String?
+  accComment    String?
+  carRegNumber  String?
+  fuelCard      String?
+
+  // --- INTRASTAT (EU) ---
+  intraTransactionCode    String?
+  intraDeliveryTerms      String?
+  intraTransportCode      String?
+  intraCountryOfOriginCode String?
+  intrastatWeightNetto    Decimal?
+
+  // --- VAT ---
+  vatRegister String?
+  gpaisMethod String?
+
+  purchase PurchaseDocument @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+  @@map("purchase_items")
+}
+
+// ============================================
+// ERP MODULE: STOCK MOVEMENTS
+// ============================================
+
+model StockMovement {
+  id        String   @id @default(cuid())
+  companyId String
+
+  // --- DOCUMENT ---
+  warehouseName String
+  operationType String
+  documentDate  DateTime
+  series        String
+  number        String
+
+  // --- ITEM ---
+  itemName String
+  itemCode String?
+  barcode  String?
+
+  // --- QUANTITY & COST ---
+  quantity        Decimal
+  cost            Decimal
+  vatRate         Decimal?
+  priceWithoutVat Decimal?
+  priceWithVat    Decimal?
+
+  // --- CLASSIFICATION ---
+  attributeName   String?
+  groupName       String?
+  manufacturer    String?
+  countryOfOrigin String?
+  unitName        String?
+
+  // --- ACCOUNTING ---
+  purchaseAccountCode String?
+  saleAccountCode     String?
+  expenseAccountCode  String?
+
+  // --- OTHER ---
+  minimumQuantity Decimal?
+  description     String?
+  externalId      String?
+  freePrice       Boolean @default(false)
+
+  // --- META ---
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([documentDate])
+  @@map("stock_movements")
+}
+
+// ============================================
+// ERP MODULE: BANK STATEMENTS
+// ============================================
+
+model BankStatement {
+  id        String   @id @default(cuid())
+  companyId String
+
+  // --- ACCOUNT ---
+  accountNumber String
+  currencyCode  String
+  period        DateTime
+
+  // --- TRANSACTION ---
+  transactionNumber String
+  amount            Decimal
+  operationType     Int // 2=income, 3=payment, 1=tax, 6=transit
+
+  // --- COUNTERPARTY ---
+  clientName        String
+  clientCode        String?
+  clientBankAccount String?
+
+  // --- PURPOSE ---
+  paymentPurpose String?
+
+  // --- ACCOUNTING ---
+  correspondenceAccountCode String?
+  correspondenceAccountName String?
+
+  // --- META ---
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, transactionNumber])
+  @@index([companyId])
+  @@index([period])
+  @@map("bank_statements")
+}

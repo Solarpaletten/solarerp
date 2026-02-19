@@ -17,7 +17,6 @@ type NavItem = {
 
 export function CompanySidebar({ children, companyId, companyName }: CompanySidebarProps) {
   const pathname = usePathname();
-
   const basePath = `/account/companies/${companyId}`;
 
   const navItems: NavItem[] = [
@@ -32,39 +31,42 @@ export function CompanySidebar({ children, companyId, companyName }: CompanySide
   ];
 
   const isActive = (href: string) => {
-    if (href === basePath) {
-      return pathname === basePath;
-    }
+    if (href === basePath) return pathname === basePath;
     return pathname.startsWith(href);
   };
 
   return (
     <div className="flex min-h-screen">
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-4 border-b border-gray-200">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
+        {/* Company Header */}
+        <div className="p-4 border-b border-gray-100">
           <Link
             href="/account/companies"
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-3"
+            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors mb-2"
           >
             <span>←</span>
-            <span>Back to Companies</span>
+            <span>All Companies</span>
           </Link>
-          <h2 className="text-lg font-bold text-gray-900 truncate">{companyName}</h2>
+          <h2 className="text-base font-bold text-gray-900 truncate" title={companyName}>
+            {companyName}
+          </h2>
         </div>
 
-        <nav className="flex-1 p-4">
-          <ul className="space-y-1">
+        {/* ERP Module Navigation */}
+        <nav className="flex-1 p-3">
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wider px-4 mb-2">Modules</p>
+          <ul className="space-y-0.5">
             {navItems.map((item) => (
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    isActive(item.href)
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive(item.href)
+                      ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
                 >
-                  <span>{item.icon}</span>
+                  <span className="text-base">{item.icon}</span>
                   <span>{item.name}</span>
                 </Link>
               </li>
@@ -72,12 +74,16 @@ export function CompanySidebar({ children, companyId, companyName }: CompanySide
           </ul>
         </nav>
 
-        <div className="p-4 border-t border-gray-200 text-xs text-gray-400">
-          Company ID: {companyId.slice(0, 8)}...
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-100">
+          <p className="text-xs text-gray-400 truncate" title={companyId}>
+            ID: {companyId.slice(0, 12)}...
+          </p>
         </div>
       </aside>
 
-      <main className="flex-1 bg-gray-50">
+      {/* Content */}
+      <main className="flex-1 bg-gray-50 min-h-screen overflow-auto">
         {children}
       </main>
     </div>
@@ -85,4 +91,3 @@ export function CompanySidebar({ children, companyId, companyName }: CompanySide
 }
 
 export default CompanySidebar;
-

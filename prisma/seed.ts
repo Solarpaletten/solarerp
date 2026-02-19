@@ -18,13 +18,13 @@ async function main() {
   // =============================
   // USER (ADMIN)
   // =============================
-  const passwordHash = await bcrypt.hash('admin123', 10);
+  const passwordHash = await bcrypt.hash('pass123', 10);
 
   const user = await prisma.user.create({
     data: {
-      email: 'admin@solar.local',
+      email: 'solar@solar.com',
       passwordHash,
-      name: 'Solar Admin',
+      name: 'Solar',
       tenantId: tenant.id,
     },
   });

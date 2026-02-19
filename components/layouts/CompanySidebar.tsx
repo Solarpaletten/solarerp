@@ -59,7 +59,7 @@ export function CompanySidebar({ companyId, companyName, children }: Props) {
       <aside className="w-60 bg-white border-r border-gray-200 flex flex-col shrink-0">
         {/* Company header */}
         <div className="p-4 border-b border-gray-100">
-          <Link href="/account/dashboard"
+          <Link href="/account/companies"
             className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors mb-2">
             ← All Companies
           </Link>

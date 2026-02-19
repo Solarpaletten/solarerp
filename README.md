@@ -39,7 +39,7 @@
 | `prompts/app/PROMPT_AUTH_SIGNUP.md` | `app/(auth)/signup/page.tsx` |
 | `prompts/app/PROMPT_ACCOUNT_LAYOUT.md` | `app/account/layout.tsx` |
 | `prompts/app/PROMPT_ACCOUNT_PAGE.md` | `app/account/page.tsx` |
-| `prompts/app/PROMPT_ACCOUNT_DASHBOARD.md` | `app/account/dashboard/page.tsx` |
+| `prompts/app/PROMPT_ACCOUNT_DASHBOARD.md` | `app/account//page.tsx` |
 | `prompts/app/PROMPT_COMPANIES_LIST.md` | `app/account/companies/page.tsx` |
 | `prompts/app/PROMPT_COMPANY_LAYOUT.md` | `app/account/companies/[companyId]/layout.tsx` |
 | `prompts/app/PROMPT_COMPANY_PAGE.md` | `app/account/companies/[companyId]/page.tsx` |

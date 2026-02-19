@@ -15,7 +15,6 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { name: 'Dashboard', href: '/account/dashboard', icon: '📊' },
   { name: 'Companies', href: '/account/companies', icon: '🏢' },
 ];
 
@@ -38,7 +37,7 @@ export function AccountSidebar({ children }: AccountSidebarProps) {
   };
 
   const isActive = (href: string) => {
-    if (href === '/account/dashboard') return pathname === '/account/dashboard';
+    if (href === '/account/companies') return pathname === '/account/companies';
     return pathname.startsWith(href);
   };
 
@@ -48,7 +47,7 @@ export function AccountSidebar({ children }: AccountSidebarProps) {
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
         {/* Logo */}
         <div className="p-5 border-b border-gray-100">
-          <Link href="/account/dashboard" className="flex items-center gap-2">
+          <Link href="/account/companies" className="flex items-center gap-2">
             <span className="text-2xl">☀️</span>
             <span className="text-lg font-bold text-gray-900">Solar ERP</span>
           </Link>

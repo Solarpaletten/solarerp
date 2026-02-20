@@ -34,9 +34,30 @@ model User {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  sessions Session[]
+
   @@unique([tenantId, email])
   @@index([tenantId])
   @@map("users")
+}
+
+// ============================================
+// AUTH: SESSION (HttpOnly cookie auth)
+// ============================================
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  tenantId  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
 }
 
 // ============================================
@@ -57,6 +78,7 @@ model Company {
   vatNumber String?
   country   String?
   status    CompanyStatus @default(ACTIVE)
+  priority  Int           @default(0)
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
@@ -79,63 +101,53 @@ model Company {
 // ============================================
 
 enum ClientLocation {
-  LOCAL   // lt - Lithuania
-  EU      // eu - Other EU countries
-  FOREIGN // rest - Non-EU
+  LOCAL
+  EU
+  FOREIGN
 }
 
 model Client {
   id        String   @id @default(cuid())
   companyId String
 
-  // --- BASIC ---
   name      String
   shortName String?
   code      String?
   notes     String?
 
-  // --- TYPE ---
-  isJuridical Boolean        // true = legal entity, false = private person
-  location    ClientLocation // LOCAL / EU / FOREIGN
+  isJuridical Boolean
+  location    ClientLocation
 
-  // --- IDENTIFIERS ---
   vatCode             String?
   businessLicenseCode String?
   residentTaxCode     String?
 
-  // --- CONTACT ---
   email       String?
   phoneNumber String?
   faxNumber   String?
   contactInfo String?
 
-  // --- PAYMENT ---
   payWithinDays       Int?
   creditLimit         Decimal?
   automaticDebtRemind Boolean @default(false)
 
-  // --- PERSONAL (for private persons) ---
   birthday DateTime?
 
-  // --- REGISTRATION ADDRESS ---
   registrationCountryCode String?
   registrationCity        String?
   registrationAddress     String?
   registrationZipCode     String?
 
-  // --- CORRESPONDENCE ADDRESS ---
   correspondenceCountryCode String?
   correspondenceCity        String?
   correspondenceAddress     String?
   correspondenceZipCode     String?
 
-  // --- BANK ---
   bankAccount   String?
   bankName      String?
   bankCode      String?
   bankSwiftCode String?
 
-  // --- META ---
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -153,37 +165,30 @@ model Item {
   id        String   @id @default(cuid())
   companyId String
 
-  // --- BASIC ---
   name    String
   code    String?
   barcode String?
 
-  // --- PRICING ---
   vatRate         Decimal?
   priceWithoutVat Decimal?
   priceWithVat    Decimal?
 
-  // --- CLASSIFICATION ---
-  attributeName   String? // Goods / Services
+  attributeName   String?
   groupName       String?
   manufacturer    String?
   countryOfOrigin String?
 
-  // --- UNIT ---
-  unitName String // pcs, kg, l, etc.
+  unitName String
 
-  // --- ACCOUNTING ---
   purchaseAccountCode String?
   saleAccountCode     String?
   expenseAccountCode  String?
 
-  // --- OTHER ---
   minimumQuantity Decimal?
   description     String?
   externalId      String?
   freePrice       Boolean @default(false)
 
-  // --- META ---
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -203,35 +208,29 @@ model SaleDocument {
   id        String   @id @default(cuid())
   companyId String
 
-  // --- DATES ---
   saleDate       DateTime
   payUntil       DateTime?
   accountingDate DateTime?
   lockedAt       DateTime?
 
-  // --- IDENTITY ---
   series String
   number String
 
-  // --- PARTIES ---
   clientName String
   clientCode String?
   payerName  String?
   payerCode  String?
 
-  // --- DELIVERY ---
   unloadAddress String?
   unloadCity    String?
   warehouseName String
 
-  // --- OPERATION ---
   operationType String
   currencyCode  String
   employeeName  String?
   status        String?
   comments      String?
 
-  // --- META ---
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -248,28 +247,23 @@ model SaleItem {
   id     String @id @default(cuid())
   saleId String
 
-  // --- ITEM ---
   itemName String
   itemCode String?
   barcode  String?
 
-  // --- QUANTITY & PRICE ---
   quantity        Decimal
   priceWithoutVat Decimal
   unitDiscount    Decimal?
   vatRate         Decimal?
-  vatClassifier   String? // PVM1, PVM2, etc.
+  vatClassifier   String?
 
-  // --- ACCOUNTING ---
   salesAccountCode   String?
   expenseAccountCode String?
   costCenter         String?
 
-  // --- DESCRIPTION ---
-  postscript String? // description override
+  postscript String?
   accComment String?
 
-  // --- INTRASTAT (EU) ---
   intraTransactionCode  String?
   intraDeliveryTerms    String?
   intraTransportCode    String?
@@ -291,30 +285,24 @@ model PurchaseDocument {
   id        String   @id @default(cuid())
   companyId String
 
-  // --- DATES ---
   purchaseDate       DateTime
   payUntil           DateTime?
   advancePaymentDate DateTime?
 
-  // --- IDENTITY ---
   series String
   number String
 
-  // --- PARTIES ---
   supplierName    String
   supplierCode    String?
   advanceEmployee String?
 
-  // --- LOCATION ---
   warehouseName String
 
-  // --- OPERATION ---
   operationType String
   currencyCode  String
   employeeName  String?
   comments      String?
 
-  // --- META ---
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -331,36 +319,30 @@ model PurchaseItem {
   id         String @id @default(cuid())
   purchaseId String
 
-  // --- ITEM ---
   itemName String
   itemCode String?
   barcode  String?
 
-  // --- QUANTITY & PRICE ---
   quantity        Decimal
   priceWithoutVat Decimal
   unitDiscount    Decimal?
   vatRate         Decimal?
   vatClassifier   String?
 
-  // --- ACCOUNTING ---
   corAccountCode String?
   costCenter     String?
 
-  // --- OTHER ---
   notes         String?
   accComment    String?
   carRegNumber  String?
   fuelCard      String?
 
-  // --- INTRASTAT (EU) ---
   intraTransactionCode    String?
   intraDeliveryTerms      String?
   intraTransportCode      String?
   intraCountryOfOriginCode String?
   intrastatWeightNetto    Decimal?
 
-  // --- VAT ---
   vatRegister String?
   gpaisMethod String?
 
@@ -378,44 +360,37 @@ model StockMovement {
   id        String   @id @default(cuid())
   companyId String
 
-  // --- DOCUMENT ---
   warehouseName String
   operationType String
   documentDate  DateTime
   series        String
   number        String
 
-  // --- ITEM ---
   itemName String
   itemCode String?
   barcode  String?
 
-  // --- QUANTITY & COST ---
   quantity        Decimal
   cost            Decimal
   vatRate         Decimal?
   priceWithoutVat Decimal?
   priceWithVat    Decimal?
 
-  // --- CLASSIFICATION ---
   attributeName   String?
   groupName       String?
   manufacturer    String?
   countryOfOrigin String?
   unitName        String?
 
-  // --- ACCOUNTING ---
   purchaseAccountCode String?
   saleAccountCode     String?
   expenseAccountCode  String?
 
-  // --- OTHER ---
   minimumQuantity Decimal?
   description     String?
   externalId      String?
   freePrice       Boolean @default(false)
 
-  // --- META ---
   createdAt DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id])
@@ -433,29 +408,23 @@ model BankStatement {
   id        String   @id @default(cuid())
   companyId String
 
-  // --- ACCOUNT ---
   accountNumber String
   currencyCode  String
   period        DateTime
 
-  // --- TRANSACTION ---
   transactionNumber String
   amount            Decimal
-  operationType     Int // 2=income, 3=payment, 1=tax, 6=transit
+  operationType     Int
 
-  // --- COUNTERPARTY ---
   clientName        String
   clientCode        String?
   clientBankAccount String?
 
-  // --- PURPOSE ---
   paymentPurpose String?
 
-  // --- ACCOUNTING ---
   correspondenceAccountCode String?
   correspondenceAccountName String?
 
-  // --- META ---
   createdAt DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id])

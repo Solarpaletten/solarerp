@@ -1,3 +1,7 @@
+// app/(dashboard)/company/[companyId]/CompanySidebar.tsx
+// Cookie-only — company name fetched from API, not localStorage
+// Logout via POST /api/auth/logout
+
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
@@ -73,10 +77,21 @@ export default function CompanySidebar({ companyId }: CompanySidebarProps) {
     financeGroup: true,
   });
 
+  // Fetch company name from API instead of localStorage
   useEffect(() => {
-    const name = localStorage.getItem('currentCompanyName');
-    if (name) setCompanyName(name);
-  }, []);
+    const fetchCompanyName = async () => {
+      try {
+        const res = await fetch(`/api/account/companies/${companyId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setCompanyName(data.name || 'Company');
+        }
+      } catch {
+        setCompanyName('Company');
+      }
+    };
+    fetchCompanyName();
+  }, [companyId]);
 
   const handleDragStart = (e: React.DragEvent, section: Section) => {
     setDraggedSection(section);
@@ -115,6 +130,14 @@ export default function CompanySidebar({ companyId }: CompanySidebarProps) {
 
   const isActive = (route: string) => pathname === route;
 
+  // Cookie-only logout
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch { /* continue */ }
+    router.push('/login');
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-800 text-white">
       <div className="flex items-center justify-center h-16 border-b border-slate-700 px-4">
@@ -142,57 +165,51 @@ export default function CompanySidebar({ companyId }: CompanySidebarProps) {
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, section)}
           >
-            <div className="flex items-center">
-              <div className="p-2 cursor-grab hover:bg-slate-700 rounded">
-                <GripVertical className="w-4 h-4 text-slate-400" />
-              </div>
-
-              {section.type === 'item' ? (
-                <Link
-                  href={section.route}
-                  className={`flex-1 flex items-center p-3 rounded-lg hover:bg-slate-700 transition-colors ${
-                    isActive(section.route) ? 'bg-slate-700 border-r-2 border-orange-500' : ''
-                  }`}
-                >
-                  <span className="mr-2">{section.icon}</span>
-                  <span className="text-sm">{section.title}</span>
-                  {section.badge && (
-                    <span className="ml-auto px-2 py-1 text-xs bg-orange-500 rounded-full">
-                      {section.badge}
-                    </span>
-                  )}
-                </Link>
-              ) : (
+            {section.type === 'item' ? (
+              <Link
+                href={section.route}
+                className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all my-0.5 ${
+                  isActive(section.route)
+                    ? 'bg-slate-700 border-r-2 border-orange-500'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                <GripVertical className="w-3 h-3 mr-1 text-slate-500 cursor-grab" />
+                <span className="mr-2 text-sm">{section.icon}</span>
+                <span className="text-sm">{section.title}</span>
+              </Link>
+            ) : (
+              <div className="my-0.5">
                 <button
                   onClick={() => toggleGroup(section.id)}
-                  className="flex-1 flex items-center p-3 text-left hover:bg-slate-700 rounded-lg transition-colors"
+                  className="flex items-center w-full px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-white transition-colors"
                 >
-                  <span className="text-sm font-medium">{section.title}</span>
-                  <span className="ml-auto">
-                    {expandedGroups[section.id] ? (
-                      <ChevronDown className="w-4 h-4" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4" />
-                    )}
-                  </span>
+                  <GripVertical className="w-3 h-3 mr-1 text-slate-500 cursor-grab" />
+                  {expandedGroups[section.id] ? (
+                    <ChevronDown className="w-3 h-3 mr-1" />
+                  ) : (
+                    <ChevronRight className="w-3 h-3 mr-1" />
+                  )}
+                  {section.title}
                 </button>
-              )}
-            </div>
-
-            {section.type === 'group' && expandedGroups[section.id] && (
-              <div className="ml-8 space-y-1">
-                {section.items.map((item) => (
-                  <Link
-                    key={item.id}
-                    href={item.route}
-                    className={`flex items-center p-2 rounded-lg hover:bg-slate-700 transition-colors ${
-                      isActive(item.route) ? 'bg-slate-700 border-r-2 border-orange-500' : ''
-                    }`}
-                  >
-                    <span className="mr-2 text-sm">{item.icon}</span>
-                    <span className="text-sm">{item.title}</span>
-                  </Link>
-                ))}
+                {expandedGroups[section.id] && (
+                  <div className="ml-4">
+                    {section.items.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={item.route}
+                        className={`flex items-center px-3 py-2 text-sm rounded-lg transition-all my-0.5 ${
+                          isActive(item.route)
+                            ? 'bg-slate-700 border-r-2 border-orange-500'
+                            : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                        }`}
+                      >
+                        <span className="mr-2 text-sm">{item.icon}</span>
+                        <span className="text-sm">{item.title}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -201,11 +218,7 @@ export default function CompanySidebar({ companyId }: CompanySidebarProps) {
 
       <div className="border-t border-slate-700 p-4 space-y-2">
         <button
-          onClick={() => {
-            localStorage.removeItem('currentCompanyId');
-            localStorage.removeItem('currentCompanyName');
-            router.push('/account/companies');
-          }}
+          onClick={() => router.push('/account/companies')}
           className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-all"
         >
           <span className="mr-3">🔙</span>
@@ -213,13 +226,7 @@ export default function CompanySidebar({ companyId }: CompanySidebarProps) {
         </button>
 
         <button
-          onClick={() => {
-            localStorage.removeItem('currentCompanyId');
-            localStorage.removeItem('currentCompanyName');
-            fetch('/api/auth/logout', { method: 'POST' }).then(() => {
-              router.push('/login');
-            });
-          }}
+          onClick={handleLogout}
           className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-slate-700 rounded-lg transition-all"
         >
           <span className="mr-3">🚪</span>

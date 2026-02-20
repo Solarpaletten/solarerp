@@ -1,3 +1,7 @@
+// app/(dashboard)/company/[companyId]/CompanyHeader.tsx
+// Cookie-only — company name and header element positions from API/state
+// No localStorage for auth or company name
+
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -19,231 +23,138 @@ const CompanyHeader: React.FC = () => {
   const [companyName, setCompanyName] = useState('')
   const [balance] = useState(0)
   
-  // 🎯 HEADER ELEMENTS STATE
   const [headerElements, setHeaderElements] = useState<HeaderElement[]>([
-    {
-      id: 'invite',
-      type: 'button',
-      content: 'Invite users',
-      position: 'left',
-      priority: 1
-    },
-    {
-      id: 'minimal',
-      type: 'button', 
-      content: 'Minimal',
-      position: 'left',
-      priority: 2
-    },
-    {
-      id: 'balance',
-      type: 'info',
-      content: 'Balance 0.00 €',
-      position: 'left',
-      priority: 3
-    },
-    {
-      id: 'partnership',
-      type: 'info',
-      content: 'Partnership points 0.00 €',
-      position: 'left',
-      priority: 4
-    },
-    {
-      id: 'avatar',
-      type: 'avatar',
-      content: '',
-      position: 'right',
-      priority: 5
-    }
+    { id: 'invite', type: 'button', content: 'Invite users', position: 'left', priority: 1 },
+    { id: 'minimal', type: 'button', content: 'Minimal', position: 'left', priority: 2 },
+    { id: 'balance', type: 'info', content: 'Balance 0.00 €', position: 'left', priority: 3 },
+    { id: 'partnership', type: 'info', content: 'Partnership points 0.00 €', position: 'left', priority: 4 },
+    { id: 'avatar', type: 'avatar', content: '', position: 'right', priority: 5 },
   ])
 
-  // 🖱️ DRAG STATE
   const [draggedElement, setDraggedElement] = useState<HeaderElement | null>(null)
   const [draggedOver, setDraggedOver] = useState<'left' | 'center' | 'right' | null>(null)
 
+  // Fetch company name from API instead of localStorage
   useEffect(() => {
-    // Получаем данные компании
-    const name = localStorage.getItem('currentCompanyName') || 'Company'
-    setCompanyName(name)
-    
-    // 💾 Загружаем сохранённые позиции элементов
-    const savedElements = localStorage.getItem(`headerElementsPositions_${companyId}`)
-    if (savedElements) {
+    const fetchCompany = async () => {
       try {
-        const parsed = JSON.parse(savedElements)
-        setHeaderElements(parsed)
-      } catch (error) {
-        console.error('Error loading header positions:', error)
+        const res = await fetch(`/api/account/companies/${companyId}`)
+        if (res.ok) {
+          const data = await res.json()
+          setCompanyName(data.name || 'Company')
+        }
+      } catch {
+        setCompanyName('Company')
       }
     }
-    
-    console.log('🏢 CompanyHeader with ID visibility loaded:', { name, companyId })
+    fetchCompany()
   }, [companyId])
 
-  // 💾 СОХРАНЕНИЕ ПОЗИЦИЙ
-  const saveElementPositions = (elements: HeaderElement[]) => {
-    setHeaderElements(elements)
-    localStorage.setItem(`headerElementsPositions_${companyId}`, JSON.stringify(elements))
-  }
-
-  // 🖱️ DRAG HANDLERS
-  const handleElementDragStart = (e: React.DragEvent, element: HeaderElement) => {
+  const handleDragStart = (e: React.DragEvent, element: HeaderElement) => {
     setDraggedElement(element)
     e.dataTransfer.effectAllowed = 'move'
   }
 
-  const handleElementDragEnd = () => {
+  const handleDragOver = (e: React.DragEvent, zone: 'left' | 'center' | 'right') => {
+    e.preventDefault()
+    setDraggedOver(zone)
+  }
+
+  const handleDrop = (e: React.DragEvent, zone: 'left' | 'center' | 'right') => {
+    e.preventDefault()
+    if (!draggedElement) return
+
+    setHeaderElements(prev =>
+      prev.map(el =>
+        el.id === draggedElement.id ? { ...el, position: zone } : el
+      )
+    )
     setDraggedElement(null)
     setDraggedOver(null)
   }
 
-  const handleZoneDragOver = (e: React.DragEvent, zone: 'left' | 'center' | 'right') => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    setDraggedOver(zone)
-  }
-
-  const handleZoneDragLeave = () => {
-    setDraggedOver(null)
-  }
-
-  const handleZoneDrop = (e: React.DragEvent, zone: 'left' | 'center' | 'right') => {
-    e.preventDefault()
-    
-    if (draggedElement && draggedElement.position !== zone) {
-      const updatedElements = headerElements.map(el => 
-        el.id === draggedElement.id 
-          ? { ...el, position: zone }
-          : el
-      )
-      saveElementPositions(updatedElements)
-    }
-    
-    setDraggedOver(null)
-  }
-
-  // 🎨 RENDER DRAGGABLE ELEMENT
-  const renderDraggableElement = (element: HeaderElement) => {
-    if (element.type === 'avatar') {
-      return (
-        <div 
-          key={element.id}
-          className="flex items-center space-x-2 cursor-grab active:cursor-grabbing"
-          draggable
-          onDragStart={(e) => handleElementDragStart(e, element)}
-          onDragEnd={handleElementDragEnd}
-        >
-          <GripVertical className="w-3 h-3 text-white opacity-50 hover:opacity-100" />
-          <div className="flex items-center space-x-3">
-            <div className="text-right">
-              <div className="text-sm font-medium">{companyName}</div>
-              {/* 🆔 ID VISIBILITY - Company ID in header */}
-              <div className="text-xs opacity-75 font-mono">Company ID: {companyId}</div>
-            </div>
-            <div className="w-9 h-9 rounded-full bg-white overflow-hidden">
-              <div className="w-full h-full flex items-center justify-center text-[#f7931e] font-bold">
-                {companyName.charAt(0)}
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-    }
-
-    if (element.type === 'button') {
-      return (
-        <div 
-          key={element.id}
-          className="flex items-center space-x-2 cursor-grab active:cursor-grabbing"
-          draggable
-          onDragStart={(e) => handleElementDragStart(e, element)}
-          onDragEnd={handleElementDragEnd}
-        >
-          <GripVertical className="w-3 h-3 text-white opacity-50 hover:opacity-100" />
-          <button className={`
-            py-1.5 px-3 rounded transition-colors
-            ${element.id === 'invite' 
-              ? 'bg-[#ff6900] hover:bg-[#e05e00]' 
-              : 'bg-transparent hover:bg-opacity-10 hover:bg-white'
-            }
-          `}>
+  const renderElement = (element: HeaderElement) => {
+    switch (element.type) {
+      case 'button':
+        return (
+          <button
+            key={element.id}
+            draggable
+            onDragStart={(e) => handleDragStart(e, element)}
+            className="flex items-center gap-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors cursor-grab active:cursor-grabbing"
+          >
+            <GripVertical className="w-3 h-3 text-slate-500" />
             {element.content}
           </button>
-        </div>
-      )
-    }
-
-    if (element.type === 'info') {
-      return (
-        <div 
-          key={element.id}
-          className="flex items-center space-x-2 cursor-grab active:cursor-grabbing"
-          draggable
-          onDragStart={(e) => handleElementDragStart(e, element)}
-          onDragEnd={handleElementDragEnd}
-        >
-          <GripVertical className="w-3 h-3 text-white opacity-50 hover:opacity-100" />
-          <div className="text-sm">
-            {element.id === 'balance' ? `Balance ${balance.toFixed(2)} €` : element.content}
+        )
+      case 'info':
+        return (
+          <div
+            key={element.id}
+            draggable
+            onDragStart={(e) => handleDragStart(e, element)}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm text-slate-300 cursor-grab active:cursor-grabbing"
+          >
+            <GripVertical className="w-3 h-3 text-slate-500" />
+            {element.content}
           </div>
-        </div>
-      )
+        )
+      case 'avatar':
+        return (
+          <div
+            key={element.id}
+            draggable
+            onDragStart={(e) => handleDragStart(e, element)}
+            className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white text-sm font-bold cursor-grab active:cursor-grabbing"
+          >
+            {companyName.charAt(0).toUpperCase() || '?'}
+          </div>
+        )
     }
-
-    return null
   }
 
-  // 📂 ГРУППИРОВКА ЭЛЕМЕНТОВ ПО ЗОНАМ
-  const leftElements = headerElements.filter(el => el.position === 'left')
-  const centerElements = headerElements.filter(el => el.position === 'center')
-  const rightElements = headerElements.filter(el => el.position === 'right')
-
-  // 🎨 DROP ZONE STYLES
-  const getDropZoneStyles = (zone: 'left' | 'center' | 'right') => {
-    const baseStyles = "flex-1 min-h-[60px] flex items-center gap-4 transition-colors duration-200 px-2"
-    const dragOverStyles = draggedOver === zone ? "bg-white bg-opacity-10 border-2 border-white border-dashed rounded" : ""
-    const justifyStyles = zone === 'center' ? 'justify-center' : zone === 'right' ? 'justify-end' : 'justify-start'
-    return `${baseStyles} ${dragOverStyles} ${justifyStyles}`
-  }
+  const leftElements = headerElements.filter(e => e.position === 'left').sort((a, b) => a.priority - b.priority)
+  const centerElements = headerElements.filter(e => e.position === 'center').sort((a, b) => a.priority - b.priority)
+  const rightElements = headerElements.filter(e => e.position === 'right').sort((a, b) => a.priority - b.priority)
 
   return (
-    <header className="flex items-center h-15 px-4 bg-[#f7931e] text-white">
-      {/* LEFT ZONE */}
-      <div 
-        className={getDropZoneStyles('left')}
-        onDragOver={(e) => handleZoneDragOver(e, 'left')}
-        onDragLeave={handleZoneDragLeave}
-        onDrop={(e) => handleZoneDrop(e, 'left')}
+    <div className="h-14 bg-slate-800 border-b border-slate-700 flex items-center px-4">
+      {/* Left Zone */}
+      <div
+        className={`flex items-center gap-2 flex-1 min-h-[40px] rounded-lg transition-colors ${
+          draggedOver === 'left' ? 'bg-slate-700/50' : ''
+        }`}
+        onDragOver={(e) => handleDragOver(e, 'left')}
+        onDrop={(e) => handleDrop(e, 'left')}
+        onDragLeave={() => setDraggedOver(null)}
       >
-        {leftElements.map(renderDraggableElement)}
+        {leftElements.map(renderElement)}
       </div>
 
-      {/* CENTER ZONE - 🆔 Company ID Badge */}
-      <div 
-        className={getDropZoneStyles('center')}
-        onDragOver={(e) => handleZoneDragOver(e, 'center')}
-        onDragLeave={handleZoneDragLeave}
-        onDrop={(e) => handleZoneDrop(e, 'center')}
+      {/* Center Zone */}
+      <div
+        className={`flex items-center justify-center gap-2 flex-1 min-h-[40px] rounded-lg transition-colors ${
+          draggedOver === 'center' ? 'bg-slate-700/50' : ''
+        }`}
+        onDragOver={(e) => handleDragOver(e, 'center')}
+        onDrop={(e) => handleDrop(e, 'center')}
+        onDragLeave={() => setDraggedOver(null)}
       >
-        {centerElements.length === 0 && (
-          <div className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-xs font-mono">
-            🆔 ID: {companyId}
-          </div>
-        )}
-        {centerElements.map(renderDraggableElement)}
+        {centerElements.map(renderElement)}
       </div>
 
-      {/* RIGHT ZONE */}
-      <div 
-        className={getDropZoneStyles('right')}
-        onDragOver={(e) => handleZoneDragOver(e, 'right')}
-        onDragLeave={handleZoneDragLeave}
-        onDrop={(e) => handleZoneDrop(e, 'right')}
+      {/* Right Zone */}
+      <div
+        className={`flex items-center justify-end gap-2 flex-1 min-h-[40px] rounded-lg transition-colors ${
+          draggedOver === 'right' ? 'bg-slate-700/50' : ''
+        }`}
+        onDragOver={(e) => handleDragOver(e, 'right')}
+        onDrop={(e) => handleDrop(e, 'right')}
+        onDragLeave={() => setDraggedOver(null)}
       >
-        {rightElements.map(renderDraggableElement)}
+        {rightElements.map(renderElement)}
       </div>
-    </header>
+    </div>
   )
 }
 

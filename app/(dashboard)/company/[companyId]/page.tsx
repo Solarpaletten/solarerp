@@ -1,15 +1,12 @@
-// app/account/companies/[companyId]/page.tsx
-// Company Dashboard — Factory-compatible
-// Data: from Factory API (/api/companies/[id])
-// No runtime dependencies
-//
-// FIX: Added x-user-id header to fetch call.
-// Without this header, /api/companies/[id] returns 401.
+// app/(dashboard)/company/[companyId]/page.tsx
+// Company Dashboard — Cookie-only auth
+// No localStorage, no x-user-id header
+// Browser sends session cookie automatically
 
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 
 type CompanyData = {
@@ -29,37 +26,22 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function CompanyDashboard() {
   const params = useParams();
-  const router = useRouter();
   const companyId = params.companyId as string;
   const [company, setCompany] = useState<CompanyData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ═══════════════════════════════════════════════
-    // FIX: Auth guard + x-user-id header
-    // ═══════════════════════════════════════════════
-    const userId = localStorage.getItem('userId');
-    if (!userId) {
-      router.replace('/login');
-      return;
-    }
-
+    // Cookie-only: no localStorage check, no x-user-id header
+    // Middleware redirects to /login if no session cookie
     const load = async () => {
       try {
-        const res = await fetch(`/api/companies/${companyId}`, {
-          headers: { 'x-user-id': userId },
-        });
-        if (res.status === 401) {
-          localStorage.removeItem('userId');
-          router.replace('/login');
-          return;
-        }
+        const res = await fetch(`/api/account/companies/${companyId}`);
         if (res.ok) setCompany(await res.json());
       } catch { /* fallback */ }
       finally { setLoading(false); }
     };
     load();
-  }, [companyId, router]);
+  }, [companyId]);
 
   if (loading) {
     return <div className="p-8 flex items-center justify-center min-h-[50vh]">
@@ -71,7 +53,7 @@ export default function CompanyDashboard() {
     return <div className="p-8"><p className="text-red-500">Company not found</p></div>;
   }
 
-  const base = `/account/companies/${companyId}`;
+  const base = `/company/${companyId}`;
 
   const modules = [
     { name: 'Clients',    icon: '👥', href: `${base}/clients`,    count: '—' },
@@ -136,7 +118,7 @@ export default function CompanyDashboard() {
         ))}
       </div>
 
-      {/* Quick Actions + Recent Activity */}
+      {/* Quick Actions + Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h3 className="text-base font-semibold text-gray-800 mb-4">🚀 Quick Actions</h3>

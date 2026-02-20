@@ -1,3 +1,7 @@
+// components/layouts/AccountSidebar.tsx
+// Cookie-only — no localStorage reads
+// Logout via POST /api/auth/logout (clears session cookie)
+
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
@@ -23,16 +27,29 @@ export function AccountSidebar({ children }: AccountSidebarProps) {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
+  // Fetch user email from API (cookie-based auth)
   useEffect(() => {
-    // Factory auth: read from localStorage
-    const email = localStorage.getItem('userEmail');
-    setUserEmail(email);
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          setUserEmail(data.email);
+        }
+      } catch {
+        // Silently fail — email display is non-critical
+      }
+    };
+    fetchUser();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('userId');
-    localStorage.removeItem('tenantId');
-    localStorage.removeItem('userEmail');
+  // Cookie-only logout
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Continue to redirect even if API fails
+    }
     router.push('/login');
   };
 
@@ -58,13 +75,12 @@ export function AccountSidebar({ children }: AccountSidebarProps) {
           <ul className="space-y-1">
             {navItems.map((item) => (
               <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive(item.href)
+                <Link href={item.href}
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isActive(item.href)
                       ? 'bg-blue-50 text-blue-700 border border-blue-100'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                >
+                  }`}>
                   <span className="text-base">{item.icon}</span>
                   <span>{item.name}</span>
                 </Link>
@@ -80,10 +96,8 @@ export function AccountSidebar({ children }: AccountSidebarProps) {
               {userEmail}
             </p>
           )}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-          >
+          <button onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors">
             <span>🚪</span>
             <span>Sign Out</span>
           </button>

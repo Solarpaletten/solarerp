@@ -1,305 +1,125 @@
-D=>C (Dashka=>Claude)
+➜  solar-erp git:(main) ✗ npx prisma migrate dev --name add_sessions_and_priority
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "solarerp", schema "public" at "207.154.220.86:5433"
 
-Leanid дал команду: **финальный аудит всего собранного проекта** перед стартом. Нужен короткий, но жёсткий security+архитектурный чек и список “что делать завтра” (P0/P1). Без лишнего.
+Applying migration `20260220004505_add_sessions_and_priority`
 
-## 🎯 Цель аудита (Gate Review перед стартом)
+The following migration(s) have been created and applied from new schema changes:
 
-Подтвердить, что текущий Solar-ERP:
+migrations/
+  └─ 20260220004505_add_sessions_and_priority/
+    └─ migration.sql
 
-1. **tenant-safe** (нет cross-tenant mutations),
-2. **cookie-only web auth** работает end-to-end,
-3. middleware/роуты/handlers согласованы,
-4. Prisma schema + migrations не сломаны,
-5. нет “скрытых” localStorage/x-user-id в web,
-6. есть ясный список следующих шагов (Task 10).
+Your database is now in sync with your schema.
 
-## ✅ Deliverables (2 артефакта)
+✔ Generated Prisma Client (v5.22.0) to ./node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client
+ in 73ms
 
-### A) `AUDIT_REPORT.md` (1–2 страницы)
 
-Структура:
+➜  solar-erp git:(main) ✗ npx prisma generate
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
 
-1. **Auth**: login → cookie → /api/auth/me → logout (что ок/что риск)
-2. **Middleware**: coverage (что protected/public), важные edge-cases
+✔ Generated Prisma Client (v5.22.0) to ./node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client in 76ms
 
-   * проверить: `/api/auth/me` защищён? (если нет — отметить P0 fix)
-3. **Tenant Isolation**:
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-   * все routes mutation (POST/PUT/PATCH/DELETE) имеют `tenantId` scope в WHERE
-   * для company-level модулей (clients/items/sales/...) — правило Company→Tenant scope
-4. **API consistency**:
+Tip: Curious about the SQL queries Prisma ORM generates? Optimize helps you enhance your visibility: https://pris.ly/tip-2-optimize
 
-   * единый формат ответов (success/error), статусы (200/201/204/401/404)
-5. **DB**:
+➜  solar-erp git:(main) ✗ rm -rf next                                      
+➜  solar-erp git:(main) ✗ npx prisma generate
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
 
-   * schema.prisma соответствует миграциям
-   * есть ли миграция для Session + Company.priority (если нет — P0)
-6. **Frontend**:
+✔ Generated Prisma Client (v5.22.0) to ./node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client in 84ms
 
-   * отсутствуют localStorage/x-user-id usage в web
-   * company name fetching не вызывает спам запросов
-7. **Риски + фиксы**
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-   * таблица: Risk / Severity / Fix / File
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
 
-### B) `TASK10_PLAN.md`
+➜  solar-erp git:(main) ✗ npx prisma db seed                               
 
-Короткий план “завтра стартуем”:
+Environment variables loaded from .env
+Running seed command `ts-node prisma/seed.ts` ...
+(node:10542) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/leanid/Projects/AI-SERVER_solarerp/projects/solar-erp/prisma/seed.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/leanid/Projects/AI-SERVER_solarerp/projects/solar-erp/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+🌱 Seeding Solar ERP database...
+✅ Seed completed successfully
+--------------------------------
+Tenant: Solar Group
+User: solar@solar.com (password: admin123)
+Company: Solar ERP Demo
 
-* **P0 (must)**: контекст компании + уменьшение fetch + server layout cache (или API context)
-* **P0 (must)**: unify companyId param type (string cuid) во всех местах UI/API
-* **P1**: mobile auth стратегия (Bearer), cleanup expired sessions cron/job
-* **P1**: module routes scaffolding: `/api/company/[companyId]/clients`, items, etc (tenant+company safe)
+🌱  The seed command has been executed.
+➜  solar-erp git:(main) ✗ pnpm dev                                         
 
-## 🔎 Audit checklist (что именно проверить)
+> solarerp@0.1.0 dev /Users/leanid/Projects/AI-SERVER_solarerp/projects/solar-erp
+> next dev
 
-1. **Search patterns**
+  ▲ Next.js 14.2.0
+  - Local:        http://localhost:3000
+  - Environments: .env
 
-   * `prisma.*.update({ where: { id` без tenantId/companyId
-   * `prisma.*.delete({ where: { id`
-   * любые `findUnique({ where: { id } })` в multi-tenant контексте
-2. **companyId type**
-
-   * schema: `Company.id String @default(cuid())`
-   * UI: везде companyId должен быть **string**, не number
-   * API routes: `params.companyId` string → Prisma where id: string
-3. **middleware coverage**
-
-   * `/api/auth/me` должен быть защищён (или handler должен гарантировать 401)
-   * protected prefixes совпадают с реальными api путями
-4. **session lifecycle**
-
-   * createSession sets cookie HttpOnly
-   * getCurrentUser предпочитает cookie, fallback x-user-id (не ломаем)
-   * logout удаляет cookie + DB session
-5. **priorities**
-
-   * UI не хранит приоритет в localStorage
-   * `PUT /api/account/companies/priorities` scopes by tenantId
-
-## 📦 Формат ответа
-
-Верни:
-
-* `AUDIT_REPORT.md`
-* `TASK10_PLAN.md`
-* (если найдёшь P0 bug) **точечный diff**: какой файл/какую строку поменять (без лишней генерации всего проекта).
-
-Срок: в рамках текущей сессии, результат одним сообщением.
-
----
-
-L=>D (Dashka=>Leanid)
-
-Готово: я дала Клауде финальное ТЗ на **Gate Review аудит** всего репо + план Task 10 на завтра.
-Пока он делает — две вещи у нас уже “на радаре” как P0:
-
-1. **middleware и `/api/auth/me`** — проверь, что он реально защищён (если нет — добавим в protected).
-2. **companyId тип** — в Prisma `Company.id` сейчас `String(cuid)`. Если где-то в UI остались `number` (старый мок) — завтра надо унифицировать на string.
-
-Доброй ночи команде. Завтра стартуем с чистым фундаментом. 🚀
-
-➜  solar-erp git:(main) ✗ tree
-.
-├── README.md
-├── app
-│   ├── (auth)
-│   │   ├── login
-│   │   │   └── page.tsx
-│   │   └── signup
-│   │       └── page.tsx
-│   ├── (dashboard)
-│   │   ├── account
-│   │   │   └── companies
-│   │   │       └── page.tsx
-│   │   ├── company
-│   │   │   └── [companyId]
-│   │   │       ├── CompanyHeader.tsx
-│   │   │       ├── CompanySidebar.tsx
-│   │   │       ├── bank
-│   │   │       │   └── page.tsx
-│   │   │       ├── clients
-│   │   │       │   └── page.tsx
-│   │   │       ├── dashboard
-│   │   │       │   └── page.tsx
-│   │   │       ├── layout.tsx
-│   │   │       ├── page.tsx
-│   │   │       ├── products
-│   │   │       │   └── page.tsx
-│   │   │       ├── purchases
-│   │   │       │   └── page.tsx
-│   │   │       ├── reports
-│   │   │       │   └── page.tsx
-│   │   │       ├── sales
-│   │   │       │   └── page.tsx
-│   │   │       └── warehouse
-│   │   │           └── page.tsx
-│   │   └── layout.tsx
-│   ├── api
-│   │   ├── account
-│   │   │   └── companies
-│   │   │       ├── [companyId]
-│   │   │       │   └── route.ts
-│   │   │       ├── priorities
-│   │   │       │   └── route.ts
-│   │   │       └── route.ts
-│   │   ├── auth
-│   │   │   ├── login
-│   │   │   │   └── route.ts
-│   │   │   ├── logout
-│   │   │   │   └── route.ts
-│   │   │   ├── me
-│   │   │   │   └── route.ts
-│   │   │   └── signup
-│   │   │       └── route.ts
-│   │   ├── company
-│   │   └── health
-│   │       └── route.ts
-│   ├── globals.css
-│   ├── layout.tsx
-│   └── page.tsx
-├── components
-│   ├── forms
-│   │   └── AuthForm.tsx
-│   ├── layouts
-│   │   ├── AccountSidebar.tsx
-│   │   └── CompanySidebar.tsx
-│   └── ui
-│       ├── Button.tsx
-│       ├── Card.tsx
-│       └── Input.tsx
-├── docs
-│   ├── d_c
-│   │   └── d_c_gitkeep22task12.md
-│   └── task9-cookie-only-web-auth.tar.gz
-├── lib
-│   ├── auth
-│   │   ├── getCurrentUser.ts
-│   │   ├── password.ts
-│   │   ├── requireTenant.ts
-│   │   └── session.ts
-│   └── prisma.ts
-├── middleware.ts
-├── next-env.d.ts
-├── next.config.js
-├── node_modules
-│   ├── @prisma
-│   │   └── client -> ../.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client
-│   ├── @types
-│   │   ├── bcryptjs -> ../.pnpm/@types+bcryptjs@3.0.0/node_modules/@types/bcryptjs
-│   │   ├── node -> ../.pnpm/@types+node@20.19.30/node_modules/@types/node
-│   │   ├── react -> ../.pnpm/@types+react@18.3.27/node_modules/@types/react
-│   │   └── react-dom -> ../.pnpm/@types+react-dom@18.3.7_@types+react@18.3.27/node_modules/@types/react-dom
-│   ├── autoprefixer -> .pnpm/autoprefixer@10.4.23_postcss@8.5.6/node_modules/autoprefixer
-│   ├── bcryptjs -> .pnpm/bcryptjs@3.0.3/node_modules/bcryptjs
-│   ├── eslint -> .pnpm/eslint@8.57.1/node_modules/eslint
-│   ├── eslint-config-next -> .pnpm/eslint-config-next@16.1.3_@typescript-eslint+parser@8.53.0_eslint@8.57.1_typescript@5.9_6d8f0b625e6b54b2936ad9d614f49437/node_modules/eslint-config-next
-│   ├── lucide-react -> .pnpm/lucide-react@0.575.0_react@18.3.1/node_modules/lucide-react
-│   ├── next -> .pnpm/next@14.2.0_@babel+core@7.28.6_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next
-│   ├── postcss -> .pnpm/postcss@8.5.6/node_modules/postcss
-│   ├── prisma -> .pnpm/prisma@5.22.0/node_modules/prisma
-│   ├── react -> .pnpm/react@18.3.1/node_modules/react
-│   ├── react-dom -> .pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom
-│   ├── tailwindcss -> .pnpm/tailwindcss@3.4.19/node_modules/tailwindcss
-│   ├── ts-node -> .pnpm/ts-node@10.9.2_@types+node@20.19.30_typescript@5.9.3/node_modules/ts-node
-│   └── typescript -> .pnpm/typescript@5.9.3/node_modules/typescript
-├── package.json
-├── pnpm-lock.yaml
-├── pnpm-workspace.yaml
-├── postcss.config.js
-├── prisma
-│   ├── migrations
-│   │   ├── 20260127003906_init
-│   │   │   └── migration.sql
-│   │   └── migration_lock.toml
-│   ├── schema.prisma
-│   └── seed.ts
-├── tailwind.config.js
-└── tsconfig.json
-
-62 directories, 54 files
-➜  solar-erp git:(main) ✗ cd app/api       
-➜  api git:(main) ✗ tree
-.
-├── account
-│   └── companies
-│       ├── [companyId]
-│       │   └── route.ts
-│       ├── priorities
-│       │   └── route.ts
-│       └── route.ts
-├── auth
-│   ├── login
-│   │   └── route.ts
-│   ├── logout
-│   │   └── route.ts
-│   ├── me
-│   │   └── route.ts
-│   └── signup
-│       └── route.ts
-├── company
-└── health
-    └── route.ts
-
-12 directories, 8 files
-➜  api git:(main) ✗ cd ..     
-➜  app git:(main) ✗ tree
-.
-├── (auth)
-│   ├── login
-│   │   └── page.tsx
-│   └── signup
-│       └── page.tsx
-├── (dashboard)
-│   ├── account
-│   │   └── companies
-│   │       └── page.tsx
-│   ├── company
-│   │   └── [companyId]
-│   │       ├── CompanyHeader.tsx
-│   │       ├── CompanySidebar.tsx
-│   │       ├── bank
-│   │       │   └── page.tsx
-│   │       ├── clients
-│   │       │   └── page.tsx
-│   │       ├── dashboard
-│   │       │   └── page.tsx
-│   │       ├── layout.tsx
-│   │       ├── page.tsx
-│   │       ├── products
-│   │       │   └── page.tsx
-│   │       ├── purchases
-│   │       │   └── page.tsx
-│   │       ├── reports
-│   │       │   └── page.tsx
-│   │       ├── sales
-│   │       │   └── page.tsx
-│   │       └── warehouse
-│   │           └── page.tsx
-│   └── layout.tsx
-├── api
-│   ├── account
-│   │   └── companies
-│   │       ├── [companyId]
-│   │       │   └── route.ts
-│   │       ├── priorities
-│   │       │   └── route.ts
-│   │       └── route.ts
-│   ├── auth
-│   │   ├── login
-│   │   │   └── route.ts
-│   │   ├── logout
-│   │   │   └── route.ts
-│   │   ├── me
-│   │   │   └── route.ts
-│   │   └── signup
-│   │       └── route.ts
-│   ├── company
-│   └── health
-│       └── route.ts
-├── globals.css
-├── layout.tsx
-└── page.tsx
-
-29 directories, 27 files
-➜  app git:(main) ✗ 
+ ✓ Starting...
+npm warn Unknown env config "npm-globalconfig". This will stop working in the next major version of npm.
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm.
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm.
+ ✓ Ready in 1663ms
+ ✓ Compiled /middleware in 125ms (71 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 1599ms (461 modules)
+ GET / 200 in 1712ms
+ GET / 200 in 1661ms
+ ✓ Compiled /login in 105ms (507 modules)
+ ✓ Compiled /api/auth/login in 116ms (289 modules)
+ POST /api/auth/login 200 in 1394ms
+ POST /api/auth/login 200 in 1388ms
+ POST /api/auth/login 200 in 276ms
+ POST /api/auth/login 200 in 263ms
+ POST /api/auth/login 401 in 211ms
+ POST /api/auth/login 401 in 200ms
+ POST /api/auth/login 200 in 286ms
+ POST /api/auth/login 200 in 281ms
+ POST /api/auth/login 200 in 291ms
+ POST /api/auth/login 200 in 287ms
+ GET / 200 in 52ms
+ GET / 200 in 49ms
+ GET /login?from=%2Fcompany%2F1%2Fdashboard 200 in 27ms
+ GET /login?from=%2Fcompany%2F1%2Fdashboard 200 in 22ms
+ POST /api/auth/login 200 in 411ms
+ POST /api/auth/login 200 in 406ms
+ ✓ Compiled /company/[companyId]/dashboard in 162ms (549 modules)
+ ✓ Compiled /api/account/companies/[companyId] in 48ms (303 modules)
+ GET /api/account/companies/1 404 in 797ms
+ GET /api/account/companies/1 404 in 794ms
+ GET /api/account/companies/1 404 in 293ms
+ GET /api/account/companies/1 404 in 290ms
+ ✓ Compiled /account/companies in 144ms (583 modules)
+ GET /account/companies 200 in 165ms
+ GET /account/companies 200 in 162ms
+ ✓ Compiled /api/account/companies in 40ms (321 modules)
+ GET /api/account/companies 200 in 452ms
+ GET /api/account/companies 200 in 449ms
+ GET /account/companies 200 in 32ms
+ GET /account/companies 200 in 29ms
+ GET / 200 in 33ms
+ GET / 200 in 24ms
+ GET /api/account/companies 200 in 390ms
+ GET /api/account/companies 200 in 388ms
+ GET /api/account/companies 200 in 307ms
+ GET /api/account/companies 200 in 304ms
+ GET /login 200 in 30ms
+ GET /login 200 in 28ms
+ POST /api/auth/login 200 in 433ms
+ POST /api/auth/login 200 in 423ms
+ GET /api/account/companies 200 in 303ms
+ GET /api/account/companies 200 in 299ms
+ GET /api/account/companies 200 in 311ms
+ GET /api/account/companies 200 in 308ms
+ GET /api/account/companies/cmltun9z80004149ccrkzdm5p 200 in 289ms
+ GET /api/account/companies/cmltun9z80004149ccrkzdm5p 200 in 287ms
+ GET /api/account/companies/cmltun9z80004149ccrkzdm5p 200 in 278ms
+ GET /api/account/companies/cmltun9z80004149ccrkzdm5p 200 in 275ms

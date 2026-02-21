@@ -1,155 +1,210 @@
-Отлично. Структура чистая. Дубликатов Sidebar больше нет.
-Теперь даём Claude **финальное ТЗ на стабилизацию UI + типов + middleware**.
-
-Ниже — текст, который отправляешь Claude без изменений.
+🔥 Отлично.
+Работаем строго по протоколу.
 
 ---
 
 # D=>C
 
-## Task 18 — Company UI Stabilization + Types + Middleware Hardening
+## Task 19 — Chart of Accounts (ERP Core Foundation)
 
-### 🎯 Цель
+Claude, начинаем настоящий бухгалтерский слой.
 
-Финально стабилизировать Company UI слой после рефакторов:
-
-* единая навигация
-* корректные маршруты
-* `companyId` только `string (cuid)`
-* middleware предсказуем
+Это не UI-задача.
+Это **архитектурный фундамент ERP.**
 
 ---
 
-## 1️⃣ CompanySidebar — исправить маршруты
+# 🎯 Цель
 
-Файл:
-
-```
-components/layouts/CompanySidebar.tsx
-```
-
-### Требуется:
-
-1. Исправить base:
-
-Было:
-
-```ts
-const base = `/account/companies/${companyId}`;
-```
-
-Должно быть:
-
-```ts
-const base = `/company/${companyId}`;
-```
-
-2. Привести маршруты к текущей структуре:
+Реализовать полноценный Chart of Accounts для каждой Company:
 
 ```
-/company/[companyId]/dashboard
-/company/[companyId]/clients
-/company/[companyId]/products
-/company/[companyId]/sales
-/company/[companyId]/purchases
-/company/[companyId]/warehouse
-/company/[companyId]/bank
-/company/[companyId]/reports
+Tenant
+ └── Company
+      └── Accounts (Chart of Accounts)
 ```
-
-3. Проверить подсветку active через usePathname()
 
 ---
 
-## 2️⃣ Types: companyId только string
+# 1️⃣ Prisma Schema
 
-Просканировать UI:
+Добавить:
 
-* никаких `id: number`
-* никаких `companyId: number`
-* никаких `/company/1`
+```prisma
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
 
-Исправить:
+model Account {
+  id          String      @id @default(cuid())
 
-Файл:
+  companyId   String
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-```
-app/(dashboard)/account/companies/page.tsx
-```
+  code        String
+  name        String
+  type        AccountType
+  isActive    Boolean     @default(true)
 
-Интерфейс Company:
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
-```ts
-interface Company {
-  id: string
+  @@index([companyId])
+  @@unique([companyId, code])
 }
 ```
 
-`handleEnterCompany(companyId: string)`
+⚠ Важно:
+
+* Уникальность кода только внутри компании
+* Cascade delete при удалении Company
+
+---
+
+# 2️⃣ Миграция
+
+Создать новую migration:
+
+```
+prisma migrate dev --name add_chart_of_accounts
+```
+
+Claude должен приложить:
+
+* SQL migration
+* Diff изменения
+
+---
+
+# 3️⃣ API (Tenant-safe)
+
+Все маршруты:
+
+```
+/api/company/[companyId]/accounts
+```
+
+---
+
+## GET
+
+Возвращает список счетов компании
+
+Tenant-safe:
 
 ```ts
-router.push(`/company/${companyId}/dashboard`)
+where: {
+  companyId,
+  company: {
+    tenantId: session.tenantId
+  }
+}
 ```
 
 ---
 
-## 3️⃣ Middleware: /api/auth/me
+## POST
 
-В `middleware.ts`:
+Создание счёта
 
-Явно определить поведение для:
+Body:
 
+```json
+{
+  "code": "1000",
+  "name": "Cash",
+  "type": "ASSET"
+}
 ```
-/api/auth/me
-```
-
-Вариант А (рекомендуется):
-
-* добавить в protected API
-* если нет cookie → 401 JSON
-
-Главное:
-
-* предсказуемое поведение
-* defense-in-depth
 
 ---
 
-## 4️⃣ Regression Checklist
+## PATCH
 
-Проверить:
-
-* Login → cookie появляется
-* /account/companies → OK
-* Enter company → /company/{cuid}/dashboard
-* Sidebar ссылки работают
-* Нет 404
-* Нет /company/1
-* Нет id:number
+Редактирование счёта
 
 ---
 
-## 5️⃣ Output
+## DELETE
 
-1. Список изменённых файлов
-2. grep-доказательство:
+Удаление счёта
+
+---
+
+# 4️⃣ UI
+
+Страница:
 
 ```
-grep -R "id: number" .
-grep -R "/company/1" .
+/company/[companyId]/chart-of-accounts
 ```
 
-Ожидается: пусто.
+Требования:
+
+* Таблица
+* New Account button
+* Modal create
+* Edit
+* Delete
+* useCompany() из CompanyContext
+* Zero localStorage
+* Cookie-only
 
 ---
 
-После этого проект считается стабилизированным по UI + routing.
+# 5️⃣ Tenant Hard Rule
+
+Никаких:
+
+```
+findUnique({ id })
+```
+
+Только:
+
+```
+findFirst({
+  where: {
+    id,
+    company: {
+      tenantId: session.tenantId
+    }
+  }
+})
+```
+
+Defense-in-depth обязателен.
 
 ---
 
-Отправляй Claude.
-Когда вернётся отчёт — я проверю финально и закроем этап.
+# 6️⃣ Deliverables
 
+Claude должен выдать:
+
+1. prisma/schema additions
+2. migration SQL
+3. API routes (4)
+4. UI page
+5. Type definitions
+6. Proof of tenant-safety
+
+---
+
+# Архитектурный статус
+
+После Task 19:
+
+Solar ERP переходит из "интерфейсного SaaS"
+в **бухгалтерское ядро.**
+
+---
+
+C=>D
+**Execute Task 19.**
 
 ➜  solar-erp git:(main) ✗ tree
 .
@@ -220,9 +275,8 @@ grep -R "/company/1" .
 │       ├── Card.tsx
 │       └── Input.tsx
 ├── docs
-│   ├── d_c
-│   │   └── d_c_gitkeep24task14.md
-│   └── task14-company-context-refactor (1).tar.gz
+│   └── d_c
+│       └── d_c_gitkeep29task19.md
 ├── lib
 │   ├── auth
 │   │   ├── getCurrentUser.ts
@@ -270,26 +324,26 @@ grep -R "/company/1" .
 ├── tailwind.config.js
 └── tsconfig.json
 
-63 directories, 54 files
-➜  solar-erp git:(main) ✗ ls -la                                        
+63 directories, 53 files
+➜  solar-erp git:(main) ✗ ls -la 
 total 384
-drwxr-xr-x@ 24 leanid  staff     768 Feb 20 00:52 .
+drwxr-xr-x@ 24 leanid  staff     768 Feb 21 17:41 .
 drwxr-xr-x@  4 leanid  staff     128 Feb 12 02:59 ..
--rw-r--r--@  1 leanid  staff    8196 Feb 20 13:34 .DS_Store
+-rw-r--r--@  1 leanid  staff    8196 Feb 21 17:13 .DS_Store
 -rw-r--r--@  1 leanid  staff      90 Jan 27 01:22 .env
 -rw-r--r--@  1 leanid  staff      40 Jan 27 01:22 .eslintrc.json
-drwxr-xr-x@ 13 leanid  staff     416 Feb 21 00:01 .git
+drwxr-xr-x@ 13 leanid  staff     416 Feb 21 17:24 .git
 -rw-r--r--@  1 leanid  staff     478 Jan 27 01:22 .gitignore
-drwxr-xr-x@ 11 leanid  staff     352 Feb 20 11:09 .next
+drwxr-xr-x@ 11 leanid  staff     352 Feb 21 17:42 .next
 -rw-r--r--@  1 leanid  staff    5500 Feb 19 23:41 README.md
 drwxr-xr-x@  9 leanid  staff     288 Feb 20 01:30 app
 drwxr-xr-x@  5 leanid  staff     160 Jan 27 00:40 components
-drwxr-xr-x@  5 leanid  staff     160 Feb 21 00:22 docs
+drwxr-xr-x@  4 leanid  staff     128 Feb 21 17:40 docs
 drwxr-xr-x@  4 leanid  staff     128 Jan 27 00:40 lib
--rw-r--r--@  1 leanid  staff    1951 Feb 20 00:52 middleware.ts
+-rw-r--r--@  1 leanid  staff    2589 Feb 21 17:40 middleware.ts
 -rw-r--r--@  1 leanid  staff     201 Jan 27 01:22 next-env.d.ts
 -rw-r--r--@  1 leanid  staff       0 Jan 15 22:06 next.config.js
-drwxr-xr-x@ 21 leanid  staff     672 Feb 19 22:54 node_modules
+drwxr-xr-x@ 21 leanid  staff     672 Feb 21 17:41 node_modules
 -rw-r--r--@  1 leanid  staff     885 Feb 19 22:54 package.json
 -rw-r--r--@  1 leanid  staff  132932 Feb 19 22:54 pnpm-lock.yaml
 -rw-r--r--@  1 leanid  staff      98 Jan 27 01:22 pnpm-workspace.yaml
@@ -297,7 +351,29 @@ drwxr-xr-x@ 21 leanid  staff     672 Feb 19 22:54 node_modules
 drwxr-xr-x@  5 leanid  staff     160 Feb 20 00:51 prisma
 -rw-r--r--@  1 leanid  staff     213 Jan 27 01:22 tailwind.config.js
 -rw-r--r--@  1 leanid  staff     643 Jan 27 01:22 tsconfig.json
-➜  solar-erp git:(main) ✗ cd app                                                        
+➜  solar-erp git:(main) ✗ cd components    
+➜  components git:(main) ✗ tree   
+.
+├── forms
+│   └── AuthForm.tsx
+├── layouts
+│   ├── AccountSidebar.tsx
+│   └── CompanySidebar.tsx
+└── ui
+    ├── Button.tsx
+    ├── Card.tsx
+    └── Input.tsx
+
+4 directories, 6 files
+➜  components git:(main) ✗ ls -la 
+total 0
+drwxr-xr-x@  5 leanid  staff  160 Jan 27 00:40 .
+drwxr-xr-x@ 24 leanid  staff  768 Feb 21 17:41 ..
+drwxr-xr-x@  3 leanid  staff   96 Jan 27 00:44 forms
+drwxr-xr-x@  4 leanid  staff  128 Feb 21 17:39 layouts
+drwxr-xr-x@  5 leanid  staff  160 Jan 27 00:43 ui
+➜  components git:(main) ✗ cd ..        
+➜  solar-erp git:(main) ✗ cd app 
 ➜  app git:(main) ✗ tree
 .
 ├── (auth)
@@ -356,21 +432,15 @@ drwxr-xr-x@  5 leanid  staff     160 Feb 20 00:51 prisma
 └── page.tsx
 
 29 directories, 26 files
-➜  app git:(main) ✗ cd ..  
-➜  solar-erp git:(main) ✗ cd components        
-➜  components git:(main) ✗ tree
-.
-├── forms
-│   └── AuthForm.tsx
-├── layouts
-│   ├── AccountSidebar.tsx
-│   └── CompanySidebar.tsx
-└── ui
-    ├── Button.tsx
-    ├── Card.tsx
-    └── Input.tsx
-
-4 directories, 6 files
-➜  components git:(main) ✗ 
-
-d_c_gitkeep1task2.md
+➜  app git:(main) ✗ ls -la 
+total 40
+drwxr-xr-x@  4 leanid  staff   128 Feb 19 17:57 (auth)
+drwxr-xr-x@  5 leanid  staff   160 Feb 20 01:28 (dashboard)
+drwxr-xr-x@  9 leanid  staff   288 Feb 20 01:30 .
+drwxr-xr-x@ 24 leanid  staff   768 Feb 21 17:41 ..
+-rw-r--r--@  1 leanid  staff  6148 Feb 19 17:00 .DS_Store
+drwxr-xr-x@  6 leanid  staff   192 Feb 20 00:06 api
+-rw-r--r--@  1 leanid  staff    59 Jan 27 01:23 globals.css
+-rw-r--r--@  1 leanid  staff   590 Jan 27 00:51 layout.tsx
+-rw-r--r--@  1 leanid  staff   695 Feb 20 01:30 page.tsx
+➜  app git:(main) ✗ 

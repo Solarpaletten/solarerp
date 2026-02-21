@@ -1,6 +1,13 @@
 // components/layouts/CompanySidebar.tsx
+// ═══════════════════════════════════════════════════
 // Company Sidebar — Factory-compatible
 // ERP module navigation with active state highlighting
+// ═══════════════════════════════════════════════════
+//
+// FIXED (Task 18):
+// - base: /account/companies/${companyId} → /company/${companyId}
+// - Dashboard route: base → base/dashboard
+// - Routes match actual file structure under app/(dashboard)/company/[companyId]/
 
 'use client';
 
@@ -20,13 +27,13 @@ type NavGroup = {
 
 export function CompanySidebar({ companyId, companyName, children }: Props) {
   const pathname = usePathname();
-  const base = `/account/companies/${companyId}`;
+  const base = `/company/${companyId}`;
 
   const groups: NavGroup[] = [
     {
       label: 'Overview',
       items: [
-        { name: 'Dashboard',  href: base,                  icon: '📊' },
+        { name: 'Dashboard',  href: `${base}/dashboard`,   icon: '📊' },
       ],
     },
     {
@@ -49,7 +56,10 @@ export function CompanySidebar({ companyId, companyName, children }: Props) {
   ];
 
   const isActive = (href: string) => {
-    if (href === base) return pathname === base;
+    if (href === `${base}/dashboard`) {
+      // Dashboard active on exact match or bare /company/[id]
+      return pathname === href || pathname === base;
+    }
     return pathname.startsWith(href);
   };
 
@@ -77,11 +87,11 @@ export function CompanySidebar({ companyId, companyName, children }: Props) {
                     <Link href={item.href}
                       className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isActive(item.href)
-                          ? 'bg-blue-50 text-blue-700'
+                          ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-600'
                           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                       }`}>
-                      <span className="text-base">{item.icon}</span>
-                      {item.name}
+                      <span>{item.icon}</span>
+                      <span>{item.name}</span>
                     </Link>
                   </li>
                 ))}
@@ -92,12 +102,12 @@ export function CompanySidebar({ companyId, companyName, children }: Props) {
 
         {/* Footer */}
         <div className="p-3 border-t border-gray-100">
-          <p className="text-[10px] text-gray-400 text-center">Solar ERP v2 — Factory</p>
+          <p className="text-[10px] text-gray-400 text-center">Solar ERP v0.1</p>
         </div>
       </aside>
 
-      {/* Content */}
-      <main className="flex-1 min-w-0 bg-gray-50">
+      {/* Main content */}
+      <main className="flex-1 bg-gray-50 overflow-auto">
         {children}
       </main>
     </div>

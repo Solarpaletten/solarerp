@@ -70,6 +70,14 @@ enum CompanyStatus {
   ARCHIVED
 }
 
+enum AccountType {
+     ASSET
+     LIABILITY
+     EQUITY
+     INCOME
+     EXPENSE
+}
+
 model Company {
   id        String        @id @default(cuid())
   tenantId  String
@@ -91,10 +99,31 @@ model Company {
   purchaseDocuments PurchaseDocument[]
   stockMovements    StockMovement[]
   bankStatements    BankStatement[]
+  accounts          Account[]
 
   @@index([tenantId])
   @@map("companies")
 }
+
+model Account {
+  id        String      @id @default(cuid())
+  companyId String
+  code      String
+  name      String
+  type      AccountType
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+
+  @@index([companyId])
+  @@unique([companyId, code])
+  @@map("accounts")
+  }
+
+
 
 // ============================================
 // ERP MODULE: CLIENTS (COUNTERPARTIES)

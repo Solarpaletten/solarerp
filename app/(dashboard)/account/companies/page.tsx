@@ -1,21 +1,30 @@
 // app/(dashboard)/account/companies/page.tsx
+// ═══════════════════════════════════════════════════
 // Cookie-only — no localStorage for auth or priorities
 // Priorities come from DB (orderBy priority asc)
 // Cookie sent automatically by browser
+// ═══════════════════════════════════════════════════
+//
+// FIXED (Task 18):
+// - id: number → id: string (matches Prisma cuid)
+// - is_active → status (matches Prisma schema)
+// - created_at → createdAt (matches Prisma schema)
+// - handleEnterCompany(companyId: string)
+// - savePriorities key: string
 
-'use client'
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, Plus, GripVertical } from 'lucide-react';
 
 interface Company {
-  id: number;
+  id: string;
   name: string;
   code: string;
   description?: string;
-  is_active: boolean;
-  created_at: string;
+  status?: string;
+  createdAt?: string;
   clientsCount?: number;
   salesCount?: number;
   productsCount?: number;
@@ -65,10 +74,11 @@ export default function CompaniesPage() {
 
   // ═══════════════════════════════════════════════
   // PRIORITIES: Save to DB only (no localStorage)
+  // Key type: string (cuid), not number
   // ═══════════════════════════════════════════════
   const savePriorities = async (updatedCompanies: Company[]) => {
     try {
-      const priorities: { [key: number]: number } = {};
+      const priorities: { [key: string]: number } = {};
       updatedCompanies.forEach(company => {
         priorities[company.id] = company.priority || 1;
       });
@@ -101,7 +111,7 @@ export default function CompaniesPage() {
           // Companies already sorted by priority from DB
           const enhancedCompanies = data.companies.map((company: Company, index: number) => ({
             ...company,
-            priority: company.priority ?? (index + 1),
+            priority: company.priority ? company.priority : (index + 1),
             avatar: company.name.charAt(0).toUpperCase(),
             color: getCompanyColor(company.name)
           }));
@@ -118,9 +128,10 @@ export default function CompaniesPage() {
       } else {
         throw new Error(`API returned ${response.status}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to load companies';
       console.error('Error loading companies:', error);
-      setError(error.message || 'Failed to load companies');
+      setError(message);
       setIsConnected(false);
     } finally {
       setLoading(false);
@@ -131,8 +142,8 @@ export default function CompaniesPage() {
     fetchCompanies();
   }, []);
 
-  // Enter company — no localStorage needed
-  const handleEnterCompany = (companyId: number) => {
+  // Enter company — companyId is string (cuid)
+  const handleEnterCompany = (companyId: string) => {
     router.push(`/company/${companyId}/dashboard`);
   };
 
@@ -196,8 +207,9 @@ export default function CompaniesPage() {
       } else {
         throw new Error('Failed to create company');
       }
-    } catch (error: any) {
-      setError(error.message || 'Failed to create company');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to create company';
+      setError(message);
     }
   };
 
@@ -338,34 +350,29 @@ export default function CompaniesPage() {
           ))}
         </div>
 
-        {/* Create Modal */}
+        {/* Create Form Modal */}
         {showCreateForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-800">🏢 Create New Company</h3>
-                <button onClick={() => setShowCreateForm(false)} className="text-gray-500 hover:text-gray-700">✕</button>
-              </div>
-              <form onSubmit={handleCreateCompany} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Name *</label>
-                  <input type="text" required value={createFormData.name}
-                    onChange={(e) => setCreateFormData({ ...createFormData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="My Solar Company" />
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+              <h3 className="text-xl font-bold mb-4">Create New Company</h3>
+              <form onSubmit={handleCreateCompany}>
+                <div className="space-y-3">
+                  <input placeholder="Company Name" required
+                    value={createFormData.name}
+                    onChange={(e) => setCreateFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                  <input placeholder="Company Code" required
+                    value={createFormData.code}
+                    onChange={(e) => setCreateFormData(prev => ({ ...prev, code: e.target.value }))}
+                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                  <textarea placeholder="Description"
+                    value={createFormData.description}
+                    onChange={(e) => setCreateFormData(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" rows={3} />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Code</label>
-                  <input type="text" value={createFormData.code}
-                    onChange={(e) => setCreateFormData({ ...createFormData, code: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="SOLAR" />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => setShowCreateForm(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Cancel</button>
-                  <button type="submit"
-                    className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-green-700">Create Company</button>
+                <div className="flex gap-3 mt-6">
+                  <button type="submit" className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-semibold">Create</button>
+                  <button type="button" onClick={() => setShowCreateForm(false)} className="flex-1 bg-gray-200 hover:bg-gray-300 py-2 rounded-lg font-semibold">Cancel</button>
                 </div>
               </form>
             </div>
@@ -374,44 +381,45 @@ export default function CompaniesPage() {
 
         {/* Edit Modal */}
         {editingCompany && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">✏️ Edit Company</h3>
-              <form onSubmit={handleEditCompany} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                  <input type="text" required value={editFormData.name}
-                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+              <h3 className="text-xl font-bold mb-4">Edit: {editingCompany.name}</h3>
+              <form onSubmit={handleEditCompany}>
+                <div className="space-y-3">
+                  <input placeholder="Company Name" required
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                  <input placeholder="Company Code" required
+                    value={editFormData.code}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, code: e.target.value }))}
+                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                  <textarea placeholder="Description"
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" rows={3} />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
-                  <input type="text" value={editFormData.code}
-                    onChange={(e) => setEditFormData({ ...editFormData, code: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => setEditingCompany(null)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancel</button>
-                  <button type="submit"
-                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg">Save</button>
+                <div className="flex gap-3 mt-6">
+                  <button type="submit" className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-semibold">Save</button>
+                  <button type="button" onClick={() => setEditingCompany(null)} className="flex-1 bg-gray-200 hover:bg-gray-300 py-2 rounded-lg font-semibold">Cancel</button>
                 </div>
               </form>
             </div>
           </div>
         )}
 
-        {/* Delete Modal */}
+        {/* Delete Confirmation */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Delete Company?</h3>
-              <p className="text-gray-600 mb-4">Are you sure you want to delete <strong>{showDeleteModal.name}</strong>?</p>
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4 text-center">
+              <div className="text-5xl mb-4">⚠️</div>
+              <h3 className="text-xl font-bold mb-2">Delete Company?</h3>
+              <p className="text-gray-600 mb-6">Are you sure you want to delete <strong>{showDeleteModal.name}</strong>?</p>
               <div className="flex gap-3">
-                <button onClick={() => setShowDeleteModal(null)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancel</button>
                 <button onClick={() => handleDeleteCompany(showDeleteModal)}
-                  className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg">Delete</button>
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-semibold">Delete</button>
+                <button onClick={() => setShowDeleteModal(null)}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 py-2 rounded-lg font-semibold">Cancel</button>
               </div>
             </div>
           </div>

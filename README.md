@@ -142,3 +142,5 @@ solar-erp-prompts/
 - 10 Bank Statements
 
 Тестовые credentials: `admin@demo.com` / `password123`
+
+git tag v0.3.0-accounting-base

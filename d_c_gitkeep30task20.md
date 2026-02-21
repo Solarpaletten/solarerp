@@ -1,210 +1,168 @@
-🔥 Отлично.
-Работаем строго по протоколу.
+Отлично. Даем четкое ТЗ.
 
 ---
 
 # D=>C
 
-## Task 19 — Chart of Accounts (ERP Core Foundation)
+## TASK 19.2 — Fix Dynamic Routing + Sidebar Integration
 
-Claude, начинаем настоящий бухгалтерский слой.
+### 🎯 Цель
 
-Это не UI-задача.
-Это **архитектурный фундамент ERP.**
-
----
-
-# 🎯 Цель
-
-Реализовать полноценный Chart of Accounts для каждой Company:
-
-```
-Tenant
- └── Company
-      └── Accounts (Chart of Accounts)
-```
-
----
-
-# 1️⃣ Prisma Schema
-
-Добавить:
-
-```prisma
-enum AccountType {
-  ASSET
-  LIABILITY
-  EQUITY
-  INCOME
-  EXPENSE
-}
-
-model Account {
-  id          String      @id @default(cuid())
-
-  companyId   String
-  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  code        String
-  name        String
-  type        AccountType
-  isActive    Boolean     @default(true)
-
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  @@index([companyId])
-  @@unique([companyId, code])
-}
-```
-
-⚠ Важно:
-
-* Уникальность кода только внутри компании
-* Cascade delete при удалении Company
-
----
-
-# 2️⃣ Миграция
-
-Создать новую migration:
-
-```
-prisma migrate dev --name add_chart_of_accounts
-```
-
-Claude должен приложить:
-
-* SQL migration
-* Diff изменения
-
----
-
-# 3️⃣ API (Tenant-safe)
-
-Все маршруты:
-
-```
-/api/company/[companyId]/accounts
-```
-
----
-
-## GET
-
-Возвращает список счетов компании
-
-Tenant-safe:
-
-```ts
-where: {
-  companyId,
-  company: {
-    tenantId: session.tenantId
-  }
-}
-```
-
----
-
-## POST
-
-Создание счёта
-
-Body:
-
-```json
-{
-  "code": "1000",
-  "name": "Cash",
-  "type": "ASSET"
-}
-```
-
----
-
-## PATCH
-
-Редактирование счёта
-
----
-
-## DELETE
-
-Удаление счёта
-
----
-
-# 4️⃣ UI
-
-Страница:
+1. Убрать возможность открытия страницы:
 
 ```
 /company/[companyId]/chart-of-accounts
 ```
 
-Требования:
+в статическом виде.
 
-* Таблица
-* New Account button
-* Modal create
-* Edit
-* Delete
-* useCompany() из CompanyContext
-* Zero localStorage
-* Cookie-only
+2. Гарантировать, что:
+
+```
+/company/{REAL_COMPANY_ID}/chart-of-accounts
+```
+
+всегда получает настоящий companyId из params.
+
+3. Добавить пункт в Sidebar для перехода в Chart of Accounts.
 
 ---
 
-# 5️⃣ Tenant Hard Rule
+# 📌 ЧАСТЬ 1 — Fix Dynamic Routing
 
-Никаких:
-
-```
-findUnique({ id })
-```
-
-Только:
+### 1️⃣ В файле:
 
 ```
-findFirst({
-  where: {
-    id,
-    company: {
-      tenantId: session.tenantId
-    }
-  }
-})
+app/(dashboard)/company/[companyId]/chart-of-accounts/page.tsx
 ```
 
-Defense-in-depth обязателен.
+Убедиться, что используется:
+
+```ts
+import { useParams } from 'next/navigation';
+
+const params = useParams();
+const companyId = params.companyId as string;
+```
+
+И НЕТ хардкода вида:
+
+```ts
+/company/[companyId]/
+```
 
 ---
 
-# 6️⃣ Deliverables
+### 2️⃣ Добавить защиту
 
-Claude должен выдать:
+Если:
 
-1. prisma/schema additions
-2. migration SQL
-3. API routes (4)
-4. UI page
-5. Type definitions
-6. Proof of tenant-safety
+```ts
+if (!companyId || companyId.includes('['))
+```
 
----
+→ показать:
 
-# Архитектурный статус
+```tsx
+<div className="text-red-500">Invalid company context</div>
+```
 
-После Task 19:
-
-Solar ERP переходит из "интерфейсного SaaS"
-в **бухгалтерское ядро.**
+Чтобы исключить ошибочный вызов API.
 
 ---
 
-C=>D
-**Execute Task 19.**
+# 📌 ЧАСТЬ 2 — Sidebar Integration
+
+В файле:
+
+```
+app/(dashboard)/company/[companyId]/layout.tsx
+или
+components/layouts/CompanySidebar.tsx
+```
+
+Добавить пункт:
+
+```tsx
+<Link
+  href={`/company/${companyId}/chart-of-accounts`}
+  className={pathname.includes('chart-of-accounts') ? activeClass : defaultClass}
+>
+  📒 Chart of Accounts
+</Link>
+```
+
+companyId берётся из:
+
+```ts
+const params = useParams();
+const companyId = params.companyId as string;
+```
+
+---
+
+# 📌 ЧАСТЬ 3 — Проверка
+
+После реализации должно работать:
+
+1. Зайти в:
+
+```
+/account/companies
+```
+
+2. Enter Company
+
+3. В sidebar нажать:
+
+```
+Chart of Accounts
+```
+
+4. URL должен быть:
+
+```
+/company/cmlwm3yut0003426qbswrxf54/chart-of-accounts
+```
+
+5. POST /api/company/{REAL_ID}/accounts → 201
+
+---
+
+# 🚫 ВАЖНО
+
+Нельзя допускать:
+
+```
+/company/[companyId]/chart-of-accounts
+```
+
+в production UI.
+
+---
+
+# 🧠 Архитектурная цель
+
+Контекст компании должен:
+
+* передаваться только через params
+* никогда не быть строковым placeholder
+* быть обязательным для всех ERP модулей
+
+---
+
+После выполнения:
+
+C=>D отчет:
+
+* Routing fixed
+* Sidebar integrated
+* API calls using real companyId
+* Manual test passed
+
+---
+
+Даем запуск.
 
 ➜  solar-erp git:(main) ✗ tree
 .
@@ -223,6 +181,8 @@ C=>D
 │   │   │   └── [companyId]
 │   │   │       ├── CompanyHeader.tsx
 │   │   │       ├── bank
+│   │   │       │   └── page.tsx
+│   │   │       ├── chart-of-accounts
 │   │   │       │   └── page.tsx
 │   │   │       ├── clients
 │   │   │       │   └── page.tsx
@@ -259,6 +219,11 @@ C=>D
 │   │   │   └── signup
 │   │   │       └── route.ts
 │   │   ├── company
+│   │   │   └── [companyId]
+│   │   │       └── accounts
+│   │   │           ├── [accountId]
+│   │   │           │   └── route.ts
+│   │   │           └── route.ts
 │   │   └── health
 │   │       └── route.ts
 │   ├── globals.css
@@ -274,9 +239,9 @@ C=>D
 │       ├── Button.tsx
 │       ├── Card.tsx
 │       └── Input.tsx
+├── d_c_gitkeep30task20.md
 ├── docs
-│   └── d_c
-│       └── d_c_gitkeep29task19.md
+│   └── task19-chart-of-accounts.tar.gz
 ├── lib
 │   ├── auth
 │   │   ├── getCurrentUser.ts
@@ -324,56 +289,8 @@ C=>D
 ├── tailwind.config.js
 └── tsconfig.json
 
-63 directories, 53 files
-➜  solar-erp git:(main) ✗ ls -la 
-total 384
-drwxr-xr-x@ 24 leanid  staff     768 Feb 21 17:41 .
-drwxr-xr-x@  4 leanid  staff     128 Feb 12 02:59 ..
--rw-r--r--@  1 leanid  staff    8196 Feb 21 17:13 .DS_Store
--rw-r--r--@  1 leanid  staff      90 Jan 27 01:22 .env
--rw-r--r--@  1 leanid  staff      40 Jan 27 01:22 .eslintrc.json
-drwxr-xr-x@ 13 leanid  staff     416 Feb 21 17:24 .git
--rw-r--r--@  1 leanid  staff     478 Jan 27 01:22 .gitignore
-drwxr-xr-x@ 11 leanid  staff     352 Feb 21 17:42 .next
--rw-r--r--@  1 leanid  staff    5500 Feb 19 23:41 README.md
-drwxr-xr-x@  9 leanid  staff     288 Feb 20 01:30 app
-drwxr-xr-x@  5 leanid  staff     160 Jan 27 00:40 components
-drwxr-xr-x@  4 leanid  staff     128 Feb 21 17:40 docs
-drwxr-xr-x@  4 leanid  staff     128 Jan 27 00:40 lib
--rw-r--r--@  1 leanid  staff    2589 Feb 21 17:40 middleware.ts
--rw-r--r--@  1 leanid  staff     201 Jan 27 01:22 next-env.d.ts
--rw-r--r--@  1 leanid  staff       0 Jan 15 22:06 next.config.js
-drwxr-xr-x@ 21 leanid  staff     672 Feb 21 17:41 node_modules
--rw-r--r--@  1 leanid  staff     885 Feb 19 22:54 package.json
--rw-r--r--@  1 leanid  staff  132932 Feb 19 22:54 pnpm-lock.yaml
--rw-r--r--@  1 leanid  staff      98 Jan 27 01:22 pnpm-workspace.yaml
--rw-r--r--@  1 leanid  staff      82 Jan 27 01:22 postcss.config.js
-drwxr-xr-x@  5 leanid  staff     160 Feb 20 00:51 prisma
--rw-r--r--@  1 leanid  staff     213 Jan 27 01:22 tailwind.config.js
--rw-r--r--@  1 leanid  staff     643 Jan 27 01:22 tsconfig.json
-➜  solar-erp git:(main) ✗ cd components    
-➜  components git:(main) ✗ tree   
-.
-├── forms
-│   └── AuthForm.tsx
-├── layouts
-│   ├── AccountSidebar.tsx
-│   └── CompanySidebar.tsx
-└── ui
-    ├── Button.tsx
-    ├── Card.tsx
-    └── Input.tsx
-
-4 directories, 6 files
-➜  components git:(main) ✗ ls -la 
-total 0
-drwxr-xr-x@  5 leanid  staff  160 Jan 27 00:40 .
-drwxr-xr-x@ 24 leanid  staff  768 Feb 21 17:41 ..
-drwxr-xr-x@  3 leanid  staff   96 Jan 27 00:44 forms
-drwxr-xr-x@  4 leanid  staff  128 Feb 21 17:39 layouts
-drwxr-xr-x@  5 leanid  staff  160 Jan 27 00:43 ui
-➜  components git:(main) ✗ cd ..        
-➜  solar-erp git:(main) ✗ cd app 
+66 directories, 57 files
+➜  solar-erp git:(main) ✗ app                                                             
 ➜  app git:(main) ✗ tree
 .
 ├── (auth)
@@ -389,6 +306,8 @@ drwxr-xr-x@  5 leanid  staff  160 Jan 27 00:43 ui
 │   │   └── [companyId]
 │   │       ├── CompanyHeader.tsx
 │   │       ├── bank
+│   │       │   └── page.tsx
+│   │       ├── chart-of-accounts
 │   │       │   └── page.tsx
 │   │       ├── clients
 │   │       │   └── page.tsx
@@ -425,22 +344,49 @@ drwxr-xr-x@  5 leanid  staff  160 Jan 27 00:43 ui
 │   │   └── signup
 │   │       └── route.ts
 │   ├── company
+│   │   └── [companyId]
+│   │       └── accounts
+│   │           ├── [accountId]
+│   │           │   └── route.ts
+│   │           └── route.ts
 │   └── health
 │       └── route.ts
 ├── globals.css
 ├── layout.tsx
 └── page.tsx
 
-29 directories, 26 files
+33 directories, 29 files
 ➜  app git:(main) ✗ ls -la 
 total 40
 drwxr-xr-x@  4 leanid  staff   128 Feb 19 17:57 (auth)
 drwxr-xr-x@  5 leanid  staff   160 Feb 20 01:28 (dashboard)
 drwxr-xr-x@  9 leanid  staff   288 Feb 20 01:30 .
-drwxr-xr-x@ 24 leanid  staff   768 Feb 21 17:41 ..
+drwxr-xr-x@ 25 leanid  staff   800 Feb 21 19:00 ..
 -rw-r--r--@  1 leanid  staff  6148 Feb 19 17:00 .DS_Store
 drwxr-xr-x@  6 leanid  staff   192 Feb 20 00:06 api
 -rw-r--r--@  1 leanid  staff    59 Jan 27 01:23 globals.css
 -rw-r--r--@  1 leanid  staff   590 Jan 27 00:51 layout.tsx
 -rw-r--r--@  1 leanid  staff   695 Feb 20 01:30 page.tsx
-➜  app git:(main) ✗ 
+➜  app git:(main) ✗ cd ..                   
+➜  solar-erp git:(main) ✗ cd components        
+➜  components git:(main) ✗ tree   
+.
+├── forms
+│   └── AuthForm.tsx
+├── layouts
+│   ├── AccountSidebar.tsx
+│   └── CompanySidebar.tsx
+└── ui
+    ├── Button.tsx
+    ├── Card.tsx
+    └── Input.tsx
+
+4 directories, 6 files
+➜  components git:(main) ✗ ls -la 
+total 0
+drwxr-xr-x@  5 leanid  staff  160 Jan 27 00:40 .
+drwxr-xr-x@ 25 leanid  staff  800 Feb 21 19:00 ..
+drwxr-xr-x@  3 leanid  staff   96 Jan 27 00:44 forms
+drwxr-xr-x@  4 leanid  staff  128 Feb 21 17:39 layouts
+drwxr-xr-x@  5 leanid  staff  160 Jan 27 00:43 ui
+➜  components git:(main) ✗ 

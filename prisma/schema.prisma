@@ -71,11 +71,11 @@ enum CompanyStatus {
 }
 
 enum AccountType {
-     ASSET
-     LIABILITY
-     EQUITY
-     INCOME
-     EXPENSE
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
 }
 
 model Company {
@@ -100,6 +100,7 @@ model Company {
   stockMovements    StockMovement[]
   bankStatements    BankStatement[]
   accounts          Account[]
+  journalEntries    JournalEntry[]
 
   @@index([tenantId])
   @@map("companies")
@@ -115,15 +116,48 @@ model Account {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journalLines JournalLine[]
 
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("accounts")
+}
+
+// ============================================
+// ACCOUNTING CORE: JOURNAL (LEDGER)
+// ============================================
+
+model JournalEntry {
+  id           String   @id @default(cuid())
+  companyId    String
+  date         DateTime
+  documentType String
+  documentId   String?
+  createdAt    DateTime @default(now())
+
+  lines   JournalLine[]
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
-  @@unique([companyId, code])
-  @@map("accounts")
-  }
+  @@index([date])
+  @@map("journal_entries")
+}
 
+model JournalLine {
+  id        String  @id @default(cuid())
+  entryId   String
+  accountId String
+  debit     Decimal @default(0) @db.Decimal(18, 2)
+  credit    Decimal @default(0) @db.Decimal(18, 2)
 
+  entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account Account      @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
+  @@index([entryId])
+  @@map("journal_lines")
+}
 
 // ============================================
 // ERP MODULE: CLIENTS (COUNTERPARTIES)
@@ -136,7 +170,7 @@ enum ClientLocation {
 }
 
 model Client {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   companyId String
 
   name      String
@@ -158,7 +192,7 @@ model Client {
 
   payWithinDays       Int?
   creditLimit         Decimal?
-  automaticDebtRemind Boolean @default(false)
+  automaticDebtRemind Boolean  @default(false)
 
   birthday DateTime?
 
@@ -191,7 +225,7 @@ model Client {
 // ============================================
 
 model Item {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   companyId String
 
   name    String
@@ -216,7 +250,7 @@ model Item {
   minimumQuantity Decimal?
   description     String?
   externalId      String?
-  freePrice       Boolean @default(false)
+  freePrice       Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -234,7 +268,7 @@ model Item {
 // ============================================
 
 model SaleDocument {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   companyId String
 
   saleDate       DateTime
@@ -293,12 +327,12 @@ model SaleItem {
   postscript String?
   accComment String?
 
-  intraTransactionCode  String?
-  intraDeliveryTerms    String?
-  intraTransportCode    String?
-  intraCountryCode      String?
-  intrastatWeightNetto  Decimal?
-  vatRateName           String?
+  intraTransactionCode String?
+  intraDeliveryTerms   String?
+  intraTransportCode   String?
+  intraCountryCode     String?
+  intrastatWeightNetto Decimal?
+  vatRateName          String?
 
   sale SaleDocument @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
@@ -311,7 +345,7 @@ model SaleItem {
 // ============================================
 
 model PurchaseDocument {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   companyId String
 
   purchaseDate       DateTime
@@ -361,16 +395,16 @@ model PurchaseItem {
   corAccountCode String?
   costCenter     String?
 
-  notes         String?
-  accComment    String?
-  carRegNumber  String?
-  fuelCard      String?
+  notes        String?
+  accComment   String?
+  carRegNumber String?
+  fuelCard     String?
 
-  intraTransactionCode    String?
-  intraDeliveryTerms      String?
-  intraTransportCode      String?
+  intraTransactionCode     String?
+  intraDeliveryTerms       String?
+  intraTransportCode       String?
   intraCountryOfOriginCode String?
-  intrastatWeightNetto    Decimal?
+  intrastatWeightNetto     Decimal?
 
   vatRegister String?
   gpaisMethod String?
@@ -386,7 +420,7 @@ model PurchaseItem {
 // ============================================
 
 model StockMovement {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   companyId String
 
   warehouseName String
@@ -418,7 +452,7 @@ model StockMovement {
   minimumQuantity Decimal?
   description     String?
   externalId      String?
-  freePrice       Boolean @default(false)
+  freePrice       Boolean  @default(false)
 
   createdAt DateTime @default(now())
 
@@ -434,7 +468,7 @@ model StockMovement {
 // ============================================
 
 model BankStatement {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   companyId String
 
   accountNumber String

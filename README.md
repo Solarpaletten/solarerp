@@ -144,3 +144,12 @@ solar-erp-prompts/
 Тестовые credentials: `admin@demo.com` / `password123`
 
 git tag v0.3.0-accounting-base
+
+## No Other Schema Changes
+
+- JournalEntry.documentType is String — already accepts 'SALE_REVERSAL', 'PURCHASE_REVERSAL'
+- JournalEntry.documentId is String? — reversal points to same document id
+- No new models
+- No new enums
+- No new relations
+- Ledger remains immutable

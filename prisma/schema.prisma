@@ -141,6 +141,8 @@ model JournalEntry {
 
   @@index([companyId])
   @@index([date])
+  @@index([documentType])   
+  @@index([documentId])      
   @@map("journal_entries")
 }
 

@@ -97,7 +97,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       // 6) Create reversal journal entry
       const reversalEntry = await createJournalEntry(tx, {
         companyId,
-        date: new Date(), // reversal timestamp = now (OK for MVP)
+        date: purchase.purchaseDate,
         documentType: 'PURCHASE_REVERSAL',
         documentId: purchaseId,
         lines: reversedLines,
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   } catch (error: unknown) {
     if (error instanceof Response) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return error;
     }
 
     const msg = error instanceof Error ? error.message : 'Internal server error';

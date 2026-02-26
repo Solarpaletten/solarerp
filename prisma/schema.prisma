@@ -129,13 +129,19 @@ model Account {
 // ACCOUNTING CORE: JOURNAL (LEDGER)
 // ============================================
 
+enum JournalSource {
+  SYSTEM
+  MANUAL
+}
+
 model JournalEntry {
-  id           String   @id @default(cuid())
+  id           String        @id @default(cuid())
   companyId    String
   date         DateTime
   documentType String
   documentId   String?
-  createdAt    DateTime @default(now())
+  source       JournalSource @default(SYSTEM)   
+  createdAt    DateTime      @default(now())
 
   lines   JournalLine[]
   company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -144,6 +150,8 @@ model JournalEntry {
   @@index([date])
   @@index([documentType])
   @@index([documentId])
+  @@index([companyId, date])     
+  @@index([companyId, source])   
   @@map("journal_entries")
 }
 
@@ -316,6 +324,8 @@ model SaleDocument {
   employeeName  String?
   status        String?
   comments      String?
+  debitAccountId  String?   
+  creditAccountId String?   
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -389,6 +399,8 @@ model PurchaseDocument {
   employeeName  String?
   comments      String?
   status        String?
+  debitAccountId  String?   
+  creditAccountId String?   
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

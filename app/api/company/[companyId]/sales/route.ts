@@ -83,6 +83,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 //     creditAccountId: string,  // e.g. Revenue (4000)
 //   }
 // }
+
+// Task 27: Persist account mapping for reposting
+await tx.saleDocument.update({
+  where: { id: sale.id },
+  data: {
+    debitAccountId: journal.debitAccountId,
+    creditAccountId: journal.creditAccountId,
+  },
+});
+
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { tenantId } = await requireTenant(request);

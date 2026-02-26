@@ -1,58 +1,117 @@
-D=>L (Dashka=>Leanid) Проверила **Task 26** по коду из `task26-balance-sheet.tar.gz` (файл `app/api/company/[companyId]/reports/balance-sheet/route.ts`). Реализация **верная по логике и структуре**, но есть **2 технических момента**, которые лучше поправить до merge (те же, что мы уже отмечали — сейчас подтверждаю по коду).
+Принято. ТЗ **консолидировано правильно** и в нужной логике: **Task 27 = Aggressive Rebuild (SYSTEM-only) + `JournalEntry.source`**, с обязательным условием **account mapping хранится в документах**, иначе rebuild “из документов” физически невозможен.
 
-## ✅ Что ок
-
-* Ledger-based: `journalLine.groupBy` до `asOfEnd` — ✅
-* Tenant-safe: ownership check + scoped where через `entry.companyId` + `company.tenantId` — ✅
-* Типы: ASSET / LIABILITY / EQUITY + synthetic `P&L` из INCOME/EXPENSE — ✅
-* Totals + diff всегда в ответе — ✅
-* Сортировка по `code` — ✅
-
-## ⚠️ 2 правки (лучше сделать сразу)
-
-### 1) Date / timezone (реальный риск сдвига дня)
-
-Сейчас:
-
-```ts
-const asOfDate = new Date(asOfParam);
-const asOfEnd = new Date(asOfDate);
-asOfEnd.setHours(23, 59, 59, 999);
-```
-
-`new Date("YYYY-MM-DD")` парсится как UTC, а `setHours` — локальная TZ сервера → может сдвинуть границу.
-
-**MVP-фикс:**
-
-```ts
-const asOfEnd = new Date(`${asOfParam}T23:59:59.999Z`);
-```
-
-(и убрать `setHours`)
-
-### 2) Unauthorized handling в catch
-
-Сейчас:
-
-```ts
-if (error instanceof Response) return 401
-```
-
-Это ненадёжно: `requireTenant()` часто кидает `Error`, не `Response`.
-
-**MVP-фикс:**
-
-* привести к общему паттерну проекта (как в других routes), например:
-
-  * если `requireTenant` кидает `NextResponse` — проверять `error instanceof NextResponse` (или `error instanceof Response` но тогда реально возвращать `error`, а не жёстко 401)
-  * если кидает `Error`/`UnauthorizedError` — ловить по `message/code`.
+Чтобы у нас не было разночтений при передаче инженеру, фиксирую **финальный “single source of truth”** в 10 пунктах (это и есть то самое обобщённое ТЗ, которое можно копировать 1:1).
 
 ---
 
-## D=>C (Dashka=>Claude) — мини-патч Task 26 перед merge
+## ✅ FINAL SPEC — Task 27: Reposting Engine (Aggressive Rebuild, SYSTEM-only)
 
-1. Заменить расчёт `asOfEnd` на UTC-строку:
-   `new Date(\`${asOfParam}T23:59:59.999Z`)`
-2. Исправить catch: обработка unauth по **реальному** типу ошибки `requireTenant()` (как в проекте), не через “instanceof Response → 401”.
+### 1) Prisma: `JournalEntry.source`
 
-После этих двух правок Task 26 можно **спокойно мерджить**.
+Добавить `JournalSource { SYSTEM, MANUAL }` и поле `source` в `JournalEntry` (default SYSTEM), индексы:
+
+* `@@index([companyId, date])`
+* `@@index([companyId, source])`
+
+### 2) Preconditions: Account Mapping в документах (обязательно)
+
+Чтобы rebuild строился “из документов”, документы должны хранить счёта проводки:
+
+* `SaleDocument.debitAccountId`
+* `SaleDocument.creditAccountId`
+* `PurchaseDocument.debitAccountId`
+* `PurchaseDocument.creditAccountId`
+
+Если этих полей нет → добавить миграцией + backfill из текущего ledger **один раз**.
+
+### 3) Endpoint
+
+`POST /api/company/[companyId]/repost`
+
+Body:
+
+```json
+{ "from": "YYYY-MM-DD", "to": "YYYY-MM-DD" }
+```
+
+### 4) Safety / Guards
+
+* `requireTenant`
+* company принадлежит tenant
+* validate dates
+* Проверка period lock: если диапазон пересекает закрытый месяц → `409 PERIOD_CLOSED`
+* Всё выполняется внутри `prisma.$transaction`
+
+### 5) Step A: собрать документы в диапазоне
+
+* Sales: `saleDate between from..to` (включая CANCELLED)
+* Purchases: `purchaseDate between from..to` (включая CANCELLED)
+  Собрать статистику (sales/purchases/cancelledSales/cancelledPurchases)
+
+### 6) Step B: удалить SYSTEM journal entries в диапазоне
+
+В транзакции удалить только:
+
+* `companyId = ...`
+* `source = SYSTEM`
+* `date in range`
+
+Важно: MANUAL не трогать. JournalLine должны удаляться каскадом.
+
+### 7) Step C: пересоздать SYSTEM entries из документов
+
+Только через `createJournalEntry(tx, ...)`:
+
+**Sale:**
+
+* если `status !== CANCELLED` → `SALE`
+* если `status === CANCELLED` → `SALE` + `SALE_REVERSAL` (зеркальные линии)
+
+**Purchase:**
+
+* аналогично `PURCHASE` + `PURCHASE_REVERSAL`
+
+Счета берём из `debitAccountId/creditAccountId`.
+
+### 8) Data integrity rule (MVP)
+
+Если в документе отсутствуют debit/credit accountId → прекращаем rebuild и возвращаем ошибку:
+
+* `409 MISSING_POSTING_PROFILE` (лучше) + `documentId`
+
+### 9) Idempotency
+
+Повторный вызов `/repost` даёт тот же итог (удалили SYSTEM → создали SYSTEM заново).
+
+### 10) Response
+
+```json
+{
+  "range": { "from": "...", "to": "..." },
+  "deletedEntries": 42,
+  "recreatedEntries": 42,
+  "documentsProcessed": {
+    "sales": 12,
+    "purchases": 8,
+    "cancelledSales": 2,
+    "cancelledPurchases": 1
+  }
+}
+```
+
+Deliverables:
+
+* `app/api/company/[companyId]/repost/route.ts`
+* `lib/accounting/repostingService.ts`
+* prisma migration (source + indexes)
+* (если надо) migration + backfill accountId в documents
+* `TASK27_REPORT.md` (migrate, backfill, curl tests, expected outputs)
+
+---
+
+## D=>L (Dashka=>Leanid) — статус
+
+✅ ТЗ собрано и зафиксировано.
+⚠️ Ключевая “точка истины”: **без accountId в документах rebuild не восстановит проводки** — это мы правильно включили как precondition.
+
+Если хочешь — дальше я сразу дам **Gate-checklist для аудита Task 27** (чтобы на приёмке за 3 минуты понять: “принять/вернуть”).

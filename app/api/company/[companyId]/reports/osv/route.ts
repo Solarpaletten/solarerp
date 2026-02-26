@@ -126,9 +126,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data: balances, count: balances.length });
   } catch (error) {
+    
     if (error instanceof Response) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return error;
     }
+
     console.error('OSV report error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

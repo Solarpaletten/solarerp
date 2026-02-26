@@ -101,6 +101,7 @@ model Company {
   bankStatements    BankStatement[]
   accounts          Account[]
   journalEntries    JournalEntry[]
+  accountingPeriods AccountingPeriod[]
 
   @@index([tenantId])
   @@map("companies")
@@ -141,8 +142,8 @@ model JournalEntry {
 
   @@index([companyId])
   @@index([date])
-  @@index([documentType])   
-  @@index([documentId])      
+  @@index([documentType])
+  @@index([documentId])
   @@map("journal_entries")
 }
 
@@ -159,6 +160,26 @@ model JournalLine {
   @@index([accountId])
   @@index([entryId])
   @@map("journal_lines")
+}
+
+// ============================================
+// ACCOUNTING: PERIOD LOCKING
+// ============================================
+
+model AccountingPeriod {
+  id        String    @id @default(cuid())
+  companyId String
+  year      Int
+  month     Int
+  isClosed  Boolean   @default(false)
+  closedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, year, month])
+  @@index([companyId])
+  @@map("accounting_periods")
 }
 
 // ============================================

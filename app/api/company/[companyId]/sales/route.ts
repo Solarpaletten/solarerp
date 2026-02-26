@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireTenant } from '@/lib/auth/requireTenant';
 import { createJournalEntry } from '@/lib/accounting/journalService';
+import { assertPeriodOpen } from '@/lib/accounting/periodLock';
 
 type RouteParams = {
   params: Promise<{ companyId: string }>;
@@ -159,11 +160,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // If either fails → both roll back
     // ═══════════════════════════════════════════════
     const result = await prisma.$transaction(async (tx) => {
+
+      await assertPeriodOpen(tx, { companyId, date: new Date(saleDate) });
       // 1. Create SaleDocument with items
       const sale = await tx.saleDocument.create({
         data: {
           companyId,
           saleDate: new Date(saleDate),
+
           payUntil: body.payUntil ? new Date(body.payUntil) : null,
           series,
           number: docNumber,

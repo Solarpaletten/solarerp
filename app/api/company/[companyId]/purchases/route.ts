@@ -219,6 +219,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         ],
       });
 
+      await tx.purchaseDocument.update({
+        where: { id: purchase.id },
+        data: {
+          debitAccountId: journal.debitAccountId,
+          creditAccountId: journal.creditAccountId,
+        },
+      });
+
       return { purchase, journalEntry };
     });
 
@@ -236,14 +244,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (error instanceof Response) {
       return error;
     }
-
-    // Task 27: Persist account mapping for reposting
-    await tx.purchaseDocument.update({
-      data: {
-        debitAccountId: journal.debitAccountId,
-        creditAccountId: journal.creditAccountId,
-      },
-    });
 
     // Handle unique constraint (duplicate series+number)
     if (

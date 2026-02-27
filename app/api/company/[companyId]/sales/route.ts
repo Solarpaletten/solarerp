@@ -65,33 +65,26 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-─── POST /api/company/[companyId]/sales ─────────
-Create SaleDocument + JournalEntry in ONE transaction
+// ─── POST /api/company/[companyId]/sales ─────────
+// Create SaleDocument + JournalEntry in ONE transaction
+//
+// Body:
+// {
+//   saleDate: string (ISO),
+//   series: string,
+//   number: string,
+//   clientName: string,
+//   warehouseName: string,
+//   operationType: string,
+//   currencyCode: string,
+//   items: [{ itemName, quantity, priceWithoutVat, ... }],
+//   journal: {
+//     debitAccountId: string,
+//     creditAccountId: string,
+//   }
+// }
 
-Body:
-{
-  saleDate: string (ISO),
-  series: string,
-  number: string,
-  clientName: string,
-  warehouseName: string,
-  operationType: string,
-  currencyCode: string,
-  items: [{ itemName, quantity, priceWithoutVat, ... }],
-  journal: {
-    debitAccountId: string,   // e.g. Accounts Receivable (1200)
-    creditAccountId: string,  // e.g. Revenue (4000)
-  }
-}
 
-// Task 27: Persist account mapping for reposting
-await tx.saleDocument.update({
-  where: { id: sale.id },
-  data: {
-    debitAccountId: journal.debitAccountId,
-    creditAccountId: journal.creditAccountId,
-  },
-});
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
@@ -228,6 +221,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
       // 2. Create JournalEntry
       // SALE: Debit Accounts Receivable, Credit Revenue
+
       const journalEntry = await createJournalEntry(tx, {
         companyId,
         date: new Date(saleDate),
@@ -246,6 +240,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           },
         ],
       });
+      
+      await tx.saleDocument.update({
+        where: { id: sale.id },
+        data: {
+          debitAccountId: journal.debitAccountId,
+          creditAccountId: journal.creditAccountId,
+        },
+      });
 
       return { sale, journalEntry };
     });
@@ -263,16 +265,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error: unknown) {
     if (error instanceof Response) {
       return error;
-}
-
-    // Task 27: Persist account mapping for reposting
-    await tx.saleDocument.update({
-      where: { id: sale.id },
-      data: {
-        debitAccountId: journal.debitAccountId,
-        creditAccountId: journal.creditAccountId,
-      },
-    });
+    }
 
     // Handle unique constraint (duplicate series+number)
     if (
@@ -289,6 +282,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const message =
       error instanceof Error ? error.message : 'Internal server error';
+
     console.error('Create sale error:', message);
     return NextResponse.json({ error: message }, { status: 500 });
   }

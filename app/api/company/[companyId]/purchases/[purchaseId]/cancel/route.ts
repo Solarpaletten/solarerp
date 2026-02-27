@@ -83,6 +83,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       if (!originalEntry) {
         throw new Error('JOURNAL_ENTRY_NOT_FOUND');
       }
+
+  
       if (!originalEntry.lines?.length) {
         throw new Error('JOURNAL_LINES_EMPTY');
       }
@@ -119,7 +121,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(
       {
-        message: `Purchase ${result.series}-${result.number} cancelled via storno`,
+        message: `Purchase ${result.series}-${result.number} cancelled successfully.`,
         reversal: {
           id: result.reversalEntryId,
           documentType: 'PURCHASE_REVERSAL',
@@ -133,7 +135,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return error;
     }
 
-    const msg = error instanceof Error ? error.message : 'Internal server error';
+    const msg = error instanceof Error ? error.message : 'Unknown error';
 
     if (msg === 'PURCHASE_NOT_FOUND') {
       return NextResponse.json({ error: 'Purchase not found' }, { status: 404 });
@@ -170,7 +172,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         { status: 500 }
       );
     }
-
+    
     // PERIOD_CLOSED should bubble from assertPeriodOpen / journalService
     console.error('Cancel purchase error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });

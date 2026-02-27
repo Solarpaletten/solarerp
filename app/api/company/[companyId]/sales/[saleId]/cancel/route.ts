@@ -85,10 +85,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         },
       });
 
-      if (!originalEntry) {
-        throw new Error('JOURNAL_ENTRY_NOT_FOUND');
+      if (!originalEntry.lines?.length) {
+        throw new Error('JOURNAL_LINES_EMPTY');
       }
-
+  
       // 4. Create REVERSAL journal entry (swap debit/credit)
       const reversedLines = originalEntry.lines.map((line) => ({
         accountId: line.accountId,
@@ -126,38 +126,45 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return error; 
     }
    
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const msg = error instanceof Error ? error.message : 'Internal server error';
 
-    // Friendly error messages
-    if (message === 'SALE_NOT_FOUND') {
+    // Friendly error msg based on known error codes
+    if (msg=== 'SALE_NOT_FOUND') {
       return NextResponse.json({ error: 'Sale document not found' }, { status: 404 });
     }
-    if (message === 'ALREADY_CANCELLED') {
+    if (msg === 'ALREADY_CANCELLED') {
       return NextResponse.json({ error: 'Sale document is already cancelled' }, { status: 409 });
     }
-    
-    if (message === 'LOCKED') {
-      return NextResponse.json(
-        { error: 'Sale document is locked and cannot be cancelled' },
-        { status: 409 }
-      );
-    }
 
-    if (message === 'PERIOD_CLOSED') {
+    if (msg === 'PERIOD_CLOSED') {
       return NextResponse.json(
         { error: 'Accounting period is closed for this date' },
         { status: 409 }
       );
     }
 
-    if (message === 'JOURNAL_ENTRY_NOT_FOUND') {
+    if (msg === 'LOCKED') {
+      return NextResponse.json(
+        { error: 'Sale document is locked and cannot be cancelled' },
+        { status: 409 }
+      );
+    }
+
+    if (msg === 'JOURNAL_ENTRY_NOT_FOUND') {
       return NextResponse.json(
         { error: 'Original journal entry not found for this sale' },
         { status: 404 }
       );
     }
 
-    console.error('Cancel sale error:', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    if (msg === 'JOURNAL_LINES_EMPTY') {
+      return NextResponse.json(
+        { error: 'Original journal entry has no lines. Cannot create reversal.' },
+        { status: 500 }
+      );
+    }
+
+    console.error('Cancel sale error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

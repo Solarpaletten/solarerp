@@ -55,7 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ data: sales, count: sales.length });
   } catch (error) {
     if (error instanceof Response) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return error;
     }
     console.error('List sales error:', error);
     return NextResponse.json(
@@ -65,24 +65,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// ─── POST /api/company/[companyId]/sales ─────────
-// Create SaleDocument + JournalEntry in ONE transaction
-//
-// Body:
-// {
-//   saleDate: string (ISO),
-//   series: string,
-//   number: string,
-//   clientName: string,
-//   warehouseName: string,
-//   operationType: string,
-//   currencyCode: string,
-//   items: [{ itemName, quantity, priceWithoutVat, ... }],
-//   journal: {
-//     debitAccountId: string,   // e.g. Accounts Receivable (1200)
-//     creditAccountId: string,  // e.g. Revenue (4000)
-//   }
-// }
+─── POST /api/company/[companyId]/sales ─────────
+Create SaleDocument + JournalEntry in ONE transaction
+
+Body:
+{
+  saleDate: string (ISO),
+  series: string,
+  number: string,
+  clientName: string,
+  warehouseName: string,
+  operationType: string,
+  currencyCode: string,
+  items: [{ itemName, quantity, priceWithoutVat, ... }],
+  journal: {
+    debitAccountId: string,   // e.g. Accounts Receivable (1200)
+    creditAccountId: string,  // e.g. Revenue (4000)
+  }
+}
 
 // Task 27: Persist account mapping for reposting
 await tx.saleDocument.update({
@@ -149,6 +149,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         { status: 400 }
       );
     }
+
+    
 
     // Calculate total amount from items
     const totalAmount = items.reduce(
@@ -260,8 +262,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   } catch (error: unknown) {
     if (error instanceof Response) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+      return error;
+}
+
+    // Task 27: Persist account mapping for reposting
+    await tx.saleDocument.update({
+      where: { id: sale.id },
+      data: {
+        debitAccountId: journal.debitAccountId,
+        creditAccountId: journal.creditAccountId,
+      },
+    });
 
     // Handle unique constraint (duplicate series+number)
     if (

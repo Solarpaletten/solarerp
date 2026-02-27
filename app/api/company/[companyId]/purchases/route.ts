@@ -55,7 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ data: purchases, count: purchases.length });
   } catch (error) {
     if (error instanceof Response) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return error;
     }
     console.error('List purchases error:', error);
     return NextResponse.json(
@@ -65,24 +65,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// ─── POST /api/company/[companyId]/purchases ─────
-// Create PurchaseDocument + JournalEntry in ONE transaction
-//
-// Body:
-// {
-//   purchaseDate: string (ISO),
-//   series: string,
-//   number: string,
-//   supplierName: string,
-//   warehouseName: string,
-//   operationType: string,
-//   currencyCode: string,
-//   items: [{ itemName, quantity, priceWithoutVat, ... }],
-//   journal: {
-//     debitAccountId: string,   // e.g. Inventory/Expense (5000)
-//     creditAccountId: string,  // e.g. Accounts Payable (2000)
-//   }
-// }
+
+
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { tenantId } = await requireTenant(request);
@@ -212,14 +196,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         include: { items: true },
       });
 
-      // Task 27: Persist account mapping for reposting
-      await tx.saleDocument.update({
-        where: { id: sale.id },
-        data: {
-          debitAccountId: journal.debitAccountId,
-          creditAccountId: journal.creditAccountId,
-        },
-      });
+      
 
       // 2. Create JournalEntry
       // PURCHASE: Debit Inventory/Expense, Credit Accounts Payable
@@ -257,8 +234,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   } catch (error: unknown) {
     if (error instanceof Response) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return error;
     }
+
+    // Task 27: Persist account mapping for reposting
+    await tx.purchaseDocument.update({
+      data: {
+        debitAccountId: journal.debitAccountId,
+        creditAccountId: journal.creditAccountId,
+      },
+    });
 
     // Handle unique constraint (duplicate series+number)
     if (

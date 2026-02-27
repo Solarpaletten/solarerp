@@ -169,7 +169,7 @@ async function main() {
   console.log('✅ Seed completed successfully');
   console.log('--------------------------------');
   console.log('Tenant:', tenant.name);
-  console.log('User:', user.email, '(password: admin123)');
+  console.log('User:', user.email, '(password: pass123)');
   console.log('Company:', company.name);
 }
 

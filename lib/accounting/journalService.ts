@@ -12,8 +12,9 @@
 // Task 24 MVP: Period Lock — second enforcement contour.
 // assertPeriodOpen() called before creating any JournalEntry.
 
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient, JournalSource } from '@prisma/client';
 import { assertPeriodOpen } from './periodLock';
+
 
 // Transaction client type (subset of PrismaClient used inside $transaction)
 type TxClient = Omit<
@@ -30,9 +31,11 @@ export type JournalLineInput = {
 export type CreateJournalEntryInput = {
   companyId: string;
   date: Date;
-  documentType: string; // 'SALE' | 'PURCHASE' | 'SALE_REVERSAL' | 'PURCHASE_REVERSAL'
-  documentId: string;
+  documentType: string;
+  documentId: string | null;
   lines: JournalLineInput[];
+  source?: JournalSource;
+  description?: string | null;
 };
 
 // ─── VALIDATION ──────────────────────────────────
@@ -84,7 +87,7 @@ export async function createJournalEntry(
   validateJournalLines(input.lines);
 
   // Verify all accounts exist and belong to the company
-  const accountIds = input.lines.map((l) => l.accountId);
+  const accountIds = [...new Set(input.lines.map((l) => l.accountId))];
   const accounts = await tx.account.findMany({
     where: {
       id: { in: accountIds },
@@ -108,6 +111,8 @@ export async function createJournalEntry(
       date: input.date,
       documentType: input.documentType,
       documentId: input.documentId,
+      source: input.source ?? JournalSource.SYSTEM,
+      description: input.description ?? null,
       lines: {
         create: input.lines.map((line) => ({
           accountId: line.accountId,

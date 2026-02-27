@@ -2,6 +2,12 @@
 CREATE TYPE "CompanyStatus" AS ENUM ('ACTIVE', 'FROZEN', 'ARCHIVED');
 
 -- CreateEnum
+CREATE TYPE "AccountType" AS ENUM ('ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE');
+
+-- CreateEnum
+CREATE TYPE "JournalSource" AS ENUM ('SYSTEM', 'MANUAL');
+
+-- CreateEnum
 CREATE TYPE "ClientLocation" AS ENUM ('LOCAL', 'EU', 'FOREIGN');
 
 -- CreateTable
@@ -28,6 +34,18 @@ CREATE TABLE "users" (
 );
 
 -- CreateTable
+CREATE TABLE "sessions" (
+    "id" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "sessions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "companies" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
@@ -36,10 +54,63 @@ CREATE TABLE "companies" (
     "vatNumber" TEXT,
     "country" TEXT,
     "status" "CompanyStatus" NOT NULL DEFAULT 'ACTIVE',
+    "priority" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "companies_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "accounts" (
+    "id" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "type" "AccountType" NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "accounts_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "journal_entries" (
+    "id" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "documentType" TEXT NOT NULL,
+    "documentId" TEXT,
+    "source" "JournalSource" NOT NULL DEFAULT 'SYSTEM',
+    "description" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "journal_entries_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "journal_lines" (
+    "id" TEXT NOT NULL,
+    "entryId" TEXT NOT NULL,
+    "accountId" TEXT NOT NULL,
+    "debit" DECIMAL(18,2) NOT NULL DEFAULT 0,
+    "credit" DECIMAL(18,2) NOT NULL DEFAULT 0,
+
+    CONSTRAINT "journal_lines_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "accounting_periods" (
+    "id" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "month" INTEGER NOT NULL,
+    "isClosed" BOOLEAN NOT NULL DEFAULT false,
+    "closedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "accounting_periods_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -131,6 +202,8 @@ CREATE TABLE "sale_documents" (
     "employeeName" TEXT,
     "status" TEXT,
     "comments" TEXT,
+    "debitAccountId" TEXT,
+    "creditAccountId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -181,6 +254,9 @@ CREATE TABLE "purchase_documents" (
     "currencyCode" TEXT NOT NULL,
     "employeeName" TEXT,
     "comments" TEXT,
+    "status" TEXT,
+    "debitAccountId" TEXT,
+    "creditAccountId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -278,7 +354,52 @@ CREATE INDEX "users_tenantId_idx" ON "users"("tenantId");
 CREATE UNIQUE INDEX "users_tenantId_email_key" ON "users"("tenantId", "email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "sessions_token_key" ON "sessions"("token");
+
+-- CreateIndex
+CREATE INDEX "sessions_userId_idx" ON "sessions"("userId");
+
+-- CreateIndex
+CREATE INDEX "sessions_expiresAt_idx" ON "sessions"("expiresAt");
+
+-- CreateIndex
 CREATE INDEX "companies_tenantId_idx" ON "companies"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "accounts_companyId_idx" ON "accounts"("companyId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "accounts_companyId_code_key" ON "accounts"("companyId", "code");
+
+-- CreateIndex
+CREATE INDEX "journal_entries_companyId_idx" ON "journal_entries"("companyId");
+
+-- CreateIndex
+CREATE INDEX "journal_entries_date_idx" ON "journal_entries"("date");
+
+-- CreateIndex
+CREATE INDEX "journal_entries_documentType_idx" ON "journal_entries"("documentType");
+
+-- CreateIndex
+CREATE INDEX "journal_entries_documentId_idx" ON "journal_entries"("documentId");
+
+-- CreateIndex
+CREATE INDEX "journal_entries_companyId_date_idx" ON "journal_entries"("companyId", "date");
+
+-- CreateIndex
+CREATE INDEX "journal_entries_companyId_source_idx" ON "journal_entries"("companyId", "source");
+
+-- CreateIndex
+CREATE INDEX "journal_lines_accountId_idx" ON "journal_lines"("accountId");
+
+-- CreateIndex
+CREATE INDEX "journal_lines_entryId_idx" ON "journal_lines"("entryId");
+
+-- CreateIndex
+CREATE INDEX "accounting_periods_companyId_idx" ON "accounting_periods"("companyId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "accounting_periods_companyId_year_month_key" ON "accounting_periods"("companyId", "year", "month");
 
 -- CreateIndex
 CREATE INDEX "clients_companyId_idx" ON "clients"("companyId");
@@ -335,7 +456,25 @@ CREATE UNIQUE INDEX "bank_statements_companyId_transactionNumber_key" ON "bank_s
 ALTER TABLE "users" ADD CONSTRAINT "users_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "tenants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "sessions" ADD CONSTRAINT "sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "companies" ADD CONSTRAINT "companies_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "accounts" ADD CONSTRAINT "accounts_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "journal_entries" ADD CONSTRAINT "journal_entries_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "journal_lines" ADD CONSTRAINT "journal_lines_entryId_fkey" FOREIGN KEY ("entryId") REFERENCES "journal_entries"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "journal_lines" ADD CONSTRAINT "journal_lines_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "accounting_periods" ADD CONSTRAINT "accounting_periods_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "clients" ADD CONSTRAINT "clients_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

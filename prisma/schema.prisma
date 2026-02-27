@@ -140,7 +140,8 @@ model JournalEntry {
   date         DateTime
   documentType String
   documentId   String?
-  source       JournalSource @default(SYSTEM)   
+  source       JournalSource @default(SYSTEM)
+  description  String?       
   createdAt    DateTime      @default(now())
 
   lines   JournalLine[]
@@ -150,8 +151,8 @@ model JournalEntry {
   @@index([date])
   @@index([documentType])
   @@index([documentId])
-  @@index([companyId, date])     
-  @@index([companyId, source])   
+  @@index([companyId, date])
+  @@index([companyId, source])
   @@map("journal_entries")
 }
 

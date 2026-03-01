@@ -60,6 +60,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
+
+
 // ─── POST /api/company/[companyId]/purchases ─────
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
@@ -71,7 +73,31 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
+    const contentLength = request.headers.get('content-length');
+
+    
+    // Draft mode: no body
+    if (!contentLength || contentLength === '0') {
+      const draft = await prisma.purchaseDocument.create({
+        data: {
+          companyId,
+          purchaseDate: new Date(),
+          series: 'P',
+          number: '0001',
+          supplierName: '',
+          warehouseName: '',
+          operationType: 'PURCHASE',
+          currencyCode: 'EUR',
+          status: 'DRAFT',
+        },
+      });
+
+      return NextResponse.json({ data: draft }, { status: 201 });
+    }
+
+    // Only now parse JSON
     const body = await request.json();
+    
 
     const {
       purchaseDate,
@@ -84,6 +110,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       items,
       journal,
     } = body;
+
+    
 
     if (!purchaseDate || !series || !docNumber || !supplierName || !warehouseName || !operationType || !currencyCode) {
       return NextResponse.json({ error: 'Missing required purchase fields' }, { status: 400 });

@@ -11,11 +11,19 @@
 //
 // Safety guarantees:
 //   ✅ Tenant isolation (requireTenant + company ownership check)
+//   ✅ Stammkonten source: ONLY lib/accounting/protectedAccounts.ts
 //   ✅ Stammkonten never deleted in reset mode
 //   ✅ Accounts with journal entries never deleted in reset mode
-//   ✅ skipDuplicates + pre-filter = idempotent (5 clicks = same result)
-//   ✅ @@unique([companyId, code]) = DB-level duplicate protection
+//   ✅ Layer A: pre-filter existing codes
+//   ✅ Layer B: createMany({ skipDuplicates: true })
+//   ✅ Layer C: @@unique([companyId, code]) in Prisma schema
 //   ✅ Single $transaction for atomicity
+//
+// Response format (§6 of ТЗ):
+//   {
+//     mode, totalInFile, created, skippedExisting,
+//     deleted?, protectedCount?, usedCount?
+//   }
 
 import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync } from 'fs';
@@ -31,7 +39,7 @@ type RouteParams = {
 
 const VALID_TYPES = new Set<string>(['ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE']);
 
-// ─── Tenant-scoped company check ─────────────────
+// ─── §1.1 Tenant-scoped company ownership ───────
 async function verifyCompanyOwnership(companyId: string, tenantId: string) {
   const company = await prisma.company.findFirst({
     where: { id: companyId, tenantId },
@@ -40,7 +48,7 @@ async function verifyCompanyOwnership(companyId: string, tenantId: string) {
   return company !== null;
 }
 
-// ─── CSV Parser ──────────────────────────────────
+// ─── §5 CSV Parser with validation ──────────────
 type ParsedRow = {
   code: string;
   nameDe: string;
@@ -77,20 +85,26 @@ function parseCSV(text: string): { rows: ParsedRow[]; errors: string[] } {
     if (!line) continue;
 
     const parts = line.split(',').map(p => p.trim());
-    const code = parts[codeIdx];
-    const typeStr = parts[typeIdx]?.toUpperCase();
+    const code = parts[codeIdx]?.trim();
+    const typeStr = parts[typeIdx]?.trim().toUpperCase();
 
-    if (!code || !typeStr) { errors.push(`Line ${i + 1}: missing code or type`); continue; }
-    if (!VALID_TYPES.has(typeStr)) { errors.push(`Line ${i + 1}: invalid type "${typeStr}"`); continue; }
+    if (!code || !typeStr) {
+      errors.push(`Line ${i + 1}: missing code or type`);
+      continue;
+    }
+    if (!VALID_TYPES.has(typeStr)) {
+      errors.push(`Line ${i + 1}: invalid type "${typeStr}"`);
+      continue;
+    }
 
     let nameDe = '';
     let nameEn = '';
 
     if (nameDeIdx !== -1) {
-      nameDe = parts[nameDeIdx] || code;
-      nameEn = nameEnIdx !== -1 ? (parts[nameEnIdx] || nameDe) : nameDe;
+      nameDe = parts[nameDeIdx]?.trim() || code;
+      nameEn = nameEnIdx !== -1 ? (parts[nameEnIdx]?.trim() || nameDe) : nameDe;
     } else if (nameIdx !== -1) {
-      nameDe = parts[nameIdx] || code;
+      nameDe = parts[nameIdx]?.trim() || code;
       nameEn = nameDe;
     } else {
       nameDe = code;
@@ -106,7 +120,7 @@ function parseCSV(text: string): { rows: ParsedRow[]; errors: string[] } {
 // ─── HANDLER ─────────────────────────────────────
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    // ═══ SECURITY: Tenant isolation ══════════════
+    // ═══ §1.1 SECURITY: Tenant isolation ═════════
     const { tenantId } = await requireTenant(request);
     const { companyId } = await params;
 
@@ -133,7 +147,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // ═══ Mode selection ══════════════════════════
+    // ═══ §3 Mode selection ═══════════════════════
     const url = new URL(request.url);
     const mode = url.searchParams.get('mode') || 'merge';
 
@@ -144,18 +158,28 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // ═══ Execute in transaction ══════════════════
+    // ═══ §3.2+ Reset confirmation guard ══════════
+    // Reset is destructive — require explicit confirmation
+    // to prevent accidental clicks by any user with access.
+    if (mode === 'reset') {
+      const confirm = url.searchParams.get('confirm');
+      if (confirm !== 'RESET') {
+        return NextResponse.json(
+          { error: 'Reset requires confirmation. Add ?confirm=RESET to proceed.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // ═══ §4 Execute in single transaction ════════
     const result = await prisma.$transaction(async (tx) => {
       let deletedCount = 0;
-      let protectedFromDelete = 0;
+      let protectedCount = 0; // Stammkonten that were spared
+      let usedCount = 0;      // accounts with journal entries that were spared
 
       if (mode === 'reset') {
-        // ─── RESET MODE ──────────────────────────
-        // Step 1: Find accounts that CANNOT be deleted
-        //   a) Stammkonten (system accounts from ACCOUNT_MAP)
-        //   b) Accounts with journal entries (have JournalLine references)
-
-        // Find all account IDs that have journal lines
+        // ─── §3.2 RESET MODE (safe reset) ────────
+        // Step 1: Find account IDs that have journal lines
         const usedAccountIds = await tx.journalLine.groupBy({
           by: ['accountId'],
           where: {
@@ -164,26 +188,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         });
         const usedIdSet = new Set(usedAccountIds.map(u => u.accountId));
 
-        // Load all current accounts
+        // Step 2: Load all current accounts
         const allAccounts = await tx.account.findMany({
           where: { companyId },
           select: { id: true, code: true },
         });
 
-        // Classify
+        // Step 3: Classify — §1.2 Stammkonten from protectedAccounts.ts ONLY
         const deletableIds: string[] = [];
         for (const acc of allAccounts) {
           const isStammkonto = PROTECTED_ACCOUNT_CODES.has(acc.code);
           const hasEntries = usedIdSet.has(acc.id);
 
-          if (isStammkonto || hasEntries) {
-            protectedFromDelete++;
+          if (isStammkonto) {
+            protectedCount++;
+          } else if (hasEntries) {
+            usedCount++;
           } else {
             deletableIds.push(acc.id);
           }
         }
 
-        // Delete only safe accounts
+        // Step 4: Delete ONLY safe accounts (not protected, not used)
+        // ⚠️ Never: deleteMany({ where: { companyId } })
         if (deletableIds.length > 0) {
           const deleteResult = await tx.account.deleteMany({
             where: { id: { in: deletableIds }, companyId },
@@ -192,10 +219,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         }
       }
 
-      // ─── MERGE / CREATE ────────────────────────
-      // Both modes: add accounts that don't exist yet
-
-      // Get current codes after potential deletion
+      // ─── §2A Layer A: Pre-filter existing codes ─
       const existing = await tx.account.findMany({
         where: { companyId },
         select: { code: true },
@@ -203,13 +227,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       const existingCodes = new Set(existing.map(a => a.code));
 
       const toCreate = rows.filter(r => !existingCodes.has(r.code));
-      const skipped = rows.length - toCreate.length;
+      const skippedExisting = rows.length - toCreate.length;
 
+      // ─── §2B Layer B: createMany skipDuplicates ─
       let created = 0;
       if (toCreate.length > 0) {
-        // createMany with skipDuplicates = belt + suspenders
-        // Pre-filter above handles known duplicates
-        // skipDuplicates handles race conditions / @@unique constraint
         const batch = await tx.account.createMany({
           data: toCreate.map(r => ({
             companyId,
@@ -219,19 +241,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             type: r.type,
             isActive: true,
           })),
-          skipDuplicates: true,
+          skipDuplicates: true, // §2B — handles race conditions on @@unique([companyId, code])
         });
         created = batch.count;
       }
 
+      // ─── §6 Response format ─────────────────────
       return {
         mode,
-        created,
-        skipped,
         totalInFile: rows.length,
+        created,
+        skippedExisting,
         ...(mode === 'reset' ? {
           deleted: deletedCount,
-          protectedFromDelete,
+          protectedCount,  // Stammkonten spared
+          usedCount,       // accounts with journal entries spared
         } : {}),
         ...(parseErrors.length > 0 ? { parseErrors } : {}),
       };

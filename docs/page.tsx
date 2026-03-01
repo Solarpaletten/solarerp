@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════
 // Task 32: Bilingual (nameDe + nameEn)
 // Task 33: Selection + Toolbar + Stammkonten + Import (merge/reset)
+// Task 33.1: DATEV+ audit — §6 response format
 
 'use client';
 
@@ -20,7 +21,18 @@ interface AccountFormData { code: string; nameDe: string; nameEn: string; type: 
 interface ProtectedAccount { id: string; code: string; nameDe: string; lineCount: number; }
 interface SystemAccount { id: string; code: string; nameDe: string; }
 interface UsageCheckResult { total: number; deletable: number; system: SystemAccount[]; protected: ProtectedAccount[]; }
-interface ImportResult { mode: string; created: number; skipped: number; totalInFile: number; deleted?: number; protectedFromDelete?: number; error?: string; }
+
+// §6 — matches skr03-import-route.ts response
+interface ImportResult {
+  mode: string;
+  totalInFile: number;
+  created: number;
+  skippedExisting: number;
+  deleted?: number;
+  protectedCount?: number;  // Stammkonten spared (reset only)
+  usedCount?: number;       // accounts with journal entries spared (reset only)
+  error?: string;
+}
 
 const STAMMKONTEN = new Set(['1000','1200','1400','1600','1576','1571','1776','1771','8400','8300','8125','3400','3100','0800','0840','0860','0868','9008','9009']);
 
@@ -50,7 +62,6 @@ function IndeterminateCheckbox({ checked, indeterminate, onChange }: { checked: 
   return <input ref={ref} type="checkbox" checked={checked} onChange={onChange} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />;
 }
 
-// ═══════════════════════════════════════════════════
 function ChartOfAccountsContent({ companyId }: { companyId: string }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +69,6 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
   const [lang, setLang] = useState<Lang>('de');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Account | null>(null);
@@ -66,27 +76,23 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Import
   const [showImportModal, setShowImportModal] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Smart delete
   const [showSmartDeleteModal, setShowSmartDeleteModal] = useState(false);
   const [usageCheck, setUsageCheck] = useState<UsageCheckResult | null>(null);
   const [checkingUsage, setCheckingUsage] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
 
-  // Filter
   const [filterType, setFilterType] = useState<AccountType | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
   const showBanner = (msg: string) => { setBanner(msg); setTimeout(() => setBanner(null), 5000); };
 
-  // ─── FETCH ─────────────────────────────────────
   const fetchAccounts = useCallback(async () => {
     try { setLoading(true); setError(null);
       const res = await fetch(`/api/company/${companyId}/accounts`);
@@ -100,7 +106,6 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
-  // ─── FILTER ────────────────────────────────────
   const filteredAccounts = accounts.filter(acc => {
     if (filterType !== 'ALL' && acc.type !== filterType) return false;
     if (searchQuery) { const q = searchQuery.toLowerCase();
@@ -108,7 +113,6 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
     return true;
   });
 
-  // ─── SELECTION ─────────────────────────────────
   const filteredIdSet = new Set(filteredAccounts.map(a => a.id));
   const selectedInView = [...selectedIds].filter(id => filteredIdSet.has(id)).length;
   const allFilteredSelected = filteredAccounts.length > 0 && filteredAccounts.every(a => selectedIds.has(a.id));
@@ -121,9 +125,15 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
 
   // ─── IMPORT ────────────────────────────────────
   const handleImportSKR03 = async (mode: 'merge' | 'reset') => {
+    // Reset requires explicit user confirmation
+    if (mode === 'reset') {
+      const input = prompt('This will delete all non-system accounts without journal entries.\n\nType RESET to confirm:');
+      if (input !== 'RESET') return;
+    }
     setImporting(true); setImportResult(null); setImportError(null);
     try {
-      const res = await fetch(`/api/company/${companyId}/chart-of-accounts/import/skr03?mode=${mode}`, { method: 'POST' });
+      const confirmParam = mode === 'reset' ? '&confirm=RESET' : '';
+      const res = await fetch(`/api/company/${companyId}/chart-of-accounts/import/skr03?mode=${mode}${confirmParam}`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Import failed');
       setImportResult(data);
@@ -188,10 +198,8 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
 
   if (loading) return <div className="flex items-center justify-center min-h-[400px]"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div><p className="text-gray-500">Loading accounts...</p></div></div>;
 
-  // ─── RENDER ────────────────────────────────────
   return (
     <div className="p-6">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">📋 Chart of Accounts</h1>
@@ -207,7 +215,6 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
       {error && <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>}
       {banner && <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm font-medium">{banner}</div>}
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         {stats.map(s => (
           <button key={s.value} onClick={() => setFilterType(filterType === s.value ? 'ALL' : s.value)}
@@ -217,10 +224,8 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
           </button>))}
       </div>
 
-      {/* Search */}
       <div className="mb-4"><input type="text" placeholder="Search by code or name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full md:w-80 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" /></div>
 
-      {/* Toolbar */}
       {selectedIds.size > 0 && (
         <div className="mb-4 flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
           <span className="text-sm font-semibold text-gray-700">{selectedInView} selected</span>
@@ -230,7 +235,6 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
           <button onClick={handleDeleteSelectedClick} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /> Delete Selected</button>
         </div>)}
 
-      {/* Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <table className="w-full">
           <thead><tr className="bg-gray-50 border-b border-gray-200">
@@ -267,7 +271,7 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
 
       <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileSelect} className="hidden" />
 
-      {/* ═══ IMPORT MODAL ═════════════════════════ */}
+      {/* ═══ IMPORT MODAL — §6 response display ══ */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
@@ -278,18 +282,22 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
 
             {importResult && (
               <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-green-800 font-semibold text-sm mb-1">✅ Import complete ({importResult.mode})</p>
+                <p className="text-green-800 font-semibold text-sm mb-2">✅ Import complete ({importResult.mode})</p>
                 <div className="text-sm text-green-700 space-y-0.5">
-                  <p>Created: <span className="font-semibold">{importResult.created}</span></p>
-                  <p>Skipped (existing): <span className="font-semibold">{importResult.skipped}</span></p>
                   <p>Total in file: <span className="font-semibold">{importResult.totalInFile}</span></p>
+                  <p>Created: <span className="font-semibold">{importResult.created}</span></p>
+                  <p>Skipped (existing): <span className="font-semibold">{importResult.skippedExisting}</span></p>
                   {importResult.deleted !== undefined && <p>Deleted (non-system): <span className="font-semibold">{importResult.deleted}</span></p>}
-                  {importResult.protectedFromDelete !== undefined && importResult.protectedFromDelete > 0 && <p>Protected from delete: <span className="font-semibold">{importResult.protectedFromDelete}</span></p>}
+                  {importResult.protectedCount !== undefined && importResult.protectedCount > 0 && (
+                    <p>🔒 Stammkonten preserved: <span className="font-semibold">{importResult.protectedCount}</span></p>
+                  )}
+                  {importResult.usedCount !== undefined && importResult.usedCount > 0 && (
+                    <p>📋 With entries preserved: <span className="font-semibold">{importResult.usedCount}</span></p>
+                  )}
                 </div>
               </div>)}
             {importError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{importError}</div>}
 
-            {/* SKR03 Merge */}
             <div className="mb-3">
               <button onClick={() => handleImportSKR03('merge')} disabled={importing}
                 className="w-full flex items-center gap-3 p-4 border-2 border-dashed border-green-300 rounded-lg hover:bg-green-50 transition-colors disabled:opacity-50">
@@ -298,7 +306,6 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
               </button>
             </div>
 
-            {/* SKR03 Reset */}
             <div className="mb-4">
               <button onClick={() => handleImportSKR03('reset')} disabled={importing}
                 className="w-full flex items-center gap-3 p-4 border-2 border-dashed border-amber-300 rounded-lg hover:bg-amber-50 transition-colors disabled:opacity-50">
@@ -307,10 +314,8 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
               </button>
             </div>
 
-            {/* Divider */}
             <div className="flex items-center gap-3 mb-4"><div className="flex-1 h-px bg-gray-200" /><span className="text-xs text-gray-400 font-medium">OR</span><div className="flex-1 h-px bg-gray-200" /></div>
 
-            {/* Custom CSV */}
             <div className="mb-4">
               <button onClick={() => fileInputRef.current?.click()} disabled={importing}
                 className="w-full flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50">
@@ -381,7 +386,7 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
   );
 }
 
-// ─── SHARED COMPONENTS ───────────────────────────
+// ─── SHARED ──────────────────────────────────────
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"><div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4"><div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-gray-800">{title}</h3><button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded"><X className="w-5 h-5" /></button></div>{children}</div></div>;
 }

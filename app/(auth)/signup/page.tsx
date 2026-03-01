@@ -215,23 +215,18 @@ export default function SignupPage() {
                 </label>
               </div>
 
-              {/* Development autofill button (hidden) */}
+              
               {process.env.NODE_ENV === 'development' && (
                 <button
                   type="button"
-                  hidden
-                  onClick={() =>
-                    setFormData({
-                      email: 'test@example.com',
-                      phone: '+49123456789',
-                      name: 'Test',
-                      surname: 'User',
-                      password: 'test1234',
-                      username: 'testuser',
-                    })
-                  }
+                  className="w-full bg-gray-200 text-sm py-1 rounded"
+                  onClick={() => {
+                    setEmail('test@example.com');
+                    setPassword('test1234');
+                    setTenantName('TestTenant');
+                  }}
                 >
-                  Autofill
+                  Autofill (Dev)
                 </button>
               )}
 

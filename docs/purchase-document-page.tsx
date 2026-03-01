@@ -1,23 +1,20 @@
 // app/(dashboard)/company/[companyId]/purchases/[purchaseId]/page.tsx
 // ═══════════════════════════════════════════════════
-// Task 38B: Purchase Document Page (Dual Mode)
+// Task 40: Audited Purchase Document Page (Dual Mode)
 // ═══════════════════════════════════════════════════
-// DRAFT  → editable header + editable items + save
-// POSTED → read-only header + read-only items + totals
+// DRAFT  → editable header + items + Save + Post
+// POSTED → read-only header + items + totals
 
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Send } from 'lucide-react';
 
-// Read-only components (37A/37B/37C)
 import PurchaseHeader from '@/components/purchases/PurchaseHeader';
 import PurchaseItemsTable from '@/components/purchases/PurchaseItemsTable';
 import PurchaseTotals from '@/components/purchases/PurchaseTotals';
-
-// Editable components (38B)
 import PurchaseHeaderEdit from '@/components/purchases/PurchaseHeaderEdit';
 import PurchaseItemsEdit, { type EditableItem } from '@/components/purchases/PurchaseItemsEdit';
 
@@ -58,11 +55,8 @@ interface HeaderForm {
 }
 
 function toDateInputValue(dateStr: string): string {
-  try {
-    return new Date(dateStr).toISOString().split('T')[0];
-  } catch {
-    return '';
-  }
+  try { return new Date(dateStr).toISOString().split('T')[0]; }
+  catch { return ''; }
 }
 
 function initHeaderForm(p: PurchaseDocument): HeaderForm {
@@ -94,20 +88,18 @@ export default function PurchaseDocumentPage() {
   const companyId = params.companyId as string;
   const purchaseId = params.purchaseId as string;
 
-  // Data state
   const [purchase, setPurchase] = useState<PurchaseDocument | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Form state (DRAFT only)
   const [headerForm, setHeaderForm] = useState<HeaderForm | null>(null);
   const [editItems, setEditItems] = useState<EditableItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   const isEditable = purchase?.status === 'DRAFT';
 
-  // ─── Fetch ────────────────────────────────────
   const fetchPurchase = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -129,11 +121,11 @@ export default function PurchaseDocumentPage() {
 
   useEffect(() => { fetchPurchase(); }, [fetchPurchase]);
 
-  // ─── Save (PUT) ───────────────────────────────
   async function handleSave() {
     if (!headerForm || !purchase) return;
     setIsSaving(true);
     setSaveMsg(null);
+    setError(null);
 
     try {
       const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}`, {
@@ -170,13 +162,75 @@ export default function PurchaseDocumentPage() {
     }
   }
 
-  // ─── Header form handler ──────────────────────
+  async function handlePost() {
+    if (!purchase || !headerForm) return;
+
+    if (editItems.length === 0) {
+      setError('Cannot post: add at least one item');
+      return;
+    }
+    if (!headerForm.supplierName.trim()) {
+      setError('Cannot post: supplier name is required');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Post document ${purchase.series}-${purchase.number}?\n\nThis will create journal entries, stock movements, and FIFO lots.\nThe document will become read-only.`
+    );
+    if (!confirmed) return;
+
+    setIsPosting(true);
+    setError(null);
+
+    try {
+      // Step 1: Save current state
+      const saveRes = await fetch(`/api/company/${companyId}/purchases/${purchaseId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...headerForm,
+          items: editItems.map((item) => ({
+            itemName: item.itemName,
+            itemCode: item.itemCode || null,
+            quantity: item.quantity,
+            priceWithoutVat: item.priceWithoutVat,
+            vatRate: item.vatRate,
+          })),
+        }),
+      });
+
+      if (!saveRes.ok) {
+        const json = await saveRes.json().catch(() => ({}));
+        throw new Error(json.error || 'Save before post failed');
+      }
+
+      // Step 2: Post (server auto-resolves accounts via ACCOUNT_MAP)
+      const postRes = await fetch(
+        `/api/company/${companyId}/purchases/${purchaseId}/post`,
+        { method: 'POST' }
+      );
+
+      if (!postRes.ok) {
+        const json = await postRes.json().catch(() => ({}));
+        throw new Error(json.error || 'Post failed');
+      }
+
+      await fetchPurchase();
+      setSaveMsg('Posted ✓');
+      setTimeout(() => setSaveMsg(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Post failed');
+      await fetchPurchase();
+    } finally {
+      setIsPosting(false);
+    }
+  }
+
   function handleHeaderChange(field: keyof HeaderForm, value: string) {
     if (!headerForm) return;
     setHeaderForm({ ...headerForm, [field]: value });
   }
 
-  // ─── Loading ──────────────────────────────────
   if (isLoading) {
     return (
       <div className="p-6 flex items-center justify-center py-20">
@@ -186,102 +240,76 @@ export default function PurchaseDocumentPage() {
     );
   }
 
-  // ─── Error / Not Found ────────────────────────
-  if (error || !purchase) {
+  if (!purchase && (error || !isLoading)) {
     return (
       <div className="p-6">
-        <Link
-          href={`/company/${companyId}/purchases`}
-          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mb-6"
-        >
+        <Link href={`/company/${companyId}/purchases`}
+          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mb-6">
           <ArrowLeft size={14} /> Back to Purchases
         </Link>
         <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
           <p className="text-gray-500 text-sm">{error || 'Document not found'}</p>
-          <button
-            onClick={() => router.push(`/company/${companyId}/purchases`)}
-            className="mt-4 text-xs text-blue-600 hover:text-blue-800"
-          >
-            ← Return to list
-          </button>
+          <button onClick={() => router.push(`/company/${companyId}/purchases`)}
+            className="mt-4 text-xs text-blue-600 hover:text-blue-800">← Return to list</button>
         </div>
       </div>
     );
   }
 
-  // ─── Items for Totals (works for both modes) ──
+  if (!purchase) return null;
+
   const totalsItems = isEditable
-    ? editItems.map((i) => ({
-        quantity: i.quantity,
-        priceWithoutVat: i.priceWithoutVat,
-        vatRate: i.vatRate,
-      }))
+    ? editItems.map((i) => ({ quantity: i.quantity, priceWithoutVat: i.priceWithoutVat, vatRate: i.vatRate }))
     : purchase.items;
 
-  // ─── Render ───────────────────────────────────
+  const actionDisabled = isSaving || isPosting;
+
   return (
     <div className="p-6 space-y-4">
-      {/* Back + Save bar */}
       <div className="flex items-center justify-between">
-        <Link
-          href={`/company/${companyId}/purchases`}
-          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-        >
+        <Link href={`/company/${companyId}/purchases`}
+          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
           <ArrowLeft size={14} /> Purchases
         </Link>
-
         {isEditable && (
           <div className="flex items-center gap-2">
-            {saveMsg && (
-              <span className="text-xs text-green-600 font-medium">{saveMsg}</span>
-            )}
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-medium rounded-md transition-colors"
-            >
-              {isSaving ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Save size={14} />
-              )}
+            {saveMsg && <span className="text-xs text-green-600 font-medium">{saveMsg}</span>}
+            <button onClick={handleSave} disabled={actionDisabled}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-medium rounded-md transition-colors">
+              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               {isSaving ? 'Saving...' : 'Save'}
             </button>
-            <button
-              disabled
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gray-100 text-gray-400 text-xs font-medium rounded-md cursor-not-allowed"
-              title="Posting will be available in Task 39"
-            >
-              Post
+            <button onClick={handlePost} disabled={actionDisabled}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white text-xs font-medium rounded-md transition-colors">
+              {isPosting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              {isPosting ? 'Posting...' : 'Post'}
             </button>
           </div>
         )}
       </div>
 
-      {/* Header */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-700 flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 text-xs ml-4">✕</button>
+        </div>
+      )}
+
       {isEditable && headerForm ? (
-        <PurchaseHeaderEdit
-          form={headerForm}
-          onChange={handleHeaderChange}
-          series={purchase.series}
-          number={purchase.number}
-        />
+        <PurchaseHeaderEdit form={headerForm} onChange={handleHeaderChange}
+          series={purchase.series} number={purchase.number} />
       ) : (
         <PurchaseHeader purchase={purchase} />
       )}
 
-      {/* Items */}
       {isEditable ? (
         <PurchaseItemsEdit items={editItems} onChange={setEditItems} />
       ) : (
         <PurchaseItemsTable items={purchase.items} />
       )}
 
-      {/* Totals */}
-      <PurchaseTotals
-        items={totalsItems}
-        currencyCode={isEditable ? (headerForm?.currencyCode || 'EUR') : purchase.currencyCode}
-      />
+      <PurchaseTotals items={totalsItems}
+        currencyCode={isEditable ? (headerForm?.currencyCode || 'EUR') : purchase.currencyCode} />
     </div>
   );
 }

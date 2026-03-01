@@ -77,17 +77,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { code, name, type } = body;
+    const { code, nameDe, nameEn, type } = body;
 
-    // Validate required fields
-    if (!code || !name || !type) {
+    if (!code || !nameDe || !type) {
       return NextResponse.json(
-        { error: 'Missing required fields: code, name, type' },
+        { error: 'Missing required fields: code, nameDe, type' },
         { status: 400 }
       );
     }
 
-    // Validate account type
     if (!VALID_TYPES.includes(type)) {
       return NextResponse.json(
         { error: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}` },
@@ -95,7 +93,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Create account (@@unique([companyId, code]) prevents duplicates)
     const account = await prisma.account.create({
       data: {
         companyId,

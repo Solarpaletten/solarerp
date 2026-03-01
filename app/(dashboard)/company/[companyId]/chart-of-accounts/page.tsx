@@ -254,7 +254,21 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
               return (
                 <tr key={account.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${isSelected ? 'bg-blue-50' : ''} ${isSystem ? 'bg-amber-50/30' : ''}`}>
                   <td className="w-10 px-3 py-3"><input type="checkbox" checked={isSelected} onChange={() => toggleSelect(account.id)} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" /></td>
-                  <td className="px-4 py-3"><div className="flex items-center gap-1.5"><span className="font-mono text-sm font-semibold text-gray-800">{account.code}</span>{isSystem && <Lock className="w-3.5 h-3.5 text-amber-500" title="Stammkonto" />}</div></td>
+
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-sm font-semibold text-gray-800">
+                        {account.code}
+                      </span>
+
+                      {isSystem && (
+                        <span title="Stammkonto">
+                          <Lock className="w-3.5 h-3.5 text-amber-500" />
+                        </span>
+                      )}
+                    </div>
+                  </td>
+
                   <td className="px-4 py-3 text-sm text-gray-700">{getAccountName(account, lang)}</td>
                   <td className="px-4 py-3"><span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${TYPE_COLOR_MAP[account.type]}`}>{account.type}</span></td>
                   <td className="px-4 py-3"><span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${account.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>{account.isActive ? 'Active' : 'Inactive'}</span></td>

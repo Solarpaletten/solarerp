@@ -15,6 +15,7 @@ import prisma from '@/lib/prisma';
 import { requireTenant } from '@/lib/auth/requireTenant';
 import { createJournalEntry } from '@/lib/accounting/journalService';
 import { assertPeriodOpen } from '@/lib/accounting/periodLock';
+import { createStockMovement, getProductBalance } from '@/lib/accounting/stockService';
 
 type RouteParams = {
   params: Promise<{ companyId: string }>;
@@ -160,6 +161,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+
+
     // ═══════════════════════════════════════════════
     // TRANSACTION: SaleDocument + JournalEntry
     // If either fails → both roll back
@@ -167,6 +170,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const result = await prisma.$transaction(async (tx) => {
 
       await assertPeriodOpen(tx, { companyId, date: new Date(saleDate) });
+
+      // ─── Task 34: Stock availability check ─────
+      // Verify sufficient stock before allowing sale
+      for (const item of items) {
+        const itemCode = item.itemCode || item.itemName;
+        const balance = await getProductBalance(tx, companyId, warehouseName, itemCode);
+        const requestedQty = Number(item.quantity);
+
+        if (balance < requestedQty) {
+          throw new Error(
+            `INSUFFICIENT_STOCK: ${item.itemName} (${itemCode}) — available: ${balance}, requested: ${requestedQty} in warehouse "${warehouseName}"`
+          );
+        }
+      }
+
+
+      // 1. Create SaleDocument
+
       // 1. Create SaleDocument with items
       const sale = await tx.saleDocument.create({
         data: {
@@ -218,8 +239,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         },
         include: { items: true },
       });
+      
+
+
 
       // 2. Create JournalEntry
+
       // SALE: Debit Accounts Receivable, Credit Revenue
 
       const journalEntry = await createJournalEntry(tx, {
@@ -241,6 +266,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         ],
       });
       
+      
+      // 3. Save posting profile 
+
       await tx.saleDocument.update({
         where: { id: sale.id },
         data: {
@@ -248,9 +276,37 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           creditAccountId: journal.creditAccountId,
         },
       });
+      
+      // 4. Stock Movements (OUT) — Task 34
+      // ─── Task 34: Stock Movements (OUT) ────────
+      for (const item of sale.items) {
+        await createStockMovement({
+          tx,
+          companyId,
+          warehouseName: sale.warehouseName,
+          itemName: item.itemName,
+          itemCode: item.itemCode || item.itemName,
+          quantity: Number(item.quantity),
+          cost: Number(item.priceWithoutVat),
+          direction: 'OUT',
+          documentType: 'SALE',
+          documentId: sale.id,
+          documentDate: sale.saleDate,
+          series: sale.series,
+          number: docNumber,
+          barcode: item.barcode || undefined,
+          vatRate: item.vatRate ? Number(item.vatRate) : undefined,
+          priceWithoutVat: Number(item.priceWithoutVat),
+          operationType: sale.operationType,
+        });
+      }
+
+      
 
       return { sale, journalEntry };
     });
+
+    
 
     return NextResponse.json(
       {

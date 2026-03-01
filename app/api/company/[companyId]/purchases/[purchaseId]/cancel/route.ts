@@ -19,6 +19,7 @@ import prisma from '@/lib/prisma';
 import { requireTenant } from '@/lib/auth/requireTenant';
 import { createJournalEntry } from '@/lib/accounting/journalService';
 import { assertPeriodOpen } from '@/lib/accounting/periodLock';
+import { createReverseMovements } from '@/lib/accounting/stockService';
 
 type RouteParams = {
   params: Promise<{ companyId: string; purchaseId: string }>;
@@ -110,6 +111,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         where: { id: purchaseId },
         data: { status: 'CANCELLED' },
       });
+
+      // ─── Task 34: Reverse Stock Movements ──────
+      // Create opposite movements to cancel stock impact
+
+      await createReverseMovements(
+        tx,
+        companyId,
+        purchaseId,
+        'PURCHASE_REVERSAL'
+      );
 
       return {
         series: purchase.series,

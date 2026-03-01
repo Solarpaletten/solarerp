@@ -18,6 +18,7 @@ import prisma from '@/lib/prisma';
 import { requireTenant } from '@/lib/auth/requireTenant';
 import { createJournalEntry } from '@/lib/accounting/journalService';
 import { assertPeriodOpen } from '@/lib/accounting/periodLock';
+import { createReverseMovements } from '@/lib/accounting/stockService';
 
 type RouteParams = {
   params: Promise<{ companyId: string; saleId: string }>;
@@ -111,6 +112,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         include: { items: true },
       });
 
+      // ─── Task 34: Reverse Stock Movements ──────
+      // Create opposite movements to cancel stock impact
+      await createReverseMovements(
+        tx,
+        companyId,
+        saleId,
+        'SALE_REVERSAL'
+      );
+
       return { sale: updatedSale, reversalEntry };
     });
 
@@ -125,6 +135,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (error instanceof Response) {
       return error; 
     }
+
    
     const msg = error instanceof Error ? error.message : 'Internal server error';
 

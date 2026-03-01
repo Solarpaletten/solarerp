@@ -492,14 +492,24 @@ model StockMovement {
   externalId      String?
   freePrice       Boolean  @default(false)
 
+  // ─── Task 34: Stock Engine additions ───────────
+  direction    String   // IN | OUT
+  documentType String   // PURCHASE | SALE | ADJUSTMENT | PURCHASE_REVERSAL | SALE_REVERSAL
+  documentId   String?  // FK to PurchaseDocument.id or SaleDocument.id
+
   createdAt DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id])
 
   @@index([companyId])
   @@index([documentDate])
+  @@index([warehouseName])
+  @@index([itemCode])
+  @@index([direction])
+  @@index([documentId])
   @@map("stock_movements")
 }
+
 
 // ============================================
 // ERP MODULE: BANK STATEMENTS

@@ -1,0 +1,63 @@
+// ============================================
+// ERP MODULE: STOCK MOVEMENTS (Task 34 — updated)
+// ============================================
+// 
+// REPLACES the old StockMovement model.
+// Added: direction, documentType, documentId
+// Kept: all existing fields (warehouseName, itemName, etc.)
+//
+// Aggregation: SUM(CASE direction='IN' THEN quantity ELSE -quantity END) GROUP BY warehouseName, itemCode
+// No separate Warehouse table — warehouseName from documents.
+
+model StockMovement {
+  id        String @id @default(cuid())
+  companyId String
+
+  warehouseName String
+  operationType String
+  documentDate  DateTime
+  series        String
+  number        String
+
+  itemName String
+  itemCode String?
+  barcode  String?
+
+  quantity        Decimal
+  cost            Decimal
+  vatRate         Decimal?
+  priceWithoutVat Decimal?
+  priceWithVat    Decimal?
+
+  attributeName   String?
+  groupName       String?
+  manufacturer    String?
+  countryOfOrigin String?
+  unitName        String?
+
+  purchaseAccountCode String?
+  saleAccountCode     String?
+  expenseAccountCode  String?
+
+  minimumQuantity Decimal?
+  description     String?
+  externalId      String?
+  freePrice       Boolean  @default(false)
+
+  // ─── Task 34: Stock Engine additions ───────────
+  direction    String   // IN | OUT
+  documentType String   // PURCHASE | SALE | ADJUSTMENT | PURCHASE_REVERSAL | SALE_REVERSAL
+  documentId   String?  // FK to PurchaseDocument.id or SaleDocument.id
+
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([documentDate])
+  @@index([warehouseName])
+  @@index([itemCode])
+  @@index([direction])
+  @@index([documentId])
+  @@map("stock_movements")
+}

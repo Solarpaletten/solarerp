@@ -1,8 +1,3 @@
-// components/purchases/PurchaseTable.tsx
-// ═══════════════════════════════════════════════════
-// Task 36A: Purchase Documents Table
-// ═══════════════════════════════════════════════════
-
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -30,9 +25,6 @@ interface PurchaseDocument {
 
 interface PurchaseTableProps {
   purchases: PurchaseDocument[];
-  selectedIds: string[];
-  onSelectionChange: (ids: string[]) => void;
-  isLoading: boolean;
   companyId: string;
 }
 
@@ -49,7 +41,11 @@ function calcTotal(items: PurchaseItem[]): string {
     (sum, item) => sum + Number(item.quantity) * Number(item.priceWithoutVat),
     0
   );
-  return total.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return total.toLocaleString('de-DE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -61,44 +57,21 @@ const STATUS_STYLES: Record<string, string> = {
 
 export default function PurchaseTable({
   purchases,
-  selectedIds,
-  onSelectionChange,
-  isLoading,
   companyId,
 }: PurchaseTableProps) {
   const router = useRouter();
-  const allSelected = purchases.length > 0 && selectedIds.length === purchases.length;
+  const safePurchases = Array.isArray(purchases) ? purchases : [];
 
-  function toggleAll() {
-    if (allSelected) {
-      onSelectionChange([]);
-    } else {
-      onSelectionChange(purchases.map((p) => p.id));
-    }
-  }
-
-  function toggleOne(id: string) {
-    if (selectedIds.includes(id)) {
-      onSelectionChange(selectedIds.filter((s) => s !== id));
-    } else {
-      onSelectionChange([...selectedIds, id]);
-    }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-        <div className="animate-pulse text-gray-400 text-sm">Loading purchases...</div>
-      </div>
-    );
-  }
-
-  if (purchases.length === 0) {
+  if (safePurchases.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
         <Package className="mx-auto mb-3 text-gray-300" size={40} />
-        <p className="text-gray-500 text-sm mb-1">No purchase documents yet</p>
-        <p className="text-gray-400 text-xs">Create your first purchase to get started</p>
+        <p className="text-gray-500 text-sm mb-1">
+          No purchase documents yet
+        </p>
+        <p className="text-gray-400 text-xs">
+          Create your first purchase to get started
+        </p>
       </div>
     );
   }
@@ -109,14 +82,6 @@ export default function PurchaseTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="w-10 px-3 py-2.5">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
-                />
-              </th>
               <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Doc #
               </th>
@@ -129,9 +94,6 @@ export default function PurchaseTable({
               <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Warehouse
               </th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Items
-              </th>
               <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Total (net)
               </th>
@@ -141,50 +103,42 @@ export default function PurchaseTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {purchases.map((purchase) => {
-              const isSelected = selectedIds.includes(purchase.id);
+            {safePurchases.map((purchase) => {
               const status = purchase.status || 'DRAFT';
               const statusStyle =
-                STATUS_STYLES[status] || 'bg-gray-50 text-gray-500 border-gray-200';
+                STATUS_STYLES[status] ||
+                'bg-gray-50 text-gray-500 border-gray-200';
 
               return (
                 <tr
                   key={purchase.id}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('input')) return;
-                    router.push(`/company/${companyId}/purchases/${purchase.id}`);
-                  }}
-                  className={`cursor-pointer transition-colors ${
-                    isSelected ? 'bg-blue-50/60' : 'hover:bg-gray-50'
-                  }`}
+                  onClick={() =>
+                    router.push(
+                      `/company/${companyId}/purchases/${purchase.id}`
+                    )
+                  }
+                  className="cursor-pointer hover:bg-gray-50 transition-colors"
                 >
-                  <td className="w-10 px-3 py-2.5">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleOne(purchase.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
-                    />
-                  </td>
                   <td className="px-3 py-2.5 font-mono text-xs font-medium text-gray-900">
                     {purchase.series}-{purchase.number}
                   </td>
+
                   <td className="px-3 py-2.5 text-gray-600 text-xs">
                     {formatDate(purchase.purchaseDate)}
                   </td>
+
                   <td className="px-3 py-2.5 text-gray-800 font-medium text-xs">
                     {purchase.supplierName}
                   </td>
+
                   <td className="px-3 py-2.5 text-gray-500 text-xs">
                     {purchase.warehouseName}
                   </td>
-                  <td className="px-3 py-2.5 text-gray-500 text-xs tabular-nums">
-                    {purchase.items.length}
-                  </td>
+
                   <td className="px-3 py-2.5 text-right font-mono text-xs text-gray-900 tabular-nums">
-                    €{calcTotal(purchase.items)}
+                    €{calcTotal(purchase.items || [])}
                   </td>
+
                   <td className="px-3 py-2.5 text-center">
                     <span
                       className={`inline-block px-2 py-0.5 text-[10px] font-semibold uppercase rounded border ${statusStyle}`}

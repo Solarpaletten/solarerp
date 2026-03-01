@@ -155,3 +155,5 @@ git tag v0.3.0-accounting-base
 - Ledger remains immutable
 
 git commit -m "d_c_gitkeep_task_28.md"
+
+Dashka передаю тебе от консультанта аудитора бухгалтерского учёта K=>D 

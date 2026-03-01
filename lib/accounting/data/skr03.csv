@@ -235,7 +235,7 @@ code,nameDe,nameEn,type
 3910,Fremdleistungen 7%,Outside services 7%,EXPENSE
 3920,Fremdleistungen 19%,Outside services 19%,EXPENSE
 3950,Subunternehmerleistungen,Subcontractor services,EXPENSE
-3960,Aufwendungen für Leiharbeitnehmer,Temporary worker costs,EXPENSE
+3960,Bestandsveränderungen Waren,Inventory Changes,ASSET
 3970,Abfallverwertung,Waste processing,EXPENSE
 3980,Fremdarbeiten innerbetrieblich,Internal contract work,EXPENSE
 4000,Löhne und Gehälter,Wages and salaries,EXPENSE
@@ -351,6 +351,7 @@ code,nameDe,nameEn,type
 4990,Steuerlich nicht abzugsfähige Aufwendungen,Non-deductible expenses,EXPENSE
 4996,Herstellungskosten aktivierte Eigenleistung,Manufacturing costs capitalized,EXPENSE
 4999,Gegenkonto Herstellungskosten,Offset manufacturing costs,INCOME
+5000,Aufwendungen für Waren,Cost of Goods Sold,EXPENSE
 8000,Erlöse,Revenue,INCOME
 8010,Erlöse Inland steuerfrei,Revenue domestic tax-free,INCOME
 8100,Steuerfreie Umsätze §4 Nr.1a UStG Ausfuhr,Revenue exports §4,INCOME

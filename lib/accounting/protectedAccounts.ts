@@ -45,7 +45,12 @@ export const PROTECTED_ACCOUNT_CODES = new Set([
   // Opening / Closing
   '9008', // Eröffnungsbilanz
   '9009', // Schlussbilanzkonto
+
+  // PROTECTED_ACCOUNT_CODES
+  '3960', // Bestandsveränderungen Waren (Inventory)
+  '5000', // Aufwendungen für Waren (COGS)
 ]);
+  
 
 /**
  * Check if an account code is a protected system account.

@@ -62,11 +62,48 @@ CREATE TABLE "companies" (
 );
 
 -- CreateTable
+CREATE TABLE "stock_lots" (
+    "id" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "warehouseName" TEXT NOT NULL,
+    "itemCode" TEXT NOT NULL,
+    "itemName" TEXT NOT NULL,
+    "sourceDocumentType" TEXT NOT NULL DEFAULT 'PURCHASE',
+    "sourceDocumentId" TEXT NOT NULL,
+    "purchaseDate" TIMESTAMP(3) NOT NULL,
+    "unitCost" DECIMAL(18,2) NOT NULL,
+    "qtyInitial" DECIMAL(18,4) NOT NULL,
+    "qtyRemaining" DECIMAL(18,4) NOT NULL,
+    "currencyCode" TEXT NOT NULL DEFAULT 'EUR',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "stock_lots_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "stock_allocations" (
+    "id" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "documentType" TEXT NOT NULL,
+    "documentId" TEXT NOT NULL,
+    "saleItemId" TEXT,
+    "lotId" TEXT NOT NULL,
+    "qty" DECIMAL(18,4) NOT NULL,
+    "unitCost" DECIMAL(18,2) NOT NULL,
+    "amount" DECIMAL(18,2) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "stock_allocations_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "accounts" (
     "id" TEXT NOT NULL,
     "companyId" TEXT NOT NULL,
     "code" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
+    "nameDe" TEXT NOT NULL,
+    "nameEn" TEXT NOT NULL,
     "type" "AccountType" NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -321,6 +358,9 @@ CREATE TABLE "stock_movements" (
     "description" TEXT,
     "externalId" TEXT,
     "freePrice" BOOLEAN NOT NULL DEFAULT false,
+    "direction" TEXT NOT NULL,
+    "documentType" TEXT NOT NULL,
+    "documentId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "stock_movements_pkey" PRIMARY KEY ("id")
@@ -364,6 +404,24 @@ CREATE INDEX "sessions_expiresAt_idx" ON "sessions"("expiresAt");
 
 -- CreateIndex
 CREATE INDEX "companies_tenantId_idx" ON "companies"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "stock_lots_fifo_idx" ON "stock_lots"("companyId", "warehouseName", "itemCode", "purchaseDate", "id");
+
+-- CreateIndex
+CREATE INDEX "stock_lots_source_idx" ON "stock_lots"("companyId", "sourceDocumentId");
+
+-- CreateIndex
+CREATE INDEX "stock_lots_companyId_idx" ON "stock_lots"("companyId");
+
+-- CreateIndex
+CREATE INDEX "stock_allocations_doc_idx" ON "stock_allocations"("companyId", "documentType", "documentId");
+
+-- CreateIndex
+CREATE INDEX "stock_allocations_lot_idx" ON "stock_allocations"("companyId", "lotId");
+
+-- CreateIndex
+CREATE INDEX "stock_allocations_companyId_idx" ON "stock_allocations"("companyId");
 
 -- CreateIndex
 CREATE INDEX "accounts_companyId_idx" ON "accounts"("companyId");
@@ -444,6 +502,18 @@ CREATE INDEX "stock_movements_companyId_idx" ON "stock_movements"("companyId");
 CREATE INDEX "stock_movements_documentDate_idx" ON "stock_movements"("documentDate");
 
 -- CreateIndex
+CREATE INDEX "stock_movements_warehouseName_idx" ON "stock_movements"("warehouseName");
+
+-- CreateIndex
+CREATE INDEX "stock_movements_itemCode_idx" ON "stock_movements"("itemCode");
+
+-- CreateIndex
+CREATE INDEX "stock_movements_direction_idx" ON "stock_movements"("direction");
+
+-- CreateIndex
+CREATE INDEX "stock_movements_documentId_idx" ON "stock_movements"("documentId");
+
+-- CreateIndex
 CREATE INDEX "bank_statements_companyId_idx" ON "bank_statements"("companyId");
 
 -- CreateIndex
@@ -460,6 +530,15 @@ ALTER TABLE "sessions" ADD CONSTRAINT "sessions_userId_fkey" FOREIGN KEY ("userI
 
 -- AddForeignKey
 ALTER TABLE "companies" ADD CONSTRAINT "companies_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "stock_lots" ADD CONSTRAINT "stock_lots_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "stock_allocations" ADD CONSTRAINT "stock_allocations_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "stock_allocations" ADD CONSTRAINT "stock_allocations_lotId_fkey" FOREIGN KEY ("lotId") REFERENCES "stock_lots"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "accounts" ADD CONSTRAINT "accounts_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;

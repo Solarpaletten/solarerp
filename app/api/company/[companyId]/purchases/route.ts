@@ -18,6 +18,7 @@ import { assertPeriodOpen } from '@/lib/accounting/periodLock';
 import { createStockMovement } from '@/lib/accounting/stockService';
 import { createStockLot } from '@/lib/accounting/fifoService';
 
+
 type RouteParams = {
   params: Promise<{ companyId: string }>;
 };

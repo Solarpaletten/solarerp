@@ -18,7 +18,16 @@ interface Purchase {
   supplierName: string;
   currencyCode: string;
   status: string | null;
-  totalAmount?: number;
+
+  // optional because API may not return them yet
+  warehouseName?: string;
+  operationType?: string;
+  items?: {
+    id: string;
+    itemName: string;
+    quantity: string | number;
+    priceWithoutVat: string | number;
+  }[];
 }
 
 export default function PurchasesPage() {
@@ -28,6 +37,7 @@ export default function PurchasesPage() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
     async function loadPurchases() {
@@ -78,9 +88,28 @@ export default function PurchasesPage() {
     );
   }
 
+  // UI DTO transformation
+  const purchaseDocuments = purchases.map((p) => ({
+    id: p.id,
+    series: p.series ?? '',
+    number: p.number ?? '',
+    purchaseDate: p.purchaseDate,
+    supplierName: p.supplier?.name ?? '',
+    warehouseName: p.warehouse?.name ?? '',
+    operationType: p.operationType ?? 'STANDARD',
+    currencyCode: p.currencyCode ?? 'EUR',
+    status: p.status ?? 'DRAFT',
+    items: p.items ?? [],
+  }));
+
   return (
-    <div className="p-6">
-      <PurchaseTable purchases={purchases} companyId={companyId} />
-    </div>
+    // UI DTO transformation
+    <PurchaseTable
+      purchases={purchaseDocuments}
+      selectedIds={selectedIds}
+      onSelectionChange={setSelectedIds}
+      isLoading={isLoading}
+      companyId={companyId}
+    />
   );
 }

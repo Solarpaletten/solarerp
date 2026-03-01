@@ -25,6 +25,9 @@ interface PurchaseDocument {
 
 interface PurchaseTableProps {
   purchases: PurchaseDocument[];
+  selectedIds: string[];
+  onSelectionChange: (ids: string[]) => void;
+  isLoading: boolean;
   companyId: string;
 }
 

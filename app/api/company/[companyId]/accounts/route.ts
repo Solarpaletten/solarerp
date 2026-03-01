@@ -100,7 +100,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       data: {
         companyId,
         code: code.trim(),
-        name: name.trim(),
+        nameDe: nameDe.trim(),
+        nameEn: (nameEn || nameDe).trim(),
         type,
       },
     });

@@ -1,290 +1,414 @@
-code,name,type
-0010,Aufwendungen für die Ingangsetzung des Geschäftsbetriebs,ASSET
-0027,EDV-Software,ASSET
-0030,Gewerbliche Schutzrechte,ASSET
-0035,Lizenzen,ASSET
-0050,Geschäftswert,ASSET
-0070,Geleistete Anzahlungen auf immaterielle Vermögensgegenstände,ASSET
-0100,Grundstücke und grundstücksgleiche Rechte ohne Bauten,ASSET
-0200,Grundstücke und Bauten,ASSET
-0240,Grundstücksgleiche Rechte mit Gebäuden,ASSET
-0300,Andere Anlagen Betriebs- und Geschäftsausstattung,ASSET
-0320,PKW,ASSET
-0350,LKW,ASSET
-0400,Technische Anlagen und Maschinen,ASSET
-0420,Maschinen,ASSET
-0440,Werkzeuge,ASSET
-0480,Geringwertige Wirtschaftsgüter,ASSET
-0490,Sammelposten Wirtschaftsgüter,ASSET
-0500,Anteile an verbundenen Unternehmen,ASSET
-0520,Beteiligungen,ASSET
-0525,Typisch stille Beteiligungen,ASSET
-0550,Wertpapiere des Anlagevermögens,ASSET
-0580,Ausleihungen an verbundene Unternehmen,ASSET
-0610,Geleistete Anzahlungen auf Sachanlagen,ASSET
-0620,Anlagen im Bau,ASSET
-0650,Kautionen,ASSET
-0700,Sonstige Vermögensgegenstände (langfristig),ASSET
-1000,Kasse,ASSET
-1020,Bank,ASSET
-1100,Postbank,ASSET
-1200,Forderungen aus Lieferungen und Leistungen,ASSET
-1210,Forderungen aus Lieferungen und Leistungen ohne Kontokorrent,ASSET
-1300,Sonstige Vermögensgegenstände,ASSET
-1310,Forderungen gegen verbundene Unternehmen,ASSET
-1330,Forderungen gegen Gesellschafter,ASSET
-1350,Geleistete Anzahlungen (Umlaufvermögen),ASSET
-1360,Vorsteuer im Folgejahr abziehbar,ASSET
-1370,Abrechnungskonto für Vorsteuer laufendes Jahr,ASSET
-1400,Abziehbare Vorsteuer,ASSET
-1406,Abziehbare Vorsteuer 7%,ASSET
-1410,Aufzuteilende Vorsteuer,ASSET
-1420,Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb,ASSET
-1431,Abziehbare Vorsteuer § 13b UStG 19%,ASSET
-1450,Vorsteuer in Folgeperiode/im Folgejahr abziehbar,ASSET
-1460,Aufzuteilende Vorsteuer 19%,ASSET
-1500,Sonstige Vermögensgegenstände,ASSET
-1510,Geldtransit,ASSET
-1520,Durchlaufende Posten,ASSET
-1540,Steuerüberzahlungen,ASSET
-1545,Umsatzsteuerforderungen,ASSET
-1548,Vorsteuer laufendes Jahr,ASSET
-1550,Körperschaftsteuer-Vorauszahlungen,ASSET
-1560,Gewerbesteuer-Vorauszahlungen,ASSET
-1580,Forderungen an Mitarbeiter,ASSET
-1585,Forderungen an Vorstand/Geschäftsführung,ASSET
-1590,Verrechnungskonto Ist-Versteuerung,ASSET
-1600,Verbindlichkeiten aus Lieferungen und Leistungen,LIABILITY
-1610,Verbindlichkeiten aus Lieferungen und Leistungen ohne Kontokorrent,LIABILITY
-1700,Sonstige Verbindlichkeiten,LIABILITY
-1710,Erhaltene Anzahlungen (Verbindlichkeiten),LIABILITY
-1718,Erhaltene Kautionen,LIABILITY
-1720,Verbindlichkeiten gegen verbundene Unternehmen,LIABILITY
-1730,Verbindlichkeiten gegen Gesellschafter,LIABILITY
-1740,Verbindlichkeiten aus Steuern und Abgaben,LIABILITY
-1741,Umsatzsteuer nicht fällig,LIABILITY
-1750,Verbindlichkeiten im Rahmen der sozialen Sicherheit,LIABILITY
-1755,Lohn- und Kirchensteuer,LIABILITY
-1760,Umsatzsteuer-Vorauszahlung,LIABILITY
-1765,Umsatzsteuer-Vorauszahlung 1/11,LIABILITY
-1770,Umsatzsteuer 7%,LIABILITY
-1771,Umsatzsteuer 19%,LIABILITY
-1772,Umsatzsteuer aus innergemeinschaftlichem Erwerb 19%,LIABILITY
-1773,Umsatzsteuer § 13b UStG 19%,LIABILITY
-1774,Umsatzsteuer Reverse Charge,LIABILITY
-1776,Umsatzsteuer 19%,LIABILITY
-1780,Umsatzsteuer-Vorauszahlung/Sondervorauszahlung,LIABILITY
-1789,Umsatzsteuer laufendes Jahr,LIABILITY
-1790,Umsatzsteuer Vorjahr,LIABILITY
-1791,Umsatzsteuer frühere Jahre,LIABILITY
-1800,Privat (Einzelunternehmen),EQUITY
-1810,Privateinlagen,EQUITY
-1820,Privatentnahmen allgemein,EQUITY
-1830,Unentgeltliche Wertabgaben,EQUITY
-1890,Eigenkapital Einzelunternehmen,EQUITY
-1900,Privatsteuern,EQUITY
-2000,Aufwendungen für Roh- Hilfs- und Betriebsstoffe,EXPENSE
-2010,Einkauf Roh- Hilfs- und Betriebsstoffe 7% Vorsteuer,EXPENSE
-2020,Einkauf Roh- Hilfs- und Betriebsstoffe 19% Vorsteuer,EXPENSE
-2100,Bestandsveränderungen Roh- Hilfs- und Betriebsstoffe,EXPENSE
-2300,Sonstige Aufwendungen (Bezugsnebenkosten),EXPENSE
-2400,Frachten / Transportkosten,EXPENSE
-2500,Eingangsverpackung,EXPENSE
-2600,Werkzeuge und Kleingeräte,EXPENSE
-2650,Betriebsbedarf,EXPENSE
-2700,Nachlässe aus Einkauf,INCOME
-2709,Erhaltene Skonti 7% Vorsteuer,INCOME
-2710,Erhaltene Skonti 19% Vorsteuer,INCOME
-2750,Erhaltene Boni,INCOME
-2800,Anschaffungsnebenkosten,EXPENSE
-2880,Bestandsveränderungen fertige und unfertige Erzeugnisse,EXPENSE
-2900,Eigenleistungen,INCOME
-3000,Einkauf Roh- Hilfs- und Betriebsstoffe,EXPENSE
-3100,Einkauf Roh- Hilfs- und Betriebsstoffe 7%,EXPENSE
-3200,Einkauf Roh- Hilfs- und Betriebsstoffe 16%,EXPENSE
-3300,Wareneingang,EXPENSE
-3310,Wareneingang 7% Vorsteuer,EXPENSE
-3320,Wareneingang 19% Vorsteuer,EXPENSE
-3400,Wareneingang 16% Vorsteuer,EXPENSE
-3420,Innergemeinschaftlicher Erwerb 19% Vorsteuer und USt,EXPENSE
-3425,Innergemeinschaftlicher Erwerb ohne Vorsteuer und USt,EXPENSE
-3430,Innergemeinschaftlicher Erwerb 7% Vorsteuer und USt,EXPENSE
-3500,Wareneingang Drittland steuerfrei,EXPENSE
-3510,Wareneingang Drittland 7% Vorsteuer,EXPENSE
-3520,Wareneingang Drittland 19% Vorsteuer,EXPENSE
-3550,Steuerfreier innergemeinschaftlicher Erwerb,EXPENSE
-3700,Nachlässe aus Wareneingang,INCOME
-3709,Erhaltene Skonti aus Wareneingang 7%,INCOME
-3710,Erhaltene Skonti aus Wareneingang 19%,INCOME
-3730,Erhaltene Boni aus Wareneingang 7%,INCOME
-3731,Erhaltene Boni aus Wareneingang 19%,INCOME
-3750,Erhaltene Rabatte aus Wareneingang,INCOME
-3800,Bezugsnebenkosten Waren,EXPENSE
-3850,Zölle und Einfuhrabgaben,EXPENSE
-3900,Fremdleistungen,EXPENSE
-3960,Aufwendungen für Leiharbeitnehmer,EXPENSE
-3980,Fremdarbeiten (innerbetrieblich),EXPENSE
-4000,Löhne und Gehälter,EXPENSE
-4100,Löhne,EXPENSE
-4110,Löhne gewerbliche Arbeitnehmer,EXPENSE
-4120,Gehälter,EXPENSE
-4125,Ehegattengehalt,EXPENSE
-4130,Geschäftsführergehälter,EXPENSE
-4138,Zuschüsse der Agentur für Arbeit,INCOME
-4140,Freiwillige soziale Aufwendungen lohnsteuerfrei,EXPENSE
-4145,Freiwillige soziale Aufwendungen lohnsteuerpflichtig,EXPENSE
-4150,Vermögenswirksame Leistungen,EXPENSE
-4160,Versorgungskassen,EXPENSE
-4165,Aufwendungen für Altersversorgung,EXPENSE
-4170,Gesetzliche soziale Aufwendungen,EXPENSE
-4175,Arbeitgeberanteil zur Sozialversicherung,EXPENSE
-4180,Beiträge zur Berufsgenossenschaft,EXPENSE
-4190,Aushilfslöhne,EXPENSE
-4199,Lohnsteuer für Aushilfen,EXPENSE
-4200,Raumkosten,EXPENSE
-4210,Miete und Pacht,EXPENSE
-4215,Leasingkosten,EXPENSE
-4220,Pacht,EXPENSE
-4230,Heizung,EXPENSE
-4240,Gas Strom Wasser,EXPENSE
-4250,Reinigung,EXPENSE
-4260,Instandhaltung betrieblicher Räume,EXPENSE
-4280,Sonstige Raumkosten,EXPENSE
-4300,Versicherungen,EXPENSE
-4320,Beiträge IHK,EXPENSE
-4340,Sonstige Abgaben,EXPENSE
-4350,Grundsteuer,EXPENSE
-4360,KFZ-Steuern,EXPENSE
-4380,Sonstige Betriebssteuern,EXPENSE
-4390,Lastenausgleich,EXPENSE
-4400,Versicherungen,EXPENSE
-4500,Fahrzeugkosten,EXPENSE
-4510,KFZ-Versicherungen,EXPENSE
-4520,KFZ-Steuern,EXPENSE
-4530,Laufende KFZ-Betriebskosten,EXPENSE
-4540,KFZ-Reparaturen,EXPENSE
-4550,Garagenmiete,EXPENSE
-4560,Mautgebühren,EXPENSE
-4570,Leasingkosten KFZ,EXPENSE
-4580,Sonstige KFZ-Kosten,EXPENSE
-4600,Werbe- und Reisekosten,EXPENSE
-4610,Werbekosten,EXPENSE
-4630,Geschenke abzugsfähig,EXPENSE
-4635,Geschenke nicht abzugsfähig,EXPENSE
-4640,Repräsentationskosten,EXPENSE
-4650,Bewirtungskosten,EXPENSE
-4660,Reisekosten Arbeitnehmer,EXPENSE
-4663,Reisekosten Arbeitnehmer Fahrtkosten,EXPENSE
-4664,Reisekosten Arbeitnehmer Verpflegungsmehraufwand,EXPENSE
-4666,Reisekosten Arbeitnehmer Übernachtungsaufwand,EXPENSE
-4670,Reisekosten Unternehmer,EXPENSE
-4673,Reisekosten Unternehmer Fahrtkosten,EXPENSE
-4674,Reisekosten Unternehmer Verpflegungsmehraufwand,EXPENSE
-4676,Reisekosten Unternehmer Übernachtungsaufwand,EXPENSE
-4700,Kosten der Warenabgabe,EXPENSE
-4710,Verpackungsmaterial,EXPENSE
-4720,Ausgangsfrachten,EXPENSE
-4730,Zölle und Ausfuhrabgaben,EXPENSE
-4740,Provisionen,EXPENSE
-4750,Gewährleistungen,EXPENSE
-4760,Verkaufsprovisionen,EXPENSE
-4780,Fremdarbeiten,EXPENSE
-4800,Reparaturen und Instandhaltung,EXPENSE
-4805,Reparatur und Instandhaltung von Anlagen und Maschinen,EXPENSE
-4810,Mietleasing bewegliche Wirtschaftsgüter,EXPENSE
-4815,Leasingkosten bewegliche Wirtschaftsgüter,EXPENSE
-4820,Abfallentsorgung,EXPENSE
-4830,Abraumbeseitigung,EXPENSE
-4840,Gas Strom Wasser (Betriebsbedarf),EXPENSE
-4850,Sonstiger Betriebsbedarf,EXPENSE
-4855,Nebenkosten des Geldverkehrs,EXPENSE
-4860,Bürobedarf,EXPENSE
-4870,Porto,EXPENSE
-4875,Telefon,EXPENSE
-4880,Internetkosten,EXPENSE
-4885,EDV-Kosten,EXPENSE
-4886,Rechts- und Beratungskosten,EXPENSE
-4887,Steuerberatungskosten,EXPENSE
-4890,Buchführungskosten,EXPENSE
-4900,Sonstige betriebliche Aufwendungen,EXPENSE
-4905,Sonstige Aufwendungen (betrieblich und regelmäßig),EXPENSE
-4909,Verschiedene betriebliche Aufwendungen,EXPENSE
-4910,Mieten für Einrichtungen,EXPENSE
-4920,Abschreibungen auf Sachanlagen,EXPENSE
-4930,Abschreibungen auf immaterielle Vermögensgegenstände,EXPENSE
-4940,Abschreibungen auf Umlaufvermögen,EXPENSE
-4945,Abschreibungen auf Forderungen,EXPENSE
-4947,Einstellungen in Pauschalwertberichtigungen,EXPENSE
-4950,Anlagenabgänge Verluste,EXPENSE
-4960,Außerplanmäßige Abschreibungen,EXPENSE
-4970,Verluste aus Anlagenabgängen,EXPENSE
-4980,Gewerbesteuer,EXPENSE
-4985,Körperschaftsteuer,EXPENSE
-4990,Steuerlich nicht abzugsfähige Aufwendungen,EXPENSE
-4996,Herstellungskosten (aktivierte Eigenleistung),EXPENSE
-4999,Gegenkonto Herstellungskosten,INCOME
-8000,Erlöse,INCOME
-8100,Steuerfreie Umsätze § 4 Nr. 1a UStG (Ausfuhr),INCOME
-8120,Steuerfreie innergemeinschaftliche Lieferungen § 4 Nr. 1b UStG,INCOME
-8125,Steuerfreie innergemeinschaftliche Lieferungen an Unternehmen ohne USt-IdNr,INCOME
-8130,Steuerfreie Umsätze Offshore,INCOME
-8135,Steuerfreie Umsätze § 4 Nr. 2-7 UStG,INCOME
-8140,Steuerfreie Umsätze § 4 Nr. 8 ff UStG,INCOME
-8150,Steuerfreie Umsätze ohne Vorsteuerabzug,INCOME
-8190,Erlöse Leistungen § 13b UStG,INCOME
-8195,Erlöse Reverse Charge,INCOME
-8300,Erlöse 7% USt,INCOME
-8310,Erlöse ermäßigt,INCOME
-8320,Erlöse Leistungen 7%,INCOME
-8400,Erlöse 19% USt,INCOME
-8500,Provisionserlöse,INCOME
-8510,Provisionserlöse 7%,INCOME
-8520,Provisionserlöse 19%,INCOME
-8590,Erlöse aus Vermietung und Verpachtung,INCOME
-8600,Erlöse aus Vermietung und Verpachtung 19%,INCOME
-8610,Erlöse aus Vermietung 7%,INCOME
-8700,Erlösschmälerungen,INCOME
-8710,Gewährte Skonti 7% USt,INCOME
-8720,Gewährte Skonti 19% USt,INCOME
-8730,Gewährte Boni 7%,INCOME
-8731,Gewährte Boni 19%,INCOME
-8735,Gewährte Rabatte,INCOME
-8736,Gewährte Rabatte 19%,INCOME
-8750,Erlösschmälerungen 7%,INCOME
-8760,Erlösschmälerungen 19%,INCOME
-8800,Erlöse aus Anlagenverkäufen,INCOME
-8820,Erlöse aus Anlagenverkäufen 19% USt,INCOME
-8900,Sonstige betriebliche Erträge,INCOME
-8910,Erträge aus Zuschreibungen Sachanlagen,INCOME
-8920,Erträge aus Zuschreibungen Finanzanlagen,INCOME
-8930,Erträge aus Wertpapieren des Umlaufvermögens,INCOME
-8940,Erträge aus Beteiligungen,INCOME
-8945,Zinserträge,INCOME
-8950,Sonstige Zinsen und ähnliche Erträge,INCOME
-8955,Diskonterträge,INCOME
-8960,Erträge aus Währungsumrechnung,INCOME
-8970,Periodenfremde Erträge,INCOME
-8975,Erträge aus der Auflösung von Rückstellungen,INCOME
-8980,Erträge aus der Herabsetzung der Pauschalwertberichtigung,INCOME
-9000,Saldenvorträge Sachkonten,EQUITY
-9008,Eröffnungsbilanz,EQUITY
-9009,Schlussbilanzkonto,EQUITY
-9100,Saldenvorträge Debitoren,EQUITY
-9200,Saldenvorträge Kreditoren,EQUITY
-0800,Gezeichnetes Kapital,EQUITY
-0840,Gewinnvortrag,EQUITY
-0860,Verlustvortrag,EQUITY
-0868,Jahresüberschuss / Jahresfehlbetrag,EQUITY
-0880,Rücklagen,EQUITY
-0900,Rückstellungen für Pensionen,LIABILITY
-0910,Steuerrückstellungen,LIABILITY
-0950,Sonstige Rückstellungen,LIABILITY
-0960,Verbindlichkeiten gegenüber Kreditinstituten,LIABILITY
-0970,Verbindlichkeiten gegenüber Kreditinstituten (langfristig),LIABILITY
-0980,Darlehen,LIABILITY
-2110,Zinsaufwand,EXPENSE
-2120,Zinsaufwand für kurzfristige Verbindlichkeiten,EXPENSE
-2130,Zinsaufwand für langfristige Verbindlichkeiten,EXPENSE
-2150,Diskontaufwendungen,EXPENSE
-2160,Aufwendungen aus Währungsumrechnung,EXPENSE
-2170,Periodenfremde Aufwendungen,EXPENSE
+code,nameDe,nameEn,type
+0010,Aufwendungen für die Ingangsetzung des Geschäftsbetriebs,Start-up costs,ASSET
+0027,EDV-Software,Computer software,ASSET
+0030,Gewerbliche Schutzrechte,Industrial property rights,ASSET
+0035,Lizenzen,Licenses,ASSET
+0040,Konzessionen,Concessions,ASSET
+0050,Geschäftswert,Goodwill,ASSET
+0070,Geleistete Anzahlungen auf immaterielle Vermögensgegenstände,Advances on intangible assets,ASSET
+0100,Grundstücke und grundstücksgleiche Rechte ohne Bauten,Land without buildings,ASSET
+0110,Grundstücke mit Aufbauten,Land with structures,ASSET
+0150,Bauten auf eigenen Grundstücken,Buildings on own land,ASSET
+0160,Bauten auf fremden Grundstücken,Buildings on third-party land,ASSET
+0200,Grundstücke und Bauten,Land and buildings,ASSET
+0210,Wohnbauten,Residential buildings,ASSET
+0240,Grundstücksgleiche Rechte mit Gebäuden,Land-equivalent rights with buildings,ASSET
+0280,Grundstückseinrichtungen,Land improvements,ASSET
+0300,Andere Anlagen Betriebs- und Geschäftsausstattung,Other equipment office furniture,ASSET
+0310,Betriebsausstattung,Operating equipment,ASSET
+0320,PKW,Passenger vehicles,ASSET
+0330,Sonstige Transportmittel,Other transport vehicles,ASSET
+0350,LKW,Trucks,ASSET
+0370,Betriebsvorrichtungen,Operating devices,ASSET
+0400,Technische Anlagen und Maschinen,Technical equipment and machinery,ASSET
+0420,Maschinen,Machinery,ASSET
+0430,Maschinenwerkzeuge,Machine tools,ASSET
+0440,Werkzeuge,Tools,ASSET
+0450,Modelle Formen Schablonen,Models forms templates,ASSET
+0460,Transportanlagen und Ähnliches,Transport equipment,ASSET
+0470,Einbauten in fremde Grundstücke,Fixtures in third-party buildings,ASSET
+0480,Geringwertige Wirtschaftsgüter,Low-value assets,ASSET
+0485,Wirtschaftsgüter GWG Sammelposten,Collective item low-value assets,ASSET
+0490,Sammelposten Wirtschaftsgüter,Collective assets,ASSET
+0500,Anteile an verbundenen Unternehmen,Shares in affiliated companies,ASSET
+0510,Anteile an herrschender Gesellschaft,Shares in controlling company,ASSET
+0520,Beteiligungen,Participations,ASSET
+0525,Typisch stille Beteiligungen,Typical silent partnerships,ASSET
+0530,Atypisch stille Beteiligungen,Atypical silent partnerships,ASSET
+0540,Genossenschaftsanteile,Cooperative shares,ASSET
+0550,Wertpapiere des Anlagevermögens,Long-term securities,ASSET
+0560,Festverzinsliche Wertpapiere,Fixed-income securities,ASSET
+0570,Investmentanteile,Investment fund shares,ASSET
+0580,Ausleihungen an verbundene Unternehmen,Loans to affiliated companies,ASSET
+0590,Ausleihungen an Unternehmen mit Beteiligungsverhältnis,Loans to associated companies,ASSET
+0600,Sonstige Ausleihungen,Other loans,ASSET
+0610,Geleistete Anzahlungen auf Sachanlagen,Advances on tangible assets,ASSET
+0620,Anlagen im Bau,Assets under construction,ASSET
+0650,Kautionen,Deposits paid,ASSET
+0660,Darlehen,Loans granted,ASSET
+0670,Genossenschaftsanteile zum Anlagevermögen,Cooperative shares fixed assets,ASSET
+0700,Sonstige Vermögensgegenstände langfristig,Other long-term assets,ASSET
+0710,Rückdeckungsansprüche,Reinsurance claims,ASSET
+0715,Rückdeckungsansprüche Altersteilzeit,Reinsurance claims part-time retirement,ASSET
+0750,Abschreibungen auf Finanzanlagen,Depreciation financial assets,EXPENSE
+0755,Abschreibungen auf Wertpapiere des Anlagevermögens,Depreciation long-term securities,EXPENSE
+0760,Abschreibungen auf Ausleihungen,Depreciation on loans,EXPENSE
+0770,Abschreibungen auf Beteiligungen,Depreciation on participations,EXPENSE
+0790,Verluste aus Abgang von Finanzanlagen,Losses from disposal of financial assets,EXPENSE
+0800,Gezeichnetes Kapital,Subscribed capital,EQUITY
+0810,Ausstehende Einlagen auf gezeichnetes Kapital,Outstanding contributions,EQUITY
+0820,Kapitalrücklage,Capital reserve,EQUITY
+0830,Gesetzliche Rücklage,Legal reserve,EQUITY
+0840,Gewinnvortrag,Retained earnings,EQUITY
+0845,Vortrag auf neue Rechnung,Profit carried forward,EQUITY
+0850,Satzungsmäßige Rücklage,Statutory reserve,EQUITY
+0855,Andere Gewinnrücklagen,Other revenue reserves,EQUITY
+0860,Verlustvortrag,Loss carried forward,EQUITY
+0868,Jahresüberschuss / Jahresfehlbetrag,Net income / Net loss,EQUITY
+0870,Nicht eingeforderte ausstehende Einlagen,Uncalled outstanding contributions,EQUITY
+0880,Rücklagen,Reserves,EQUITY
+0890,Eigenkapital Kommanditisten,Limited partner equity,EQUITY
+0895,Eigenkapital Komplementär,General partner equity,EQUITY
+0900,Rückstellungen für Pensionen und ähnliche Verpflichtungen,Pension provisions,LIABILITY
+0910,Steuerrückstellungen,Tax provisions,LIABILITY
+0920,Steuerrückstellungen Gewerbesteuer,Trade tax provisions,LIABILITY
+0930,Steuerrückstellungen Körperschaftsteuer,Corporate tax provisions,LIABILITY
+0940,Steuerrückstellungen Umsatzsteuer,VAT provisions,LIABILITY
+0950,Sonstige Rückstellungen,Other provisions,LIABILITY
+0955,Rückstellungen für Gewährleistungen,Warranty provisions,LIABILITY
+0957,Rückstellungen für Drohverluste,Provisions for anticipated losses,LIABILITY
+0960,Verbindlichkeiten gegenüber Kreditinstituten,Liabilities to banks,LIABILITY
+0970,Verbindlichkeiten gegenüber Kreditinstituten langfristig,Long-term bank liabilities,LIABILITY
+0980,Darlehen,Loans received,LIABILITY
+0990,Langfristige Verbindlichkeiten,Long-term liabilities,LIABILITY
+1000,Kasse,Cash on hand,ASSET
+1030,Sparkasse,Savings bank account,ASSET
+1040,Volksbank,Credit union account,ASSET
+1050,Commerzbank,Commerzbank account,ASSET
+1060,Deutsche Bank,Deutsche Bank account,ASSET
+1070,Postbank,Postbank account,ASSET
+1080,Sparkonto,Savings account,ASSET
+1090,Festgeld,Fixed-term deposit,ASSET
+1100,Postbank (alt),Postbank legacy,ASSET
+1110,Bundesbankguthaben,Bundesbank balance,ASSET
+1120,Tagesgeld,Overnight deposit,ASSET
+1130,Geldmarktfonds,Money market funds,ASSET
+1140,Schecks,Checks,ASSET
+1150,Wechsel,Bills of exchange,ASSET
+1160,Besitzwechsel,Notes receivable,ASSET
+1170,Fremdwährungskonto USD,Foreign currency USD,ASSET
+1175,Fremdwährungskonto GBP,Foreign currency GBP,ASSET
+1180,Fremdwährungskonto CHF,Foreign currency CHF,ASSET
+1185,Fremdwährungskonto PLN,Foreign currency PLN,ASSET
+1190,Fremdwährungskonto sonstige,Foreign currency other,ASSET
+1200,Bank,Bank account,ASSET
+1210,Bank 1,Bank account 1,ASSET
+1220,Bank 2,Bank account 2,ASSET
+1230,Bank 3,Bank account 3,ASSET
+1240,Bank 4,Bank account 4,ASSET
+1250,Bank 5,Bank account 5,ASSET
+1290,Finanzmittelanlagen kurzfristig,Short-term financial investments,ASSET
+1295,Verbindlichkeiten gegenueber Kreditinstituten (Kontokorrent),Bank overdraft liabilities,LIABILITY
+1300,Sonstige Vermoegensgegenstände,Other current assets,ASSET
+1330,Schecks,Checks received,ASSET
+1340,Anteile an verbundenen Unternehmen (Umlaufvermoegen),Shares in affiliates current,ASSET
+1348,Sonstige Wertpapiere,Other securities,ASSET
+1350,GmbH-Anteile zum kurzfristigen Verbleib,GmbH shares short-term,ASSET
+1360,Geldtransit,Cash in transit,ASSET
+1390,Verrechnungskonto Ist-Versteuerung,Clearing account cash-basis VAT,ASSET
+1400,Forderungen aus Lieferungen und Leistungen,Trade receivables,ASSET
+1410,Forderungen aus Lieferungen und Leistungen ohne Kontokorrent,Trade receivables non-current,ASSET
+1445,Forderungen aus L+L zum allgemeinen USt-Satz,Trade receivables standard VAT,ASSET
+1446,Forderungen aus L+L zum ermaessigten USt-Satz,Trade receivables reduced VAT,ASSET
+1450,Forderungen nach §11 Abs. 1 EStG,Receivables §11 EStG,ASSET
+1460,Zweifelhafte Forderungen,Doubtful receivables,ASSET
+1470,Forderungen aus L+L gegen verbundene Unternehmen,Trade receivables affiliates,ASSET
+1480,Forderungen aus L+L gegen Beteiligungsunternehmen,Trade receivables associated,ASSET
+1490,Forderungen aus L+L gegen Gesellschafter,Trade receivables shareholders,ASSET
+1500,Sonstige Vermoegensgegenstände,Other assets,ASSET
+1510,Geleistete Anzahlungen auf Anlagevermoegen,Advances on fixed assets,ASSET
+1518,Geleistete Anzahlungen 19% Vorsteuer,Advances 19% input VAT,ASSET
+1525,Kautionen,Security deposits,ASSET
+1530,Forderungen gegen Personal,Employee receivables,ASSET
+1540,Forderungen aus Gewerbesteuerüberzahlungen,Trade tax overpayment claims,ASSET
+1545,Forderungen aus Umsatzsteuer-Vorauszahlungen,VAT prepayment receivables,ASSET
+1548,Vorsteuer in Folgeperiode abziehbar,Input VAT deductible next period,ASSET
+1550,Darlehen,Loans granted,ASSET
+1556,Abziehbare Vorsteuer §15a Abs.1 UStG,Deductible input VAT §15a,ASSET
+1560,Forderungen aus Vermoegenswirksamen Leistungen,Capital formation receivables,ASSET
+1565,Forderungen aus Lohn- und Gehalt,Payroll receivables,ASSET
+1570,Abziehbare Vorsteuer,Input VAT deductible,ASSET
+1571,Abziehbare Vorsteuer 7%,Input VAT 7%,ASSET
+1575,Abziehbare Vorsteuer 16%,Input VAT 16%,ASSET
+1576,Abziehbare Vorsteuer 19%,Input VAT 19%,ASSET
+1577,Abziehbare Vorsteuer §13b UStG 19%,Input VAT §13b 19%,ASSET
+1578,Abziehbare Vorsteuer §13b UStG 7%,Input VAT §13b 7%,ASSET
+1580,Abziehbare Vorsteuer aus ig. Erwerb 19%,Input VAT intra-community 19%,ASSET
+1585,Abziehbare Vorsteuer aus ig. Erwerb 7%,Input VAT intra-community 7%,ASSET
+1590,Durchlaufende Posten,Pass-through items,ASSET
+1600,Verbindlichkeiten aus Lieferungen und Leistungen,Trade payables,LIABILITY
+1610,Verbindlichkeiten aus L+L ohne Kontokorrent,Trade payables non-current,LIABILITY
+1620,Verbindlichkeiten aus Wechseln,Payables from bills,LIABILITY
+1630,Verbindlichkeiten gegen verbundene Unternehmen,Payables to affiliates,LIABILITY
+1640,Verbindlichkeiten gegen Unternehmen mit Beteiligungsverhältnis,Payables to associated companies,LIABILITY
+1650,Verbindlichkeiten gegenüber Gesellschaftern,Payables to shareholders,LIABILITY
+1660,Verbindlichkeiten aus Darlehen,Loan payables,LIABILITY
+1700,Sonstige Verbindlichkeiten,Other liabilities,LIABILITY
+1710,Erhaltene Anzahlungen Verbindlichkeiten,Advances received,LIABILITY
+1718,Erhaltene Kautionen,Deposits received,LIABILITY
+1719,Mietkautionen,Rental deposits,LIABILITY
+1720,Verbindlichkeiten gegen verbundene Unternehmen,Liabilities to affiliates,LIABILITY
+1730,Verbindlichkeiten gegen Gesellschafter,Liabilities to shareholders,LIABILITY
+1740,Verbindlichkeiten aus Steuern und Abgaben,Tax liabilities,LIABILITY
+1741,Umsatzsteuer nicht fällig,VAT not yet due,LIABILITY
+1742,Einfuhrumsatzsteuer,Import VAT,LIABILITY
+1750,Verbindlichkeiten im Rahmen der sozialen Sicherheit,Social security liabilities,LIABILITY
+1755,Lohn- und Kirchensteuer,Payroll and church tax,LIABILITY
+1760,Umsatzsteuer-Vorauszahlung,VAT prepayment,LIABILITY
+1765,Umsatzsteuer-Vorauszahlung 1/11,VAT prepayment 1/11,LIABILITY
+1770,Umsatzsteuer 7%,VAT 7%,LIABILITY
+1771,Umsatzsteuer 19%,VAT 19% (standard),LIABILITY
+1772,Umsatzsteuer aus ig. Erwerb 19%,VAT intra-community 19%,LIABILITY
+1773,Umsatzsteuer §13b UStG 19%,VAT §13b 19%,LIABILITY
+1774,Umsatzsteuer Reverse Charge,VAT reverse charge,LIABILITY
+1775,Umsatzsteuer 16%,VAT 16%,LIABILITY
+1776,Umsatzsteuer 19%,VAT payable 19%,LIABILITY
+1780,Umsatzsteuer-Vorauszahlung/Sondervorauszahlung,VAT special prepayment,LIABILITY
+1789,Umsatzsteuer laufendes Jahr,VAT current year,LIABILITY
+1790,Umsatzsteuer Vorjahr,VAT prior year,LIABILITY
+1791,Umsatzsteuer frühere Jahre,VAT earlier years,LIABILITY
+1800,Privat Einzelunternehmen,Private equity sole proprietor,EQUITY
+1810,Privateinlagen,Private contributions,EQUITY
+1820,Privatentnahmen allgemein,Private withdrawals general,EQUITY
+1830,Unentgeltliche Wertabgaben,Gratuitous value transfers,EQUITY
+1840,Sachentnahmen,In-kind withdrawals,EQUITY
+1850,Privatentnahmen Sonderausgaben,Private withdrawals special expenses,EQUITY
+1890,Eigenkapital Einzelunternehmen,Sole proprietor equity,EQUITY
+1900,Privatsteuern,Private taxes,EQUITY
+2000,Aufwendungen für Roh- Hilfs- und Betriebsstoffe,Raw materials cost,EXPENSE
+2010,Einkauf RHB 7% Vorsteuer,Purchase raw materials 7%,EXPENSE
+2020,Einkauf RHB 19% Vorsteuer,Purchase raw materials 19%,EXPENSE
+2100,Bestandsveränderungen RHB,Inventory changes raw materials,EXPENSE
+2110,Zinsaufwand,Interest expense,EXPENSE
+2120,Zinsaufwand für kurzfristige Verbindlichkeiten,Interest short-term liabilities,EXPENSE
+2130,Zinsaufwand für langfristige Verbindlichkeiten,Interest long-term liabilities,EXPENSE
+2140,Zinsaufwand an verbundene Unternehmen,Interest to affiliates,EXPENSE
+2150,Diskontaufwendungen,Discount expenses,EXPENSE
+2160,Aufwendungen aus Währungsumrechnung,Currency translation losses,EXPENSE
+2170,Periodenfremde Aufwendungen,Prior-period expenses,EXPENSE
+2200,Körperschaftsteuer Vorjahre,Corporate tax prior years,EXPENSE
+2300,Sonstige Aufwendungen Bezugsnebenkosten,Other purchase costs,EXPENSE
+2400,Frachten / Transportkosten,Freight / transport costs,EXPENSE
+2500,Eingangsverpackung,Incoming packaging,EXPENSE
+2600,Werkzeuge und Kleingeräte,Tools and small equipment,EXPENSE
+2650,Betriebsbedarf,Operating supplies,EXPENSE
+2700,Nachlässe aus Einkauf,Purchase discounts received,INCOME
+2709,Erhaltene Skonti 7% Vorsteuer,Cash discounts received 7%,INCOME
+2710,Erhaltene Skonti 19% Vorsteuer,Cash discounts received 19%,INCOME
+2750,Erhaltene Boni,Volume rebates received,INCOME
+2800,Anschaffungsnebenkosten,Acquisition costs,EXPENSE
+2880,Bestandsveränderungen fertige Erzeugnisse,Inventory changes finished goods,EXPENSE
+2900,Eigenleistungen,Own work capitalized,INCOME
+3000,Einkauf Roh- Hilfs- und Betriebsstoffe,Purchase raw materials,EXPENSE
+3100,Einkauf RHB 7%,Purchase raw materials 7%,EXPENSE
+3200,Einkauf RHB 16%,Purchase raw materials 16%,EXPENSE
+3300,Wareneingang,Goods received,EXPENSE
+3310,Wareneingang 7% Vorsteuer,Goods received 7%,EXPENSE
+3320,Wareneingang 19% Vorsteuer,Goods received 19%,EXPENSE
+3400,Wareneingang 16% Vorsteuer,Goods received 16%,EXPENSE
+3420,Innergemeinschaftlicher Erwerb 19%,Intra-community acquisition 19%,EXPENSE
+3425,Innergemeinschaftlicher Erwerb steuerfrei,Intra-community acquisition tax-free,EXPENSE
+3430,Innergemeinschaftlicher Erwerb 7%,Intra-community acquisition 7%,EXPENSE
+3500,Wareneingang Drittland steuerfrei,Third-country goods tax-free,EXPENSE
+3510,Wareneingang Drittland 7%,Third-country goods 7%,EXPENSE
+3520,Wareneingang Drittland 19%,Third-country goods 19%,EXPENSE
+3550,Steuerfreier ig. Erwerb,Tax-free intra-community acquisition,EXPENSE
+3700,Nachlässe aus Wareneingang,Purchase returns and allowances,INCOME
+3709,Erhaltene Skonti Wareneingang 7%,Cash discounts goods 7%,INCOME
+3710,Erhaltene Skonti Wareneingang 19%,Cash discounts goods 19%,INCOME
+3730,Erhaltene Boni Wareneingang 7%,Volume rebates goods 7%,INCOME
+3731,Erhaltene Boni Wareneingang 19%,Volume rebates goods 19%,INCOME
+3750,Erhaltene Rabatte Wareneingang,Trade discounts goods,INCOME
+3800,Bezugsnebenkosten Waren,Freight on purchases,EXPENSE
+3850,Zölle und Einfuhrabgaben,Customs and import duties,EXPENSE
+3900,Fremdleistungen,Outside services,EXPENSE
+3910,Fremdleistungen 7%,Outside services 7%,EXPENSE
+3920,Fremdleistungen 19%,Outside services 19%,EXPENSE
+3950,Subunternehmerleistungen,Subcontractor services,EXPENSE
+3960,Aufwendungen für Leiharbeitnehmer,Temporary worker costs,EXPENSE
+3970,Abfallverwertung,Waste processing,EXPENSE
+3980,Fremdarbeiten innerbetrieblich,Internal contract work,EXPENSE
+4000,Löhne und Gehälter,Wages and salaries,EXPENSE
+4100,Löhne,Wages,EXPENSE
+4110,Löhne gewerbliche Arbeitnehmer,Industrial wages,EXPENSE
+4120,Gehälter,Salaries,EXPENSE
+4125,Ehegattengehalt,Spouse salary,EXPENSE
+4130,Geschäftsführergehälter,Managing director salary,EXPENSE
+4138,Zuschüsse Agentur für Arbeit,Employment agency grants,INCOME
+4140,Freiwillige soziale Aufwendungen lohnsteuerfrei,Voluntary social tax-free,EXPENSE
+4145,Freiwillige soziale Aufwendungen lohnsteuerpflichtig,Voluntary social taxable,EXPENSE
+4150,Vermögenswirksame Leistungen,Capital formation benefits,EXPENSE
+4160,Versorgungskassen,Pension fund contributions,EXPENSE
+4165,Aufwendungen für Altersversorgung,Pension expenses,EXPENSE
+4170,Gesetzliche soziale Aufwendungen,Statutory social expenses,EXPENSE
+4175,Arbeitgeberanteil Sozialversicherung,Employer social security,EXPENSE
+4180,Beiträge zur Berufsgenossenschaft,Professional association fees,EXPENSE
+4190,Aushilfslöhne,Temporary wages,EXPENSE
+4199,Lohnsteuer für Aushilfen,Payroll tax temporary staff,EXPENSE
+4200,Raumkosten,Premises costs,EXPENSE
+4210,Miete und Pacht,Rent and lease,EXPENSE
+4215,Leasingkosten,Leasing costs,EXPENSE
+4220,Pacht,Lease payments,EXPENSE
+4230,Heizung,Heating,EXPENSE
+4240,Gas Strom Wasser,Gas electricity water,EXPENSE
+4250,Reinigung,Cleaning,EXPENSE
+4260,Instandhaltung betrieblicher Räume,Premises maintenance,EXPENSE
+4270,Abgaben für betriebliche Räume,Premises charges,EXPENSE
+4280,Sonstige Raumkosten,Other premises costs,EXPENSE
+4300,Versicherungen Beiträge,Insurance and contributions,EXPENSE
+4320,Beiträge IHK,Chamber of commerce fees,EXPENSE
+4330,Beiträge Berufsverbände,Professional association dues,EXPENSE
+4340,Sonstige Abgaben,Other levies,EXPENSE
+4350,Grundsteuer,Property tax,EXPENSE
+4360,KFZ-Steuern,Vehicle tax,EXPENSE
+4380,Sonstige Betriebssteuern,Other business taxes,EXPENSE
+4390,Lastenausgleich,Equalization charges,EXPENSE
+4400,Versicherungen,Insurance,EXPENSE
+4410,Sachversicherungen,Property insurance,EXPENSE
+4420,Haftpflichtversicherung,Liability insurance,EXPENSE
+4430,Rechtsschutzversicherung,Legal insurance,EXPENSE
+4440,Transportversicherung,Transport insurance,EXPENSE
+4500,Fahrzeugkosten,Vehicle costs,EXPENSE
+4510,KFZ-Versicherungen,Vehicle insurance,EXPENSE
+4520,KFZ-Steuern,Vehicle taxes,EXPENSE
+4530,Laufende KFZ-Betriebskosten,Vehicle operating costs,EXPENSE
+4540,KFZ-Reparaturen,Vehicle repairs,EXPENSE
+4550,Garagenmiete,Garage rent,EXPENSE
+4560,Mautgebühren,Toll fees,EXPENSE
+4570,Leasingkosten KFZ,Vehicle leasing,EXPENSE
+4580,Sonstige KFZ-Kosten,Other vehicle costs,EXPENSE
+4600,Werbe- und Reisekosten,Advertising and travel,EXPENSE
+4610,Werbekosten,Advertising costs,EXPENSE
+4620,Messekosten,Trade fair costs,EXPENSE
+4630,Geschenke abzugsfähig,Deductible gifts,EXPENSE
+4635,Geschenke nicht abzugsfähig,Non-deductible gifts,EXPENSE
+4640,Repräsentationskosten,Entertainment costs,EXPENSE
+4650,Bewirtungskosten,Hospitality costs,EXPENSE
+4660,Reisekosten Arbeitnehmer,Employee travel expenses,EXPENSE
+4663,Reisekosten AN Fahrtkosten,Employee travel transport,EXPENSE
+4664,Reisekosten AN Verpflegung,Employee travel meals,EXPENSE
+4666,Reisekosten AN Übernachtung,Employee travel accommodation,EXPENSE
+4670,Reisekosten Unternehmer,Entrepreneur travel expenses,EXPENSE
+4673,Reisekosten Unt. Fahrtkosten,Entrepreneur travel transport,EXPENSE
+4674,Reisekosten Unt. Verpflegung,Entrepreneur travel meals,EXPENSE
+4676,Reisekosten Unt. Übernachtung,Entrepreneur travel accommodation,EXPENSE
+4680,Fahrtkostenerstattung AN,Employee transport reimbursement,EXPENSE
+4700,Kosten der Warenabgabe,Distribution costs,EXPENSE
+4710,Verpackungsmaterial,Packaging material,EXPENSE
+4720,Ausgangsfrachten,Outgoing freight,EXPENSE
+4730,Zölle und Ausfuhrabgaben,Export duties,EXPENSE
+4740,Provisionen,Commissions,EXPENSE
+4750,Gewährleistungen,Warranties,EXPENSE
+4760,Verkaufsprovisionen,Sales commissions,EXPENSE
+4780,Fremdarbeiten Vertrieb,External distribution work,EXPENSE
+4790,Aufwand für Reklamationen,Complaint costs,EXPENSE
+4800,Reparaturen und Instandhaltung,Repairs and maintenance,EXPENSE
+4805,Reparatur Anlagen und Maschinen,Repair machinery,EXPENSE
+4810,Mietleasing bewegliche Wirtschaftsgüter,Leasing movable assets,EXPENSE
+4815,Leasingkosten bewegliche WG,Leasing costs movable assets,EXPENSE
+4820,Abfallentsorgung,Waste disposal,EXPENSE
+4830,Abraumbeseitigung,Waste removal,EXPENSE
+4840,Gas Strom Wasser Betriebsbedarf,Utilities operating,EXPENSE
+4850,Sonstiger Betriebsbedarf,Other operating supplies,EXPENSE
+4855,Nebenkosten Geldverkehr,Banking fees,EXPENSE
+4860,Bürobedarf,Office supplies,EXPENSE
+4870,Porto,Postage,EXPENSE
+4875,Telefon,Telephone,EXPENSE
+4880,Internetkosten,Internet costs,EXPENSE
+4885,EDV-Kosten,IT costs,EXPENSE
+4886,Rechts- und Beratungskosten,Legal and consulting fees,EXPENSE
+4887,Steuerberatungskosten,Tax advisory fees,EXPENSE
+4890,Buchführungskosten,Bookkeeping costs,EXPENSE
+4900,Sonstige betriebliche Aufwendungen,Other operating expenses,EXPENSE
+4905,Sonstige Aufwendungen betrieblich,Other business expenses,EXPENSE
+4909,Verschiedene betriebliche Aufwendungen,Miscellaneous operating expenses,EXPENSE
+4910,Mieten für Einrichtungen,Equipment rental,EXPENSE
+4920,Abschreibungen auf Sachanlagen,Depreciation tangible assets,EXPENSE
+4922,Abschreibungen auf Gebäude,Depreciation buildings,EXPENSE
+4925,Abschreibungen auf Fahrzeuge,Depreciation vehicles,EXPENSE
+4930,Abschreibungen auf immaterielle Vermögensgegenstände,Amortization intangible assets,EXPENSE
+4940,Abschreibungen auf Umlaufvermögen,Depreciation current assets,EXPENSE
+4945,Abschreibungen auf Forderungen,Depreciation receivables,EXPENSE
+4947,Einstellungen Pauschalwertberichtigungen,General allowance additions,EXPENSE
+4948,Abschreibungen auf aktivierte Aufwendungen,Depreciation capitalized costs,EXPENSE
+4950,Anlagenabgänge Verluste,Asset disposal losses,EXPENSE
+4955,Verluste aus Anlagenabgängen Sachanlagen,Losses disposal tangible assets,EXPENSE
+4960,Außerplanmäßige Abschreibungen,Extraordinary depreciation,EXPENSE
+4970,Verluste aus Anlagenabgängen,Losses from asset disposals,EXPENSE
+4975,Verluste aus Wertminderungen Umlaufvermögen,Losses impairment current assets,EXPENSE
+4980,Gewerbesteuer,Trade tax,EXPENSE
+4985,Körperschaftsteuer,Corporate income tax,EXPENSE
+4990,Steuerlich nicht abzugsfähige Aufwendungen,Non-deductible expenses,EXPENSE
+4996,Herstellungskosten aktivierte Eigenleistung,Manufacturing costs capitalized,EXPENSE
+4999,Gegenkonto Herstellungskosten,Offset manufacturing costs,INCOME
+8000,Erlöse,Revenue,INCOME
+8010,Erlöse Inland steuerfrei,Revenue domestic tax-free,INCOME
+8100,Steuerfreie Umsätze §4 Nr.1a UStG Ausfuhr,Revenue exports §4,INCOME
+8110,Steuerfreie Umsätze §4 Nr.1a UStG,Revenue exports §4 1a,INCOME
+8120,Steuerfreie ig. Lieferungen §4 Nr.1b UStG,Revenue intra-community §4 1b,INCOME
+8125,Steuerfreie ig. Lieferungen ohne USt-IdNr,Revenue intra-community no VAT ID,INCOME
+8130,Steuerfreie Umsätze Offshore,Revenue offshore tax-free,INCOME
+8135,Steuerfreie Umsätze §4 Nr.2-7 UStG,Revenue tax-free §4 2-7,INCOME
+8140,Steuerfreie Umsätze §4 Nr.8 ff UStG,Revenue tax-free §4 8+,INCOME
+8150,Steuerfreie Umsätze ohne Vorsteuerabzug,Revenue tax-free no input VAT,INCOME
+8190,Erlöse Leistungen §13b UStG,Revenue services §13b,INCOME
+8195,Erlöse Reverse Charge,Revenue reverse charge,INCOME
+8200,Erlöse Leistungen 7%,Revenue services 7%,INCOME
+8300,Erlöse 7% USt,Revenue 7% VAT,INCOME
+8310,Erlöse ermäßigt,Revenue reduced rate,INCOME
+8320,Erlöse Leistungen 7%,Revenue services 7%,INCOME
+8400,Erlöse 19% USt,Revenue 19% VAT,INCOME
+8410,Erlöse 16% USt,Revenue 16% VAT,INCOME
+8500,Provisionserlöse,Commission revenue,INCOME
+8510,Provisionserlöse 7%,Commission revenue 7%,INCOME
+8520,Provisionserlöse 19%,Commission revenue 19%,INCOME
+8540,Erlöse Abfallverwertung,Waste processing revenue,INCOME
+8550,Erlöse Leergut,Container deposit revenue,INCOME
+8560,Erlöse Verpackungsmaterial,Packaging revenue,INCOME
+8570,Erlöse Nebenleistungen,Ancillary revenue,INCOME
+8580,Erlöse aus Garantieverlängerungen,Warranty extension revenue,INCOME
+8590,Erlöse aus Vermietung und Verpachtung,Rental revenue,INCOME
+8600,Erlöse Vermietung 19%,Rental revenue 19%,INCOME
+8610,Erlöse Vermietung 7%,Rental revenue 7%,INCOME
+8700,Erlösschmälerungen,Revenue reductions,INCOME
+8710,Gewährte Skonti 7%,Cash discounts granted 7%,INCOME
+8720,Gewährte Skonti 19%,Cash discounts granted 19%,INCOME
+8725,Gewährte Skonti 16%,Cash discounts granted 16%,INCOME
+8730,Gewährte Boni 7%,Volume rebates granted 7%,INCOME
+8731,Gewährte Boni 19%,Volume rebates granted 19%,INCOME
+8735,Gewährte Rabatte,Trade discounts granted,INCOME
+8736,Gewährte Rabatte 19%,Trade discounts 19%,INCOME
+8740,Gewährte Rabatte 7%,Trade discounts 7%,INCOME
+8750,Erlösschmälerungen 7%,Revenue reductions 7%,INCOME
+8760,Erlösschmälerungen 19%,Revenue reductions 19%,INCOME
+8800,Erlöse Anlagenverkäufe,Revenue from asset sales,INCOME
+8801,Erlöse Anlagenverkäufe steuerfrei,Revenue asset sales tax-free,INCOME
+8810,Erlöse Anlagenverkäufe 7%,Revenue asset sales 7%,INCOME
+8820,Erlöse Anlagenverkäufe 19%,Revenue asset sales 19%,INCOME
+8900,Sonstige betriebliche Erträge,Other operating income,INCOME
+8910,Erträge Zuschreibungen Sachanlagen,Reversal depreciation tangible,INCOME
+8920,Erträge Zuschreibungen Finanzanlagen,Reversal depreciation financial,INCOME
+8930,Erträge Wertpapiere Umlaufvermögen,Income from current securities,INCOME
+8940,Erträge aus Beteiligungen,Income from participations,INCOME
+8945,Zinserträge,Interest income,INCOME
+8950,Sonstige Zinsen und ähnliche Erträge,Other interest income,INCOME
+8955,Diskonterträge,Discount income,INCOME
+8960,Erträge aus Währungsumrechnung,Currency translation gains,INCOME
+8970,Periodenfremde Erträge,Prior-period income,INCOME
+8975,Erträge Auflösung Rückstellungen,Provision reversal income,INCOME
+8980,Erträge Herabsetzung Pauschalwertberichtigung,General allowance reversal,INCOME
+9000,Saldenvorträge Sachkonten,Balance carried forward GL,EQUITY
+9008,Eröffnungsbilanz,Opening balance,EQUITY
+9009,Schlussbilanzkonto,Closing balance,EQUITY
+9100,Saldenvorträge Debitoren,Balance carried forward AR,EQUITY
+9200,Saldenvorträge Kreditoren,Balance carried forward AP,EQUITY

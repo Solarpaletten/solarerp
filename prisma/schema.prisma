@@ -111,7 +111,8 @@ model Account {
   id        String      @id @default(cuid())
   companyId String
   code      String
-  name      String
+  nameDe    String
+  nameEn    String
   type      AccountType
   isActive  Boolean     @default(true)
   createdAt DateTime    @default(now())

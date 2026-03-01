@@ -1,15 +1,17 @@
 // app/api/company/[companyId]/chart-of-accounts/import/route.ts
 // ═══════════════════════════════════════════════════
-// Chart of Accounts Import Engine
+// Chart of Accounts Import Engine (v2 — Bilingual)
 // ═══════════════════════════════════════════════════
 //
-// Task 30: Import CSV → batch create Account records.
+// Task 32: Bilingual import with optional reset.
 //
-// Rules:
-//   - Duplicates by code+companyId → skip (not error)
-//   - Valid AccountType required
-//   - Atomic via transaction
-//   - No deletes, no updates — pure add-import
+// CSV format: code,nameDe,nameEn,type
+// Also supports legacy: code,name,type (name → nameDe, nameEn=nameDe)
+//
+// Modes:
+//   - Default: add-only (skip duplicates)
+//   - ?reset=true: delete all existing accounts first
+//     (only if no journal lines reference them)
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -32,7 +34,8 @@ async function verifyCompanyOwnership(companyId: string, tenantId: string) {
 
 type ParsedRow = {
   code: string;
-  name: string;
+  nameDe: string;
+  nameEn: string;
   type: AccountType;
 };
 
@@ -46,59 +49,66 @@ function parseCSV(text: string): { rows: ParsedRow[]; errors: string[] } {
     return { rows, errors };
   }
 
-  // Validate header
   const header = lines[0].toLowerCase().trim();
-  if (!header.includes('code') || !header.includes('name') || !header.includes('type')) {
-    errors.push('CSV header must contain: code, name, type');
+  const headerCols = header.split(',').map((h) => h.trim());
+
+  // Detect format: bilingual (code,nameDe,nameEn,type) or legacy (code,name,type)
+  const codeIdx = headerCols.indexOf('code');
+  const typeIdx = headerCols.indexOf('type');
+  const nameDeIdx = headerCols.indexOf('namede');
+  const nameEnIdx = headerCols.indexOf('nameen');
+  const nameIdx = headerCols.indexOf('name'); // legacy
+
+  if (codeIdx === -1 || typeIdx === -1) {
+    errors.push('CSV header must contain: code, type');
     return { rows, errors };
   }
 
-  // Parse header positions
-  const headerCols = header.split(',').map((h) => h.trim());
-  const codeIdx = headerCols.indexOf('code');
-  const nameIdx = headerCols.indexOf('name');
-  const typeIdx = headerCols.indexOf('type');
+  const isBilingual = nameDeIdx !== -1 && nameEnIdx !== -1;
+  if (!isBilingual && nameIdx === -1) {
+    errors.push('CSV header must contain: nameDe+nameEn (bilingual) or name (legacy)');
+    return { rows, errors };
+  }
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
 
+    // Handle commas inside values (simple: no quotes)
     const cols = line.split(',');
     const code = (cols[codeIdx] || '').trim();
-    const name = (cols[nameIdx] || '').trim();
     const type = (cols[typeIdx] || '').trim().toUpperCase();
+
+    let nameDe: string;
+    let nameEn: string;
+
+    if (isBilingual) {
+      nameDe = (cols[nameDeIdx] || '').trim();
+      nameEn = (cols[nameEnIdx] || '').trim();
+    } else {
+      nameDe = (cols[nameIdx] || '').trim();
+      nameEn = nameDe; // Legacy fallback
+    }
 
     if (!code) {
       errors.push(`Row ${i + 1}: missing code`);
       continue;
     }
-    if (!name) {
+    if (!nameDe) {
       errors.push(`Row ${i + 1}: missing name`);
       continue;
     }
     if (!VALID_TYPES.has(type)) {
-      errors.push(`Row ${i + 1}: invalid type "${type}" (must be ASSET/LIABILITY/EQUITY/INCOME/EXPENSE)`);
+      errors.push(`Row ${i + 1}: invalid type "${type}"`);
       continue;
     }
 
-    rows.push({ code, name, type: type as AccountType });
+    rows.push({ code, nameDe, nameEn: nameEn || nameDe, type: type as AccountType });
   }
 
   return { rows, errors };
 }
 
-// ─── POST /api/company/[companyId]/chart-of-accounts/import ─
-//
-// Body: raw CSV text (Content-Type: text/csv)
-// or JSON: { "csv": "code,name,type\n1000,Bank,ASSET\n..." }
-//
-// Response:
-// {
-//   "created": 247,
-//   "skipped": 3,
-//   "totalInFile": 250,
-//   "errors": []
-// }
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { tenantId } = await requireTenant(request);
@@ -109,7 +119,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    // ─── Read CSV from body ──────────────────────
+    // Check reset mode
+    const url = new URL(request.url);
+    const resetMode = url.searchParams.get('reset') === 'true';
+
+    // Read CSV
     let csvText: string;
     const contentType = request.headers.get('content-type') || '';
 
@@ -117,24 +131,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       const body = await request.json();
       csvText = body.csv;
       if (!csvText) {
-        return NextResponse.json(
-          { error: 'JSON body must have "csv" field' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'JSON body must have "csv" field' }, { status: 400 });
       }
     } else {
-      // text/csv or multipart form — read as text
       csvText = await request.text();
     }
 
     if (!csvText || csvText.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'Empty CSV body' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Empty CSV body' }, { status: 400 });
     }
 
-    // ─── Parse CSV ───────────────────────────────
     const { rows, errors } = parseCSV(csvText);
 
     if (rows.length === 0) {
@@ -144,7 +150,33 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // ─── Find existing codes to skip duplicates ──
+    // Reset mode: check for journal line references first
+    let deletedCount = 0;
+    if (resetMode) {
+      const usedAccounts = await prisma.journalLine.findFirst({
+        where: {
+          account: { companyId },
+        },
+        select: { id: true },
+      });
+
+      if (usedAccounts) {
+        return NextResponse.json(
+          {
+            error: 'Cannot reset: accounts have journal entries. Delete journal entries first or use add-only mode.',
+          },
+          { status: 409 }
+        );
+      }
+
+      // Safe to delete all accounts
+      const deleteResult = await prisma.account.deleteMany({
+        where: { companyId },
+      });
+      deletedCount = deleteResult.count;
+    }
+
+    // Find existing codes to skip duplicates
     const existingAccounts = await prisma.account.findMany({
       where: { companyId },
       select: { code: true },
@@ -154,20 +186,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const toCreate = rows.filter((r) => !existingCodes.has(r.code));
     const skipped = rows.length - toCreate.length;
 
-    // ─── Batch create in transaction ─────────────
+    // Batch create
     let created = 0;
     if (toCreate.length > 0) {
       const result = await prisma.$transaction(async (tx) => {
-        // createMany for performance
         const batch = await tx.account.createMany({
           data: toCreate.map((r) => ({
             companyId,
             code: r.code,
-            name: r.name,
+            nameDe: r.nameDe,
+            nameEn: r.nameEn,
             type: r.type,
             isActive: true,
           })),
-          skipDuplicates: true, // Extra safety net
+          skipDuplicates: true,
         });
         return batch.count;
       });
@@ -178,12 +210,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       created,
       skipped,
       totalInFile: rows.length,
+      ...(resetMode ? { deleted: deletedCount } : {}),
       ...(errors.length > 0 ? { parseErrors: errors } : {}),
     });
   } catch (error) {
-    if (error instanceof Response) {
-      return error;
-    }
+    if (error instanceof Response) return error;
     const message = error instanceof Error ? error.message : 'Internal server error';
     console.error('Import chart of accounts error:', message);
     return NextResponse.json({ error: message }, { status: 500 });

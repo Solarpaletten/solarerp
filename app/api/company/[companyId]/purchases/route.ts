@@ -1,157 +1,230 @@
-// app/api/company/[companyId]/purchases/[purchaseId]/route.ts
+// app/api/company/[companyId]/purchases/route.ts
 // ═══════════════════════════════════════════════════
-// Task 37A: GET + Task 38B: PUT Single Purchase Document
+// Purchases API: GET (list) + POST (legacy full create)
 // ═══════════════════════════════════════════════════
+// GET:  List all purchases for company
+// POST: Full create with journal + stock + FIFO (legacy)
+//       New flow uses: draft → edit → post
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireTenant } from '@/lib/auth/requireTenant';
+import { createJournalEntry } from '@/lib/accounting/journalService';
+import { assertPeriodOpen } from '@/lib/accounting/periodLock';
+import { createStockMovement } from '@/lib/accounting/stockService';
+import { createStockLot } from '@/lib/accounting/fifoService';
 
 type RouteParams = {
-  params: Promise<{ companyId: string; purchaseId: string }>;
+  params: Promise<{ companyId: string }>;
 };
 
-// ─── GET — Read single document ─────────────────
+async function verifyCompanyOwnership(companyId: string, tenantId: string) {
+  const company = await prisma.company.findFirst({
+    where: { id: companyId, tenantId },
+    select: { id: true },
+  });
+  return company !== null;
+}
+
+// ─── GET /api/company/[companyId]/purchases ──────
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { tenantId } = await requireTenant(request);
-    const { companyId, purchaseId } = await params;
+    const { companyId } = await params;
 
-    const company = await prisma.company.findFirst({
-      where: { id: companyId, tenantId },
-      select: { id: true },
-    });
-    if (!company) {
+    const isOwner = await verifyCompanyOwnership(companyId, tenantId);
+    if (!isOwner) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    const purchase = await prisma.purchaseDocument.findFirst({
+    const purchases = await prisma.purchaseDocument.findMany({
       where: {
-        id: purchaseId,
         companyId,
         company: { tenantId },
       },
       include: {
-        items: { orderBy: { id: 'asc' } },
+        items: true,
       },
+      orderBy: { purchaseDate: 'desc' },
     });
 
-    if (!purchase) {
-      return NextResponse.json({ error: 'Purchase not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ data: purchase });
-  } catch (error: unknown) {
+    return NextResponse.json({ data: purchases, count: purchases.length });
+  } catch (error) {
     if (error instanceof Response) return error;
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Get purchase error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('List purchases error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// ─── PUT — Update DRAFT document ────────────────
-// NO journal entry, NO stock movement, NO FIFO.
-// Only DRAFT documents can be updated.
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+// ─── POST /api/company/[companyId]/purchases ─────
+// Legacy full-create endpoint. New flow: draft → edit → post
+export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { tenantId } = await requireTenant(request);
-    const { companyId, purchaseId } = await params;
+    const { companyId } = await params;
 
-    const company = await prisma.company.findFirst({
-      where: { id: companyId, tenantId },
-      select: { id: true },
-    });
-    if (!company) {
+    const isOwner = await verifyCompanyOwnership(companyId, tenantId);
+    if (!isOwner) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
+
+    const contentLength = request.headers.get('content-length');
+
+    // Draft mode: no body — redirect to draft endpoint
+    if (!contentLength || contentLength === '0') {
+      const draft = await prisma.purchaseDocument.create({
+        data: {
+          companyId,
+          purchaseDate: new Date(),
+          series: 'P',
+          number: '0001',
+          supplierName: '',
+          warehouseName: '',
+          operationType: 'PURCHASE',
+          currencyCode: 'EUR',
+          status: 'DRAFT',
+        },
+      });
+
+      return NextResponse.json({ data: draft }, { status: 201 });
     }
 
     const body = await request.json();
 
+    const {
+      purchaseDate, series, number: docNumber, supplierName,
+      warehouseName, operationType, currencyCode, items, journal,
+    } = body;
+
+    if (!purchaseDate || !series || !docNumber || !supplierName || !warehouseName || !operationType || !currencyCode) {
+      return NextResponse.json({ error: 'Missing required purchase fields' }, { status: 400 });
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: 'Purchase must have at least one item' }, { status: 400 });
+    }
+
+    if (!journal?.debitAccountId || !journal?.creditAccountId) {
+      return NextResponse.json({ error: 'Missing journal accounts: debitAccountId and creditAccountId required' }, { status: 400 });
+    }
+
+    const totalAmount = items.reduce(
+      (sum: number, item: { quantity: number; priceWithoutVat: number }) =>
+        sum + Number(item.quantity) * Number(item.priceWithoutVat), 0
+    );
+
+    if (totalAmount <= 0) {
+      return NextResponse.json({ error: 'Total amount must be positive' }, { status: 400 });
+    }
+
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Find and verify document
-      const purchase = await tx.purchaseDocument.findFirst({
-        where: {
-          id: purchaseId,
-          companyId,
-          company: { tenantId },
-        },
-        select: { id: true, status: true },
-      });
+      await assertPeriodOpen(tx, { companyId, date: new Date(purchaseDate) });
 
-      if (!purchase) {
-        throw new Error('PURCHASE_NOT_FOUND');
-      }
-
-      if (purchase.status !== 'DRAFT') {
-        throw new Error('ONLY_DRAFT_EDITABLE');
-      }
-
-      // 2. Update header fields
-      const updated = await tx.purchaseDocument.update({
-        where: { id: purchaseId },
+      const purchase = await tx.purchaseDocument.create({
         data: {
-          purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : undefined,
-          supplierName: body.supplierName ?? undefined,
-          supplierCode: body.supplierCode ?? undefined,
-          warehouseName: body.warehouseName ?? undefined,
-          currencyCode: body.currencyCode ?? undefined,
-          operationType: body.operationType ?? undefined,
-          comments: body.comments ?? undefined,
+          companyId,
+          purchaseDate: new Date(purchaseDate),
+          payUntil: body.payUntil ? new Date(body.payUntil) : null,
+          series,
+          number: docNumber,
+          supplierName,
+          supplierCode: body.supplierCode || null,
+          warehouseName,
+          operationType,
+          currencyCode,
+          employeeName: body.employeeName || null,
+          comments: body.comments || null,
+          debitAccountId: journal.debitAccountId,
+          creditAccountId: journal.creditAccountId,
+          status: 'POSTED',
+          items: {
+            create: items.map((item: {
+              itemName: string; itemCode?: string; barcode?: string;
+              quantity: number; priceWithoutVat: number; vatRate?: number;
+            }) => ({
+              itemName: item.itemName,
+              itemCode: item.itemCode || null,
+              barcode: item.barcode || null,
+              quantity: item.quantity,
+              priceWithoutVat: item.priceWithoutVat,
+              vatRate: item.vatRate || null,
+            })),
+          },
+        },
+        include: { items: true },
+      });
+
+      const journalEntry = await createJournalEntry(tx, {
+        companyId,
+        date: new Date(purchaseDate),
+        documentType: 'PURCHASE',
+        documentId: purchase.id,
+        lines: [
+          { accountId: journal.debitAccountId, debit: totalAmount, credit: 0 },
+          { accountId: journal.creditAccountId, debit: 0, credit: totalAmount },
+        ],
+      });
+
+      await tx.purchaseDocument.update({
+        where: { id: purchase.id },
+        data: {
+          debitAccountId: journal.debitAccountId,
+          creditAccountId: journal.creditAccountId,
         },
       });
 
-      // 3. Replace items: delete all → create new
-      if (Array.isArray(body.items)) {
-        await tx.purchaseItem.deleteMany({
-          where: { purchaseId },
+      for (const item of purchase.items) {
+        await createStockMovement({
+          tx, companyId,
+          warehouseName: purchase.warehouseName,
+          itemName: item.itemName,
+          itemCode: item.itemCode || item.itemName,
+          quantity: Number(item.quantity),
+          cost: Number(item.priceWithoutVat),
+          direction: 'IN',
+          documentType: 'PURCHASE',
+          documentId: purchase.id,
+          documentDate: purchase.purchaseDate,
+          series: purchase.series,
+          number: docNumber,
+          barcode: item.barcode || undefined,
+          vatRate: item.vatRate ? Number(item.vatRate) : undefined,
+          priceWithoutVat: Number(item.priceWithoutVat),
+          operationType: purchase.operationType,
         });
 
-        if (body.items.length > 0) {
-          await tx.purchaseItem.createMany({
-            data: body.items.map(
-              (item: {
-                itemName: string;
-                itemCode?: string;
-                quantity: number;
-                priceWithoutVat: number;
-                vatRate?: number;
-              }) => ({
-                purchaseDocumentId: purchaseId,
-                itemName: item.itemName || '',
-                itemCode: item.itemCode || null,
-                quantity: Number(item.quantity) || 0,
-                priceWithoutVat: Number(item.priceWithoutVat) || 0,
-                vatRate: item.vatRate != null ? Number(item.vatRate) : null,
-              })
-            ),
-          });
-        }
+        await createStockLot(tx, {
+          companyId,
+          warehouseName: purchase.warehouseName,
+          itemCode: item.itemCode || item.itemName,
+          itemName: item.itemName,
+          sourceDocumentId: purchase.id,
+          purchaseDate: purchase.purchaseDate,
+          unitCost: Number(item.priceWithoutVat),
+          quantity: Number(item.quantity),
+          currencyCode: purchase.currencyCode,
+        });
       }
 
-      // 4. Re-fetch with items
-      return tx.purchaseDocument.findUniqueOrThrow({
-        where: { id: purchaseId },
-        include: { items: { orderBy: { id: 'asc' } } },
-      });
+      return { purchase, journalEntry };
     });
 
-    return NextResponse.json({ data: result });
+    return NextResponse.json(
+      {
+        data: result.purchase,
+        journal: { id: result.journalEntry.id, linesCount: result.journalEntry.lines.length },
+      },
+      { status: 201 }
+    );
   } catch (error: unknown) {
     if (error instanceof Response) return error;
 
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-
-    if (msg === 'PURCHASE_NOT_FOUND') {
-      return NextResponse.json({ error: 'Purchase not found' }, { status: 404 });
-    }
-    if (msg === 'ONLY_DRAFT_EDITABLE') {
-      return NextResponse.json(
-        { error: 'Only DRAFT documents can be edited' },
-        { status: 400 }
-      );
+    if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2002') {
+      return NextResponse.json({ error: 'Purchase with this series/number already exists' }, { status: 409 });
     }
 
-    console.error('Update purchase error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    console.error('Create purchase error:', message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

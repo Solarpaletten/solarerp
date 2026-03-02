@@ -80,12 +80,20 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       select: {
         id: true,
         code: true,
-        name: true,
+        nameDe: true,
+        nameEn: true,
         type: true,
-      },
+      }
     });
 
     const accountMap = new Map(accounts.map((a) => [a.id, a]));
+
+    function resolveAccountName(a: {
+      nameDe: string;
+      nameEn: string;
+    }) {
+      return a.nameDe || a.nameEn;
+    }
 
     // ─── Aggregate ALL journal lines up to asOf ──
     const aggregation = await prisma.journalLine.groupBy({
@@ -127,7 +135,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             assets.push({
               accountId: account.id,
               code: account.code,
-              name: account.name,
+              name: resolveAccountName(account),
               balance,
             });
           }
@@ -139,7 +147,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             liabilities.push({
               accountId: account.id,
               code: account.code,
-              name: account.name,
+              name: resolveAccountName(account),
               balance,
             });
           }
@@ -151,7 +159,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             equity.push({
               accountId: account.id,
               code: account.code,
-              name: account.name,
+              name: resolveAccountName(account),
               balance,
             });
           }

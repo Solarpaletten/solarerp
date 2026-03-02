@@ -75,10 +75,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       select: {
         id: true,
         code: true,
-        name: true,
+        nameDe: true,
+        nameEn: true,
         type: true,
       },
     });
+
+    function resolveAccountName(a: {
+      nameDe: string;
+      nameEn: string;
+    }) {
+      return a.nameDe || a.nameEn;
+    }
 
     if (accounts.length === 0) {
       return NextResponse.json({
@@ -88,6 +96,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         result: 0,
       });
     }
+
+    
 
     const accountIds = accounts.map((a) => a.id);
     const accountMap = new Map(accounts.map((a) => [a.id, a]));
@@ -135,7 +145,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
       const line = {
         accountCode: account.code,
-        accountName: account.name,
+        accountName: resolveAccountName(account),
         amount,
       };
 

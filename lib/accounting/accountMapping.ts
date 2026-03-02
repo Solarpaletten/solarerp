@@ -143,7 +143,11 @@ export async function resolveSaleAccounts(
   vatMode: VatMode
 ): Promise<ResolvedSaleAccounts> {
   const salesConfig = ACCOUNT_MAP.sales[vatMode];
-  const codes = [ACCOUNT_MAP.receivable, salesConfig.revenue];
+  
+  const codes: string[] = [
+    ACCOUNT_MAP.receivable,
+    salesConfig.revenue,
+  ];
 
   if ('vat' in salesConfig) {
     codes.push(salesConfig.vat);
@@ -237,7 +241,8 @@ export async function resolveFifoSaleAccounts(
   vatMode: VatMode
 ): Promise<ResolvedFifoSaleAccounts> {
   const salesConfig = ACCOUNT_MAP.sales[vatMode];
-  const codes = [
+  
+  const codes: string[] = [
     ACCOUNT_MAP.receivable,
     salesConfig.revenue,
     ACCOUNT_MAP.cogs,

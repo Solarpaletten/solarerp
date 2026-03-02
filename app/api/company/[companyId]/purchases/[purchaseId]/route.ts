@@ -146,7 +146,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       // Replace items
       if (Array.isArray(body.items)) {
         await tx.purchaseItem.deleteMany({
-          where: { purchaseDocumentId: purchaseId },
+          where: { purchaseId },
         });
 
         if (body.items.length > 0) {

@@ -98,10 +98,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       select: {
         id: true,
         code: true,
-        name: true,
+        nameDe: true,
+        nameEn: true,
         type: true,
       },
     });
+
+    function resolveAccountName(a: {
+      nameDe: string;
+      nameEn: string;
+    }) {
+      return a.nameDe || a.nameEn;
+    }
 
     const accountMap = new Map(accounts.map((a) => [a.id, a]));
 
@@ -115,7 +123,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         return {
           accountId: agg.accountId,
           accountCode: account?.code || 'UNKNOWN',
-          accountName: account?.name || 'Unknown Account',
+          accountName: resolveAccountName(account || { nameDe: '', nameEn: '' }),
           accountType: account?.type || 'UNKNOWN',
           totalDebit: Math.round(totalDebit * 100) / 100,
           totalCredit: Math.round(totalCredit * 100) / 100,

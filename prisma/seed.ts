@@ -51,13 +51,15 @@ async function main() {
       companyId: company.id,
       name: 'Demo Client GmbH',
       shortName: 'DEMO',
-      isJuridical: true,
-      location: ClientLocation.EU,
+      type: 'COMPANY',                // ← ВМЕСТО isJuridical
+      location: ClientLocation.EU,    // обязателен
       vatCode: 'DE987654321',
       email: 'client@demo.de',
       payWithinDays: 14,
     },
   });
+
+
 
   // =============================
   // ITEMS

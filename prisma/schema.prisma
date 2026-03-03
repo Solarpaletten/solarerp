@@ -125,7 +125,7 @@ model StockLot {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   allocations StockAllocation[]
 
   // FIFO ordering index — critical for deterministic allocation
@@ -138,7 +138,7 @@ model StockLot {
 model StockAllocation {
   id           String   @id @default(cuid())
   companyId    String
-  documentType String   // SALE | SALE_REVERSAL
+  documentType String // SALE | SALE_REVERSAL
   documentId   String
   saleItemId   String?
   lotId        String
@@ -155,7 +155,6 @@ model StockAllocation {
   @@index([companyId])
   @@map("stock_allocations")
 }
-
 
 model Account {
   id        String      @id @default(cuid())
@@ -192,7 +191,7 @@ model JournalEntry {
   documentType String
   documentId   String?
   source       JournalSource @default(SYSTEM)
-  description  String?       
+  description  String?
   createdAt    DateTime      @default(now())
 
   lines   JournalLine[]
@@ -246,6 +245,25 @@ model AccountingPeriod {
 // ERP MODULE: CLIENTS (COUNTERPARTIES)
 // ============================================
 
+enum ClientType {
+  COMPANY
+  SOLE_TRADER
+  INDIVIDUAL
+  GOVERNMENT
+  NON_PROFIT
+}
+
+// ============================================
+// ERP MODULE: CLIENTS (COUNTERPARTIES)
+// ============================================
+// Task 42: Enterprise Client Model v2
+// - isJuridical removed → type ClientType
+// - isActive added
+// - creditLimit precision enforced
+// - creditLimitCurrency for multi-currency prep
+// - unique(companyId, code) for deduplication
+// - index(companyId, vatCode) for tax lookups
+
 enum ClientLocation {
   LOCAL
   EU
@@ -256,39 +274,48 @@ model Client {
   id        String @id @default(cuid())
   companyId String
 
+  // Identity
   name      String
   shortName String?
   code      String?
-  notes     String?
+  type      ClientType
+  isActive  Boolean    @default(true)
 
-  isJuridical Boolean
-  location    ClientLocation
-
+  // Legal & Tax
   vatCode             String?
   businessLicenseCode String?
   residentTaxCode     String?
+  location            ClientLocation
 
+  // Contact
   email       String?
   phoneNumber String?
   faxNumber   String?
   contactInfo String?
+  notes       String?
 
+  // Financial
   payWithinDays       Int?
-  creditLimit         Decimal?
+  creditLimit         Decimal? @db.Decimal(18, 2)
+  creditLimitCurrency String?
   automaticDebtRemind Boolean  @default(false)
 
+  // Individual
   birthday DateTime?
 
+  // Registration
   registrationCountryCode String?
   registrationCity        String?
   registrationAddress     String?
   registrationZipCode     String?
 
+  // Correspondence
   correspondenceCountryCode String?
   correspondenceCity        String?
   correspondenceAddress     String?
   correspondenceZipCode     String?
 
+  // Banking
   bankAccount   String?
   bankName      String?
   bankCode      String?
@@ -299,7 +326,9 @@ model Client {
 
   company Company @relation(fields: [companyId], references: [id])
 
+  @@unique([companyId, code])
   @@index([companyId])
+  @@index([companyId, vatCode])
   @@map("clients")
 }
 
@@ -371,13 +400,13 @@ model SaleDocument {
   unloadCity    String?
   warehouseName String
 
-  operationType String
-  currencyCode  String
-  employeeName  String?
-  status        String?
-  comments      String?
-  debitAccountId  String?   
-  creditAccountId String?   
+  operationType   String
+  currencyCode    String
+  employeeName    String?
+  status          String?
+  comments        String?
+  debitAccountId  String?
+  creditAccountId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -446,13 +475,13 @@ model PurchaseDocument {
 
   warehouseName String
 
-  operationType String
-  currencyCode  String
-  employeeName  String?
-  comments      String?
-  status        String?
-  debitAccountId  String?   
-  creditAccountId String?   
+  operationType   String
+  currencyCode    String
+  employeeName    String?
+  comments        String?
+  status          String?
+  debitAccountId  String?
+  creditAccountId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -543,9 +572,9 @@ model StockMovement {
   freePrice       Boolean  @default(false)
 
   // ─── Task 34: Stock Engine additions ───────────
-  direction    String   // IN | OUT
-  documentType String   // PURCHASE | SALE | ADJUSTMENT | PURCHASE_REVERSAL | SALE_REVERSAL
-  documentId   String?  // FK to PurchaseDocument.id or SaleDocument.id
+  direction    String // IN | OUT
+  documentType String // PURCHASE | SALE | ADJUSTMENT | PURCHASE_REVERSAL | SALE_REVERSAL
+  documentId   String? // FK to PurchaseDocument.id or SaleDocument.id
 
   createdAt DateTime @default(now())
 
@@ -559,7 +588,6 @@ model StockMovement {
   @@index([documentId])
   @@map("stock_movements")
 }
-
 
 // ============================================
 // ERP MODULE: BANK STATEMENTS

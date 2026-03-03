@@ -8,6 +8,9 @@ CREATE TYPE "AccountType" AS ENUM ('ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EX
 CREATE TYPE "JournalSource" AS ENUM ('SYSTEM', 'MANUAL');
 
 -- CreateEnum
+CREATE TYPE "ClientType" AS ENUM ('COMPANY', 'SOLE_TRADER', 'INDIVIDUAL', 'GOVERNMENT', 'NON_PROFIT');
+
+-- CreateEnum
 CREATE TYPE "ClientLocation" AS ENUM ('LOCAL', 'EU', 'FOREIGN');
 
 -- CreateTable
@@ -157,18 +160,20 @@ CREATE TABLE "clients" (
     "name" TEXT NOT NULL,
     "shortName" TEXT,
     "code" TEXT,
-    "notes" TEXT,
-    "isJuridical" BOOLEAN NOT NULL,
-    "location" "ClientLocation" NOT NULL,
+    "type" "ClientType" NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
     "vatCode" TEXT,
     "businessLicenseCode" TEXT,
     "residentTaxCode" TEXT,
+    "location" "ClientLocation" NOT NULL,
     "email" TEXT,
     "phoneNumber" TEXT,
     "faxNumber" TEXT,
     "contactInfo" TEXT,
+    "notes" TEXT,
     "payWithinDays" INTEGER,
-    "creditLimit" DECIMAL(65,30),
+    "creditLimit" DECIMAL(18,2),
+    "creditLimitCurrency" TEXT,
     "automaticDebtRemind" BOOLEAN NOT NULL DEFAULT false,
     "birthday" TIMESTAMP(3),
     "registrationCountryCode" TEXT,
@@ -461,6 +466,12 @@ CREATE UNIQUE INDEX "accounting_periods_companyId_year_month_key" ON "accounting
 
 -- CreateIndex
 CREATE INDEX "clients_companyId_idx" ON "clients"("companyId");
+
+-- CreateIndex
+CREATE INDEX "clients_companyId_vatCode_idx" ON "clients"("companyId", "vatCode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "clients_companyId_code_key" ON "clients"("companyId", "code");
 
 -- CreateIndex
 CREATE INDEX "items_companyId_idx" ON "items"("companyId");

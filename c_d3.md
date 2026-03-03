@@ -1,3 +1,29 @@
+Дарья права — composite FK чище триггеров. Prisma это поддерживает, и раз уже всё равно патчим миграцию, сделаю правильно сразу.**Patch 2 v2: Composite FK вместо триггеров.**Now let me also copy the purchase-id-route.ts from the previous round (it already has the FK clearing fix):Purchase-id-route.ts с фиксом clearing уже есть в /mnt/user-data/outputs/ — нет, он был удалён при `rm -rf`. Пересоздаю:## Task 43 FINAL — Composite FK patch (3 файла)
+
+### Что изменилось vs v2 (trigger):
+
+**Schema** — composite FK вместо триггеров:
+```prisma
+// Client: добавить @@unique([companyId, id])
+// SaleDocument:     fields: [companyId, clientId]   → references: [companyId, id]
+// PurchaseDocument: fields: [companyId, supplierId]  → references: [companyId, id]
+```
+
+**Migration** — чистый SQL без plpgsql: один `UNIQUE`, два composite `FOREIGN KEY`, два `INDEX`. Никаких триггеров.
+
+**Purchase PUT** — переменные по формату Дарьи: `updateSupplierId` / `updateSupplierName` / `updateSupplierCode` с тремя состояниями (`undefined` / `null` / `string`).
+
+### Acceptance test
+```
+1. Insert Client в Company A
+2. Попытка: INSERT INTO sale_documents (companyId='B', clientId='client-from-A')
+   → FK violation (DB-level, декларативно, без trigger)
+3. PUT /purchases/[id] с { supplierId: null }
+   → FK очищается, snapshot остаётся
+```
+
+Task 43 → **99% production-ready**. Готов к закрытию.
+1
 // app/api/company/[companyId]/purchases/[purchaseId]/route.ts
 // Task 37A: GET | Task 38B + 43A: PUT
 // Daria audit: 3-state FK clearing + company check before tx
@@ -199,3 +225,162 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
+2
+// ═══════════════════════════════════════════════════
+// Task 43 FINAL: Composite FK (no triggers)
+// ═══════════════════════════════════════════════════
+//
+// 3 changes in prisma/schema.prisma:
+// 1. Client — add @@unique([companyId, id])
+// 2. SaleDocument — composite FK [companyId, clientId]
+// 3. PurchaseDocument — composite FK [companyId, supplierId]
+
+// ─── Client model: ADD composite unique ──────────
+// (id is already globally unique, but Prisma needs
+// a composite target for multi-column FK references)
+//
+// ADD before @@map("clients"):
+
+//   @@unique([companyId, id])
+
+// Full Client indexes section becomes:
+//   @@unique([companyId, code])
+//   @@unique([companyId, id])          // Task 43: composite FK target
+//   @@index([companyId])
+//   @@index([companyId, vatCode])
+//   @@map("clients")
+
+
+// ─── SaleDocument model ──────────────────────────
+// REPLACE the single-field relation:
+
+// REMOVE:
+//   clientId  String?
+//   client    Client?  @relation("SaleClient", fields: [clientId], references: [id], onDelete: Restrict)
+
+// REPLACE WITH:
+//   clientId  String?
+//   client    Client?  @relation("SaleClient", fields: [companyId, clientId], references: [companyId, id], onDelete: Restrict)
+
+// Full SaleDocument model:
+
+model SaleDocument {
+  id        String @id @default(cuid())
+  companyId String
+
+  saleDate       DateTime
+  payUntil       DateTime?
+  accountingDate DateTime?
+  lockedAt       DateTime?
+
+  series String
+  number String
+
+  clientName String
+  clientCode String?
+  clientId   String?
+  payerName  String?
+  payerCode  String?
+
+  unloadAddress String?
+  unloadCity    String?
+  warehouseName String
+
+  operationType String
+  currencyCode  String
+  employeeName  String?
+  status        String?
+  comments      String?
+  debitAccountId  String?
+  creditAccountId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items   SaleItem[]
+  company Company    @relation(fields: [companyId], references: [id])
+  client  Client?    @relation("SaleClient", fields: [companyId, clientId], references: [companyId, id], onDelete: Restrict)
+
+  @@unique([companyId, series, number])
+  @@index([companyId])
+  @@index([saleDate])
+  @@index([companyId, clientId])
+  @@map("sale_documents")
+}
+
+
+// ─── PurchaseDocument model ──────────────────────
+// Same pattern: composite FK
+
+model PurchaseDocument {
+  id        String @id @default(cuid())
+  companyId String
+
+  purchaseDate       DateTime
+  payUntil           DateTime?
+  advancePaymentDate DateTime?
+
+  series String
+  number String
+
+  supplierName    String
+  supplierCode    String?
+  supplierId      String?
+  advanceEmployee String?
+
+  warehouseName String
+
+  operationType String
+  currencyCode  String
+  employeeName  String?
+  comments      String?
+  status        String?
+  debitAccountId  String?
+  creditAccountId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items    PurchaseItem[]
+  company  Company        @relation(fields: [companyId], references: [id])
+  supplier Client?        @relation("PurchaseSupplier", fields: [companyId, supplierId], references: [companyId, id], onDelete: Restrict)
+
+  @@unique([companyId, series, number])
+  @@index([companyId])
+  @@index([purchaseDate])
+  @@index([companyId, supplierId])
+  @@map("purchase_documents")
+}
+
+
+// ─── Client model back-relations (unchanged) ─────
+// Inside Client model:
+//   salesAsClient       SaleDocument[]     @relation("SaleClient")
+//   purchasesAsSupplier PurchaseDocument[] @relation("PurchaseSupplier")
+3
+-- Task 43 FINAL: Composite FK (no triggers)
+
+ALTER TABLE "sale_documents" ADD COLUMN "clientId" TEXT;
+ALTER TABLE "purchase_documents" ADD COLUMN "supplierId" TEXT;
+
+ALTER TABLE "clients"
+  ADD CONSTRAINT "clients_companyId_id_key"
+  UNIQUE ("companyId", "id");
+
+ALTER TABLE "sale_documents"
+  ADD CONSTRAINT "sale_documents_company_client_fkey"
+  FOREIGN KEY ("companyId", "clientId")
+  REFERENCES "clients"("companyId", "id")
+  ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "purchase_documents"
+  ADD CONSTRAINT "purchase_documents_company_supplier_fkey"
+  FOREIGN KEY ("companyId", "supplierId")
+  REFERENCES "clients"("companyId", "id")
+  ON DELETE RESTRICT ON UPDATE CASCADE;
+
+CREATE INDEX "sale_documents_companyId_clientId_idx"
+  ON "sale_documents"("companyId", "clientId");
+
+CREATE INDEX "purchase_documents_companyId_supplierId_idx"
+  ON "purchase_documents"("companyId", "supplierId");

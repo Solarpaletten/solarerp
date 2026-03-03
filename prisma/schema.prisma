@@ -326,7 +326,11 @@ model Client {
 
   company Company @relation(fields: [companyId], references: [id])
 
+  salesAsClient       SaleDocument[]     @relation("SaleClient")
+  purchasesAsSupplier PurchaseDocument[] @relation("PurchaseSupplier")
+
   @@unique([companyId, code])
+  @@unique([companyId, id]) // Task 43: composite FK target
   @@index([companyId])
   @@index([companyId, vatCode])
   @@map("clients")
@@ -393,6 +397,7 @@ model SaleDocument {
 
   clientName String
   clientCode String?
+  clientId   String?
   payerName  String?
   payerCode  String?
 
@@ -413,10 +418,12 @@ model SaleDocument {
 
   items   SaleItem[]
   company Company    @relation(fields: [companyId], references: [id])
+  client  Client?    @relation("SaleClient", fields: [companyId, clientId], references: [companyId, id], onDelete: Restrict)
 
   @@unique([companyId, series, number])
   @@index([companyId])
   @@index([saleDate])
+  @@index([companyId, clientId])
   @@map("sale_documents")
 }
 
@@ -471,6 +478,7 @@ model PurchaseDocument {
 
   supplierName    String
   supplierCode    String?
+  supplierId      String?
   advanceEmployee String?
 
   warehouseName String
@@ -486,12 +494,14 @@ model PurchaseDocument {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items   PurchaseItem[]
-  company Company        @relation(fields: [companyId], references: [id])
+  items    PurchaseItem[]
+  company  Company        @relation(fields: [companyId], references: [id])
+  supplier Client?        @relation("PurchaseSupplier", fields: [companyId, supplierId], references: [companyId, id], onDelete: Restrict)
 
   @@unique([companyId, series, number])
   @@index([companyId])
   @@index([purchaseDate])
+  @@index([companyId, supplierId])
   @@map("purchase_documents")
 }
 

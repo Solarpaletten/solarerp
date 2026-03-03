@@ -1,6 +1,91 @@
+Дарья права по обоим пунктам. Исправляю:
+Баг 1 — clearing FK: Когда supplierId = null, FK не очищался. Исправлено.
+Баг 3 — composite FK: Добавляю DB-level защиту от cross-company linking.Clean for patchesClean for patchesPatch 1: Fixed Purchase PUT route (clearing FK bug):Edited a file, created a fileEdited a file, created a filePatch 2: Migration with composite CHECK constraint:Created 2 files, ran a commandCreated 2 files, ran a commandПонял, жду сигнал. Файлы готовы — purchase-id-route.ts с фиксом clearing FK (пункт 1) и migration_fk_v2.sql с триггерами cross-company (пункт 3).Presented 2 filesPresented 2 filesПатч Task 43 v2 — 2 файла
+Пункт 1 (clearing FK bug) — purchase-id-route.ts:
+
+Три явных режима: set / clear / skip
+supplierId = null → updateData.supplierId = null (теперь FK действительно очищается)
+Snapshot (supplierName/supplierCode) сохраняется при clear — бухгалтерская история не теряется
+
+Пункт 3 (cross-company DB guard) — migration_fk_v2.sql:
+
+Два PostgreSQL trigger'а: trg_sale_client_company и trg_purchase_supplier_company
+BEFORE INSERT OR UPDATE — блокируют привязку клиента из чужой компании на уровне БД
+API-level защита остаётся (defense in depth), но теперь есть и DB-level
+
+Пункт 2 — уже применён: company ownership проверяется ДО транзакции.
+Пункт 4 (creditLimit) — отложен как следующий логический шаг (Task 44+).
+Замена при деплое:
+bash# Миграция (заменяет v1)
+cp migration_fk_v2.sql prisma/migrations/.../migration.sql
+
+# API (заменяет v1)
+cp purchase-id-route.ts app/api/company/[companyId]/purchases/[purchaseId]/route.tsPurchase id routeTS DownloadMigration fk v2Code · SQL DownloadDownload all
+
+1
+-- Task 43 v2: Client FK + Cross-Company Protection
+
+ALTER TABLE "sale_documents" ADD COLUMN "clientId" TEXT;
+ALTER TABLE "purchase_documents" ADD COLUMN "supplierId" TEXT;
+
+ALTER TABLE "sale_documents"
+  ADD CONSTRAINT "sale_documents_clientId_fkey"
+  FOREIGN KEY ("clientId") REFERENCES "clients"("id")
+  ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "purchase_documents"
+  ADD CONSTRAINT "purchase_documents_supplierId_fkey"
+  FOREIGN KEY ("supplierId") REFERENCES "clients"("id")
+  ON DELETE RESTRICT ON UPDATE CASCADE;
+
+CREATE INDEX "sale_documents_companyId_clientId_idx"
+  ON "sale_documents"("companyId", "clientId");
+
+CREATE INDEX "purchase_documents_companyId_supplierId_idx"
+  ON "purchase_documents"("companyId", "supplierId");
+
+CREATE OR REPLACE FUNCTION check_sale_client_company()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW."clientId" IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM "clients"
+      WHERE "id" = NEW."clientId" AND "companyId" = NEW."companyId"
+    ) THEN
+      RAISE EXCEPTION 'Client company mismatch';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_sale_client_company
+  BEFORE INSERT OR UPDATE ON "sale_documents"
+  FOR EACH ROW EXECUTE FUNCTION check_sale_client_company();
+
+CREATE OR REPLACE FUNCTION check_purchase_supplier_company()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW."supplierId" IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM "clients"
+      WHERE "id" = NEW."supplierId" AND "companyId" = NEW."companyId"
+    ) THEN
+      RAISE EXCEPTION 'Supplier company mismatch';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_purchase_supplier_company
+  BEFORE INSERT OR UPDATE ON "purchase_documents"
+  FOR EACH ROW EXECUTE FUNCTION check_purchase_supplier_company();
+2
 // app/api/company/[companyId]/purchases/[purchaseId]/route.ts
-// Task 37A: GET | Task 38B + 43A: PUT
-// Daria audit: 3-state FK clearing + company check before tx
+// Task 37A: GET | Task 38B + 43: PUT (with supplierId FK)
+// AUDIT FIX: FK clearing bug (item 1) + company check before tx (item 2)
+// PATCH v2: Fix clearing FK bug (Daria audit #1)
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -48,7 +133,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { tenantId } = await requireTenant(request);
     const { companyId, purchaseId } = await params;
 
-    // Company ownership BEFORE transaction (Daria audit #2)
+    // Company ownership check BEFORE transaction (Daria audit #2)
     const company = await prisma.company.findFirst({
       where: { id: companyId, tenantId },
       select: { id: true },
@@ -87,6 +172,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         }
       }
 
+      // Allow supplierName to be empty if supplierId is used
       if (!body.supplierId && (!body.supplierName || String(body.supplierName).trim().length === 0)) {
         return NextResponse.json({ error: 'SUPPLIER_NAME_REQUIRED_WITH_ITEMS' }, { status: 400 });
       }
@@ -95,20 +181,21 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // Task 43A: 3-state supplier FK (Daria audit #1 fix)
-    // undefined = skip (no FK change, legacy string mode)
-    // null = clear FK explicitly
-    // string = set FK + auto-snapshot
-    let updateSupplierId: string | null | undefined = undefined;
-    let updateSupplierName: string | undefined = undefined;
-    let updateSupplierCode: string | null | undefined = undefined;
+    // ── Task 43: Resolve supplier FK ────────────
+    // Three modes:
+    //   supplierId = "cxxx" → resolve + snapshot
+    //   supplierId = null   → clear FK explicitly
+    //   supplierId absent   → legacy string mode (no FK change)
+    type SupplierFkMode = 'set' | 'clear' | 'skip';
+    let supplierFkMode: SupplierFkMode = 'skip';
+    let resolvedSupplierId: string | null = null;
+    let resolvedSupplierName: string | null = null;
+    let resolvedSupplierCode: string | null = null;
 
     if (body.supplierId !== undefined) {
       if (body.supplierId === null) {
-        // Explicit FK clearing
-        updateSupplierId = null;
-        updateSupplierName = body.supplierName ?? '';
-        updateSupplierCode = body.supplierCode ?? null;
+        // ── FIX (Daria audit #1): explicitly clear FK ──
+        supplierFkMode = 'clear';
       } else {
         const supplier = await prisma.client.findFirst({
           where: { id: body.supplierId, companyId, company: { tenantId } },
@@ -122,9 +209,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           return NextResponse.json({ error: 'Supplier is deactivated' }, { status: 400 });
         }
 
-        updateSupplierId = supplier.id;
-        updateSupplierName = supplier.name;
-        updateSupplierCode = supplier.code ?? null;
+        supplierFkMode = 'set';
+        resolvedSupplierId = supplier.id;
+        resolvedSupplierName = supplier.name;
+        resolvedSupplierCode = supplier.code;
       }
     }
 
@@ -138,6 +226,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       if (!purchase) throw new Error('PURCHASE_NOT_FOUND');
       if (purchase.status !== 'DRAFT') throw new Error('ONLY_DRAFT_EDITABLE');
 
+      // Build update data
       const updateData: Record<string, unknown> = {};
       if (body.purchaseDate) updateData.purchaseDate = new Date(body.purchaseDate);
       if (body.warehouseName !== undefined) updateData.warehouseName = body.warehouseName;
@@ -145,13 +234,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       if (body.operationType !== undefined) updateData.operationType = body.operationType;
       if (body.comments !== undefined) updateData.comments = body.comments;
 
-      // Task 43A: Apply supplier FK based on resolution
-      if (updateSupplierId !== undefined) {
-        updateData.supplierId = updateSupplierId;
-        updateData.supplierName = updateSupplierName;
-        updateData.supplierCode = updateSupplierCode;
+      // Task 43: Apply supplier FK based on mode
+      if (supplierFkMode === 'set') {
+        updateData.supplierId = resolvedSupplierId;
+        updateData.supplierName = resolvedSupplierName;
+        updateData.supplierCode = resolvedSupplierCode;
+      } else if (supplierFkMode === 'clear') {
+        // ── FIX: explicitly set FK to null ──
+        updateData.supplierId = null;
+        // Keep existing supplierName/supplierCode (snapshot stays)
       } else {
-        // Legacy string mode
+        // Legacy mode: string fields directly
         if (body.supplierName !== undefined) updateData.supplierName = body.supplierName;
         if (body.supplierCode !== undefined) updateData.supplierCode = body.supplierCode;
       }

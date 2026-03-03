@@ -1,14 +1,6 @@
 // app/api/company/[companyId]/sales/route.ts
-// ═══════════════════════════════════════════════════
-// TENANT-SAFE Sales API with FIFO Journal Integration
-// ═══════════════════════════════════════════════════
-//
-// Task 22: Document → Journal Integration
-// Task 34: Stock Movements (OUT)
-// Task 35: FIFO Allocation + 4-line COGS Journal
-//
-// POST creates SaleDocument + FIFO allocation + 4-line JournalEntry + StockMovement
-// All in ONE transaction. If any step fails → full rollback.
+// Task 22 + 34 + 35 + 43: Sales API
+// Task 43: clientId FK + snapshot fields
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -24,7 +16,6 @@ type RouteParams = {
   params: Promise<{ companyId: string }>;
 };
 
-// ─── HELPER: Verify company belongs to tenant ────
 async function verifyCompanyOwnership(companyId: string, tenantId: string) {
   const company = await prisma.company.findFirst({
     where: { id: companyId, tenantId },
@@ -33,7 +24,7 @@ async function verifyCompanyOwnership(companyId: string, tenantId: string) {
   return company !== null;
 }
 
-// ─── GET /api/company/[companyId]/sales ──────────
+// GET /api/company/[companyId]/sales
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { tenantId } = await requireTenant(request);
@@ -45,10 +36,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     const sales = await prisma.saleDocument.findMany({
-      where: {
-        companyId,
-        company: { tenantId },
-      },
+      where: { companyId, company: { tenantId } },
       include: { items: true },
       orderBy: { saleDate: 'desc' },
     });
@@ -61,7 +49,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// ─── POST /api/company/[companyId]/sales ─────────
+// POST /api/company/[companyId]/sales
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { tenantId } = await requireTenant(request);
@@ -75,17 +63,36 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
 
     const {
-      saleDate,
-      series,
-      number: docNumber,
-      clientName,
-      warehouseName,
-      operationType,
-      currencyCode,
-      items,
+      saleDate, series, number: docNumber,
+      clientName: rawClientName, warehouseName,
+      operationType, currencyCode, items,
     } = body;
 
-    if (!saleDate || !series || !docNumber || !clientName || !warehouseName || !operationType || !currencyCode) {
+    // Task 43: Resolve client via FK or legacy string
+    let resolvedClientId: string | null = null;
+    let resolvedClientName: string = rawClientName || '';
+    let resolvedClientCode: string | null = body.clientCode || null;
+
+    if (body.clientId) {
+      const client = await prisma.client.findFirst({
+        where: { id: body.clientId, companyId, company: { tenantId } },
+        select: { id: true, name: true, code: true, isActive: true },
+      });
+
+      if (!client) {
+        return NextResponse.json({ error: 'Client not found in this company' }, { status: 404 });
+      }
+      if (!client.isActive) {
+        return NextResponse.json({ error: 'Client is deactivated' }, { status: 400 });
+      }
+
+      // Snapshot: freeze current client data into document
+      resolvedClientId = client.id;
+      resolvedClientName = client.name;
+      resolvedClientCode = client.code;
+    }
+
+    if (!saleDate || !series || !docNumber || !resolvedClientName || !warehouseName || !operationType || !currencyCode) {
       return NextResponse.json({ error: 'Missing required sale fields' }, { status: 400 });
     }
 
@@ -93,51 +100,37 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Sale must have at least one item' }, { status: 400 });
     }
 
-    // ═══════════════════════════════════════════════
-    // TRANSACTION: SaleDocument + FIFO + Journal + StockMovement
-    // ═══════════════════════════════════════════════
     const result = await prisma.$transaction(async (tx) => {
       await assertPeriodOpen(tx, { companyId, date: new Date(saleDate) });
 
-      // §7: Resolve all 4+ accounts via ACCOUNT_MAP (no hardcoded strings)
       const vatMode: VatMode = body.vatMode || 'VAT_19';
       const accounts = await resolveFifoSaleAccounts(tx, companyId, vatMode);
 
-      // 1. Create SaleDocument
       const sale = await tx.saleDocument.create({
         data: {
           companyId,
           saleDate: new Date(saleDate),
           payUntil: body.payUntil ? new Date(body.payUntil) : null,
           accountingDate: body.accountingDate ? new Date(body.accountingDate) : null,
-          series,
-          number: docNumber,
-          clientName,
-          clientCode: body.clientCode || null,
+          series, number: docNumber,
+          clientName: resolvedClientName,
+          clientCode: resolvedClientCode,
+          clientId: resolvedClientId,       // Task 43: FK
           payerName: body.payerName || null,
           payerCode: body.payerCode || null,
           unloadAddress: body.unloadAddress || null,
           unloadCity: body.unloadCity || null,
-          warehouseName,
-          operationType,
-          currencyCode,
+          warehouseName, operationType, currencyCode,
           employeeName: body.employeeName || null,
           comments: body.comments || null,
           debitAccountId: accounts.arAccountId,
           creditAccountId: accounts.revenueAccountId,
           items: {
             create: items.map((item: {
-              itemName: string;
-              itemCode?: string;
-              barcode?: string;
-              quantity: number;
-              priceWithoutVat: number;
-              unitDiscount?: number;
-              vatRate?: number;
-              vatClassifier?: string;
-              salesAccountCode?: string;
-              expenseAccountCode?: string;
-              costCenter?: string;
+              itemName: string; itemCode?: string; barcode?: string;
+              quantity: number; priceWithoutVat: number; unitDiscount?: number;
+              vatRate?: number; vatClassifier?: string;
+              salesAccountCode?: string; expenseAccountCode?: string; costCenter?: string;
             }) => ({
               itemName: item.itemName,
               itemCode: item.itemCode || null,
@@ -156,36 +149,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         include: { items: true },
       });
 
-      // 2. FIFO Allocation per item (§3 + §6: FOR UPDATE SKIP LOCKED)
       let totalCogs = new Decimal(0);
-
       for (const item of sale.items) {
         const itemCode = item.itemCode || item.itemName;
         const fifoResult = await allocateFifoLots(tx, {
-          companyId,
-          warehouseName: sale.warehouseName,
-          itemCode,
-          itemName: item.itemName,
-          quantity: item.quantity,
-          documentType: 'SALE',
-          documentId: sale.id,
-          saleItemId: item.id,
+          companyId, warehouseName: sale.warehouseName,
+          itemCode, itemName: item.itemName,
+          quantity: item.quantity, documentType: 'SALE',
+          documentId: sale.id, saleItemId: item.id,
         });
         totalCogs = totalCogs.plus(fifoResult.totalCogs);
       }
 
-      // 3. Calculate revenue
       const totalRevenue = items.reduce(
         (sum: number, item: { quantity: number; priceWithoutVat: number }) =>
-          sum + Number(item.quantity) * Number(item.priceWithoutVat),
-        0
+          sum + Number(item.quantity) * Number(item.priceWithoutVat), 0
       );
 
-      if (totalRevenue <= 0) {
-        throw new Error('Total revenue must be positive');
-      }
+      if (totalRevenue <= 0) throw new Error('Total revenue must be positive');
 
-      // 4. Create 4-line JournalEntry (§3: DR AR, CR Revenue, DR COGS, CR Inventory)
       const journalLines = [
         { accountId: accounts.arAccountId, debit: totalRevenue, credit: 0 },
         { accountId: accounts.revenueAccountId, debit: 0, credit: totalRevenue },
@@ -196,46 +178,28 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       ];
 
       const journalEntry = await createJournalEntry(tx, {
-        companyId,
-        date: new Date(saleDate),
-        documentType: 'SALE',
-        documentId: sale.id,
-        lines: journalLines,
+        companyId, date: new Date(saleDate),
+        documentType: 'SALE', documentId: sale.id, lines: journalLines,
       });
 
-      // 5. Stock Movements (OUT) — Task 34
       for (const item of sale.items) {
         await createStockMovement({
-          tx,
-          companyId,
-          warehouseName: sale.warehouseName,
-          itemName: item.itemName,
-          itemCode: item.itemCode || item.itemName,
-          quantity: Number(item.quantity),
-          cost: Number(item.priceWithoutVat),
-          direction: 'OUT',
-          documentType: 'SALE',
-          documentId: sale.id,
-          documentDate: sale.saleDate,
-          series: sale.series,
-          number: docNumber,
+          tx, companyId, warehouseName: sale.warehouseName,
+          itemName: item.itemName, itemCode: item.itemCode || item.itemName,
+          quantity: Number(item.quantity), cost: Number(item.priceWithoutVat),
+          direction: 'OUT', documentType: 'SALE', documentId: sale.id,
+          documentDate: sale.saleDate, series: sale.series, number: docNumber,
         });
       }
 
       return { sale, journalEntry, totalCogs: Number(totalCogs.toFixed(2)) };
     });
 
-    return NextResponse.json(
-      {
-        data: result.sale,
-        journal: {
-          id: result.journalEntry.id,
-          linesCount: result.journalEntry.lines.length,
-        },
-        cogs: result.totalCogs,
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({
+      data: result.sale,
+      journal: { id: result.journalEntry.id, linesCount: result.journalEntry.lines.length },
+      cogs: result.totalCogs,
+    }, { status: 201 });
   } catch (error: unknown) {
     if (error instanceof Response) return error;
 
@@ -244,11 +208,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const message = error instanceof Error ? error.message : 'Internal server error';
-
     if (message.startsWith('INSUFFICIENT_STOCK') || message.startsWith('FIFO_ALLOCATION_INCOMPLETE')) {
       return NextResponse.json({ error: message }, { status: 409 });
     }
-
     if (message.startsWith('ACCOUNT_CODE_NOT_FOUND')) {
       return NextResponse.json({ error: message }, { status: 400 });
     }

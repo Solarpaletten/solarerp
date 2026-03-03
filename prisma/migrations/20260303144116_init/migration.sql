@@ -234,6 +234,7 @@ CREATE TABLE "sale_documents" (
     "number" TEXT NOT NULL,
     "clientName" TEXT NOT NULL,
     "clientCode" TEXT,
+    "clientId" TEXT,
     "payerName" TEXT,
     "payerCode" TEXT,
     "unloadAddress" TEXT,
@@ -290,6 +291,7 @@ CREATE TABLE "purchase_documents" (
     "number" TEXT NOT NULL,
     "supplierName" TEXT NOT NULL,
     "supplierCode" TEXT,
+    "supplierId" TEXT,
     "advanceEmployee" TEXT,
     "warehouseName" TEXT NOT NULL,
     "operationType" TEXT NOT NULL,
@@ -474,6 +476,9 @@ CREATE INDEX "clients_companyId_vatCode_idx" ON "clients"("companyId", "vatCode"
 CREATE UNIQUE INDEX "clients_companyId_code_key" ON "clients"("companyId", "code");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "clients_companyId_id_key" ON "clients"("companyId", "id");
+
+-- CreateIndex
 CREATE INDEX "items_companyId_idx" ON "items"("companyId");
 
 -- CreateIndex
@@ -489,6 +494,9 @@ CREATE INDEX "sale_documents_companyId_idx" ON "sale_documents"("companyId");
 CREATE INDEX "sale_documents_saleDate_idx" ON "sale_documents"("saleDate");
 
 -- CreateIndex
+CREATE INDEX "sale_documents_companyId_clientId_idx" ON "sale_documents"("companyId", "clientId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "sale_documents_companyId_series_number_key" ON "sale_documents"("companyId", "series", "number");
 
 -- CreateIndex
@@ -499,6 +507,9 @@ CREATE INDEX "purchase_documents_companyId_idx" ON "purchase_documents"("company
 
 -- CreateIndex
 CREATE INDEX "purchase_documents_purchaseDate_idx" ON "purchase_documents"("purchaseDate");
+
+-- CreateIndex
+CREATE INDEX "purchase_documents_companyId_supplierId_idx" ON "purchase_documents"("companyId", "supplierId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "purchase_documents_companyId_series_number_key" ON "purchase_documents"("companyId", "series", "number");
@@ -576,10 +587,16 @@ ALTER TABLE "items" ADD CONSTRAINT "items_companyId_fkey" FOREIGN KEY ("companyI
 ALTER TABLE "sale_documents" ADD CONSTRAINT "sale_documents_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "sale_documents" ADD CONSTRAINT "sale_documents_companyId_clientId_fkey" FOREIGN KEY ("companyId", "clientId") REFERENCES "clients"("companyId", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "sale_items" ADD CONSTRAINT "sale_items_saleId_fkey" FOREIGN KEY ("saleId") REFERENCES "sale_documents"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "purchase_documents" ADD CONSTRAINT "purchase_documents_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "purchase_documents" ADD CONSTRAINT "purchase_documents_companyId_supplierId_fkey" FOREIGN KEY ("companyId", "supplierId") REFERENCES "clients"("companyId", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "purchase_items" ADD CONSTRAINT "purchase_items_purchaseId_fkey" FOREIGN KEY ("purchaseId") REFERENCES "purchase_documents"("id") ON DELETE CASCADE ON UPDATE CASCADE;

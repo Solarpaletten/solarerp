@@ -1,218 +1,211 @@
-D=>C (Dashka → Claude)
-Task 48 — Client Detail Form (Technical Specification)
-Architect: Leanid
-Coordinator: Dashka
-Engineer: Claude
+L=>C (Leanid → Claude)
+Task 48 — Client Detail Form (production quality)
+Dashka подготовила чёткое ТЗ, чтобы больше не создавать пустые страницы, а сразу сделать полноценный ERP-editor.
 
-Цель: реализовать первый полноценный master-data editor в Solar ERP — карточку контрагента (Client).
-Этот модуль станет основой для Purchases / Sales / Bank / Settlement.
+🎯 Цель Task 48
 
-1️⃣ Общая архитектура
+Сделать Client Detail Editor для:
 
-Используем существующую структуру проекта Leanid.
+/company/[companyId]/clients/[clientId]
 
-UI путь:
+Это будет первая master-data карточка ERP.
 
-app/(dashboard)/company/[companyId]/clients/new/page.tsx
+Она должна работать как:
 
-API уже существует:
+ERPGrid (clients/page.tsx)
+        ↓ click
+Client Editor
+📁 Файл который нужно реализовать
+app/(dashboard)/company/[companyId]/clients/[clientId]/page.tsx
+⚙️ Требования архитектуры
 
-/api/company/[companyId]/clients
+Использовать:
 
-Поэтому задача — сделать UI Editor + POST integration.
+React Client Component
+Next.js 14
+fetch API
+useParams
+useEffect
+🧩 Структура страницы
 
-2️⃣ Структура Client (ERP модель)
+Client Editor должен содержать 4 блока:
 
-Минимально необходимая модель клиента:
+ClientHeader
+ClientForm
+ClientAccounting
+ClientActions
+1️⃣ Header
+Client name
+Status badge
+Client code
 
-Client
-id
-companyId
+пример:
+
+ACME GmbH
+Client code: C-1001
+Type: Customer / Supplier
+2️⃣ Основная форма
+
+Поля:
 
 name
 code
 vatNumber
-registrationNumber
-
-country
-city
-address
-
 email
 phone
+address
+country
+city
+postalCode
+3️⃣ Бухгалтерский блок
 
-roles
+ERP поле:
 
-createdAt
-updatedAt
-3️⃣ Roles (важно)
+receivableAccount
+payableAccount
+vatId
+currency
+paymentTerms
 
-Контрагент может быть:
+Это подготовка для:
 
-customer
-supplier
-both
+SKR03
+DATEV
+4️⃣ Actions
 
-UI реализовать через checkbox.
+Кнопки:
 
-☑ Customer
-☑ Supplier
+Save
+Archive
+Delete
+🔄 API
 
-Если выбраны оба → roles = both.
+Использовать существующий API:
 
-4️⃣ UI Layout
-
-Страница:
-
-/company/[companyId]/clients/new
-
-Карточка:
-
-Card
- ├─ Client Code
- ├─ Client Name
- ├─ VAT Number
- ├─ Registration Number
- ├─ Country
- ├─ City
- ├─ Address
- ├─ Email
- ├─ Phone
- ├─ Roles
- │   ├─ Customer
- │   └─ Supplier
- └─ Save Button
-
-Использовать существующие компоненты:
-
-components/ui/Input.tsx
-components/ui/Button.tsx
-components/ui/Card.tsx
-5️⃣ File structure
-
-Создать:
-
-components/clients/ClientForm.tsx
-6️⃣ ClientForm Component
-type ClientFormData = {
-  code: string
-  name: string
-  vatNumber?: string
-  registrationNumber?: string
-  country?: string
-  city?: string
-  address?: string
-  email?: string
-  phone?: string
-  roles: string[]
-}
-7️⃣ Submit logic
-
-POST:
-
-POST /api/company/[companyId]/clients
-
-Body:
-
+GET
+/api/company/[companyId]/clients/[clientId]
+PATCH
+/api/company/[companyId]/clients/[clientId]
+DELETE
+/api/company/[companyId]/clients/[clientId]
+📡 Data loading
+useEffect → fetch client
+const res = await fetch(
+`/api/company/${companyId}/clients/${clientId}`
+)
+💾 Save
+PATCH
+fetch(
+`/api/company/${companyId}/clients/${clientId}`,
 {
- "code": "APPLE",
- "name": "Apple GmbH",
- "vatNumber": "DE123456789",
- "country": "Germany",
- "roles": ["customer","supplier"]
+ method: 'PATCH'
 }
+)
+🧠 UX
 
-После success:
+Пока данные грузятся:
 
-redirect:
-/company/[companyId]/clients
-8️⃣ Validation
+Loading spinner
 
-Frontend:
+Если ошибка:
 
-name required
-code required
-roles required
-9️⃣ UX правила ERP
+Error panel
+🎨 Layout
 
-Client Code:
+Tailwind
 
-UPPERCASE
-no spaces
-max 20
-🔟 Toolbar
+max-w-3xl
+space-y-6
+border
+rounded-lg
+📊 Полный layout
+Client Editor
 
-Использовать стандартную ERP navigation.
+[Header]
 
-Page Header:
+General Information
+--------------------------------
+Name
+Code
+Email
+Phone
 
-New Client
-1️⃣1️⃣ Error handling
+Address
+--------------------------------
+Country
+City
+Address
 
-Если API вернул ошибку:
+Accounting
+--------------------------------
+Receivable account
+Payable account
+Payment terms
 
-show error message
-1️⃣2️⃣ После Task 48 система сможет
-Create Client
-View Client List
-Use client in Purchase
-Use client in Sale
+[ Save ] [ Delete ]
+🚫 Важно
 
-Это открывает:
+НЕ использовать:
 
-Task 49 — Purchase UI
-1️⃣3️⃣ Definition of Done
+ERPGrid
 
-Task считается завершённым если:
+Это не список, это document editor.
 
-✔ можно создать клиента
-✔ запись сохраняется в БД
-✔ происходит redirect на clients grid
-✔ tenant isolation соблюдён
-✔ работает validation
+📦 После Task 48
 
-1️⃣4️⃣ Архитектурное замечание
+Следующие задачи:
 
-ClientForm должен быть переиспользуемым.
+Task 49 — Purchase UI polish
+Task 50 — Sale Document Editor
+Task 51 — Bank UI
+Task 52 — Product Editor
+Task 53 — Warehouse Editor
+🧠 Архитектурный принцип
 
-Позже использовать для:
+Solar ERP строится так:
 
-Edit Client
-1️⃣5️⃣ Ожидаемые новые файлы
-components/clients/ClientForm.tsx
+ERPGrid (list)
+        ↓
+Document Editor
 
-изменения:
+Ты уже это правильно выстроил.
 
-clients/new/page.tsx
-🚀 После Task 48
+🚀 Команда для Claude
+L=>C
 
-Solar ERP сможет впервые пройти полный торговый цикл:
+Implement Task 48.
+
+Create a full Client Editor page:
+
+app/(dashboard)/company/[companyId]/clients/[clientId]/page.tsx
+
+Requirements:
+• fetch client
+• editable form
+• PATCH save
+• DELETE client
+• loading and error states
+• Tailwind layout
+• production quality
+
+Leanid, после Task 48 + Task 50 у тебя появится полный ERP цикл:
 
 Client
-   ↓
+↓
 Purchase
-   ↓
+↓
 Warehouse
-   ↓
+↓
 Sale
-   ↓
+↓
 Bank
 
-Это первая замкнутая цепочка ERP.
+И тогда можно будет сделать реальный тест-кейс:
 
-Leanid — коротко как архитектору.
+1000 MacBook
+purchase
+warehouse stock
+sale
+bank payment
 
-По текущему tree проекта:
-
-структура очень чистая
-
-ERPGrid — правильная
-
-API — production level
-
-accounting services — сильные
-
-Вы сейчас реально строите ERP уровня SAP-lite.
-
-Если хотите — я покажу архитектурную вещь, которую сейчас нужно добавить,
-чтобы через 3 месяца Solar ERP мог обслуживать 100 000 компаний без переписывания ядра.
+— ровно тот замкнутый бухгалтерский цикл, который ты хотел увидеть.

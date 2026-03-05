@@ -1,7 +1,8 @@
 // config/sales/columns.ts
 // ═══════════════════════════════════════════════════
-// Task 46: Sales column definitions for ERPGrid
+// Task 46 v2: Sales column definitions for ERPGrid
 // ═══════════════════════════════════════════════════
+// Fix: "Sale's date" → "Sale date"
 
 import { ColumnDef } from '@/components/erp';
 
@@ -14,7 +15,7 @@ const STATUS_COLORS: Record<string, string> = {
 export const salesColumns: ColumnDef[] = [
   {
     key: 'saleDate',
-    label: "Sale's date",
+    label: 'Sale date',
     type: 'date',
     width: '110px',
     sortable: true,

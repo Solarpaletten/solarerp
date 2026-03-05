@@ -1,41 +1,39 @@
-// ERP Module placeholder — Factory-compatible
-// Shared page template for: clients, products, sales, purchases, warehouse, bank, reports
+// app/(dashboard)/company/[companyId]/sales/page.tsx
+// ═══════════════════════════════════════════════════
+// Task 46: Sales List Page (ERPGrid Engine)
+// ═══════════════════════════════════════════════════
 
 'use client';
 
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { ERPGrid } from '@/components/erp';
+import { salesColumns } from '@/config/sales/columns';
 
-const MODULE_META: Record<string, { title: string; icon: string; description: string }> = {
-  clients:    { title: 'Clients',    icon: '👥', description: 'Manage your client base, contacts, and payment terms' },
-  products:   { title: 'Products',   icon: '📦', description: 'Product catalog, pricing, and inventory items' },
-  sales:      { title: 'Sales',      icon: '💰', description: 'Sales orders, invoices, and revenue tracking' },
-  purchases:  { title: 'Purchases',  icon: '🛒', description: 'Purchase orders, supplier invoices, and procurement' },
-  warehouse:  { title: 'Warehouse',  icon: '🏭', description: 'Stock movements, inventory levels, and warehouses' },
-  bank:       { title: 'Bank',       icon: '🏦', description: 'Bank statements, payments, and reconciliation' },
-  reports:    { title: 'Reports',    icon: '📈', description: 'Financial reports, analytics, and business intelligence' },
-};
-
-export default function ModulePage() {
+export default function SalesPage() {
   const params = useParams();
+  const router = useRouter();
   const companyId = params.companyId as string;
-  const segments = typeof window !== 'undefined' ? window.location.pathname.split('/') : [];
-  const moduleKey = segments[segments.length - 1] || 'unknown';
-  const meta = MODULE_META[moduleKey] || { title: moduleKey, icon: '📋', description: 'ERP Module' };
+  const base = `/company/${companyId}`;
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <Link href={`/account/companies/${companyId}`}
-          className="text-xs text-gray-400 hover:text-gray-600 transition-colors">← Dashboard</Link>
+    <div className="h-full flex flex-col">
+      <div className="bg-white border-b border-gray-100 px-5 py-2">
+        <nav className="flex items-center gap-1.5 text-xs text-gray-400">
+          <a href={`${base}/dashboard`} className="hover:text-gray-600">&larr; Dashboard</a>
+        </nav>
       </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-        <span className="text-5xl block mb-4">{meta.icon}</span>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">{meta.title}</h1>
-        <p className="text-gray-500 mb-6 max-w-md mx-auto">{meta.description}</p>
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-lg text-sm">
-          🚧 Module under development
-        </div>
+      <div className="flex-1">
+        <ERPGrid
+          entity="sales"
+          title="Sales"
+          columns={salesColumns}
+          addLabel="+ New sale"
+          onAdd={() => router.push(`${base}/sales/new`)}
+          onRowClick={(row) => router.push(`${base}/sales/${row.id}`)}
+          searchPlaceholder="Search by client, document number..."
+          emptyMessage="No sales documents found. Create your first sale to get started."
+          emptyIcon="&#x1F4B0;"
+        />
       </div>
     </div>
   );

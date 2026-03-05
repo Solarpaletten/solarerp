@@ -1,4 +1,4 @@
-~// app/api/company/[companyId]/products/route.ts
+// app/api/company/[companyId]/products/route.ts
 // ═══════════════════════════════════════════════════
 // Task 47: Products API — GET list + POST create
 // ═══════════════════════════════════════════════════

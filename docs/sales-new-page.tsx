@@ -1,38 +1,34 @@
-// app/(dashboard)/company/[companyId]/purchases/new/page.tsx
-// Task 49 FIX: useRef guard against React StrictMode double useEffect
+// app/(dashboard)/company/[companyId]/sales/new/page.tsx
+// Task 50: Create sale draft and redirect to editor
 
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
-export default function NewPurchasePage() {
+export default function NewSalePage() {
   const params = useParams();
   const router = useRouter();
   const companyId = params.companyId as string;
   const [error, setError] = useState<string | null>(null);
-  const called = useRef(false);
 
   useEffect(() => {
-    if (called.current) return;
-    called.current = true;
-
     (async () => {
       try {
-        const res = await fetch(`/api/company/${companyId}/purchases/draft`, {
+        const res = await fetch(`/api/company/${companyId}/sales/draft`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
         });
-        if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Failed to create draft'); }
+        if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Failed'); }
         const json = await res.json();
-        router.replace(`/company/${companyId}/purchases/${json.data.id}`);
-      } catch (err) { setError(err instanceof Error ? err.message : 'Failed to create draft'); }
+        router.replace(`/company/${companyId}/sales/${json.data.id}`);
+      } catch (err) { setError(err instanceof Error ? err.message : 'Failed'); }
     })();
   }, [companyId, router]);
 
   if (error) return (
     <div className="p-6"><div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
-      <p className="font-medium">Error creating purchase</p><p className="mt-1">{error}</p>
-      <button onClick={() => router.push(`/company/${companyId}/purchases`)} className="mt-3 text-xs text-blue-600 hover:underline">&larr; Back to Purchases</button>
+      <p className="font-medium">Error creating sale</p><p className="mt-1">{error}</p>
+      <button onClick={() => router.push(`/company/${companyId}/sales`)} className="mt-3 text-xs text-blue-600 hover:underline">&larr; Back</button>
     </div></div>
   );
 
@@ -40,7 +36,7 @@ export default function NewPurchasePage() {
     <div className="flex items-center justify-center h-full py-20">
       <div className="flex items-center gap-2 text-gray-400 text-sm">
         <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-        Creating new purchase...
+        Creating new sale...
       </div>
     </div>
   );

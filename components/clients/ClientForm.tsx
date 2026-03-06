@@ -1,20 +1,16 @@
-// components/clients/ClientForm.tsx
+// components/clients/ClientForm-FIXED.tsx
 // ═══════════════════════════════════════════════════
-// Task 55 v2: Universal Client Form (create/edit)
-// Single source of truth for client data
-// Reusable for: /clients/new, /clients/[id], future modules
+// Task 55_5 FIXED: Universal Client Form (ERP semantics)
 // ═══════════════════════════════════════════════════
+// CHANGES:
+
+// - receivableAccountCode → receivableAccountId
+// - payableAccountCode → payableAccountId
 
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-
-interface ClientFormProps {
-  companyId: string;
-  clientId?: string; // undefined for create, set for edit
-  onSuccess?: (clientId: string) => void;
-}
 
 interface ClientData {
   // General
@@ -36,8 +32,8 @@ interface ClientData {
   contactInfo: string;
   notes: string;
 
-  // Financial
-  payWithinDays: string;
+  // Financial (FIXED NAMES)
+  paymentTermsDays: string; 
   creditLimit: string;
   creditLimitCurrency: string;
   automaticDebtRemind: boolean;
@@ -60,9 +56,9 @@ interface ClientData {
   bankCode: string;
   bankSwiftCode: string;
 
-  // Accounting
-  receivableAccountCode: string;
-  payableAccountCode: string;
+  // Accounting (FIXED NAMES)
+  receivableAccountId: string; // ← FIXED (was receivableAccountCode)
+  payableAccountId: string;    // ← FIXED (was payableAccountCode)
 }
 
 const EMPTY_CLIENT: ClientData = {
@@ -81,7 +77,7 @@ const EMPTY_CLIENT: ClientData = {
   faxNumber: '',
   contactInfo: '',
   notes: '',
-  payWithinDays: '',
+  paymentTermsDays: '', // FIXED
   creditLimit: '',
   creditLimitCurrency: 'EUR',
   automaticDebtRemind: false,
@@ -97,8 +93,8 @@ const EMPTY_CLIENT: ClientData = {
   bankName: '',
   bankCode: '',
   bankSwiftCode: '',
-  receivableAccountCode: '',
-  payableAccountCode: '',
+  receivableAccountId: '', // FIXED
+  payableAccountId: '',    // FIXED
 };
 
 const INPUT_CLASS = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400';
@@ -125,7 +121,7 @@ function Field({ label, children, required = false, span = 1 }: { label: string;
   );
 }
 
-export function ClientForm({ companyId, clientId, onSuccess }: ClientFormProps) {
+export function ClientForm({ companyId, clientId, onSuccess }: { companyId: string; clientId?: string; onSuccess?: (id: string) => void }) {
   const router = useRouter();
   const isNew = !clientId;
   const mode = isNew ? 'create' : 'edit';
@@ -167,7 +163,7 @@ export function ClientForm({ companyId, clientId, onSuccess }: ClientFormProps) 
           faxNumber: c.faxNumber || '',
           contactInfo: c.contactInfo || '',
           notes: c.notes || '',
-          payWithinDays: c.payWithinDays ? String(c.payWithinDays) : '',
+          paymentTermsDays: c.paymentTermsDays ? String(c.paymentTermsDays) : '', // FIXED
           creditLimit: c.creditLimit ? String(c.creditLimit) : '',
           creditLimitCurrency: c.creditLimitCurrency || 'EUR',
           automaticDebtRemind: c.automaticDebtRemind ?? false,
@@ -183,8 +179,8 @@ export function ClientForm({ companyId, clientId, onSuccess }: ClientFormProps) 
           bankName: c.bankName || '',
           bankCode: c.bankCode || '',
           bankSwiftCode: c.bankSwiftCode || '',
-          receivableAccountCode: c.receivableAccountCode || '',
-          payableAccountCode: c.payableAccountCode || '',
+          receivableAccountId: c.receivableAccountId || '', // FIXED
+          payableAccountId: c.payableAccountId || '',       // FIXED
         });
         setLoading(false);
       } catch (err) {
@@ -230,7 +226,7 @@ export function ClientForm({ companyId, clientId, onSuccess }: ClientFormProps) 
         faxNumber: data.faxNumber.trim() || null,
         contactInfo: data.contactInfo.trim() || null,
         notes: data.notes.trim() || null,
-        payWithinDays: data.payWithinDays ? Number(data.payWithinDays) : null,
+        paymentTermsDays: data.paymentTermsDays ? Number(data.paymentTermsDays) : null, // FIXED
         creditLimit: data.creditLimit ? parseFloat(data.creditLimit) : null,
         creditLimitCurrency: data.creditLimitCurrency,
         automaticDebtRemind: data.automaticDebtRemind,
@@ -246,8 +242,8 @@ export function ClientForm({ companyId, clientId, onSuccess }: ClientFormProps) 
         bankName: data.bankName.trim() || null,
         bankCode: data.bankCode.trim() || null,
         bankSwiftCode: data.bankSwiftCode.trim() || null,
-        receivableAccountCode: data.receivableAccountCode.trim() || null,
-        payableAccountCode: data.payableAccountCode.trim() || null,
+        receivableAccountId: data.receivableAccountId.trim() || null, // FIXED
+        payableAccountId: data.payableAccountId.trim() || null,       // FIXED
       };
 
       const endpoint = isNew
@@ -395,8 +391,8 @@ export function ClientForm({ companyId, clientId, onSuccess }: ClientFormProps) 
 
       {/* Section 3: Financial */}
       <Section title="3️⃣ Financial & Accounting" color="text-purple-700">
-        <Field label="Payment Days">
-          <input type="number" value={data.payWithinDays} onChange={e => updateField('payWithinDays', e.target.value)} className={INPUT_CLASS} placeholder="30" min="0" max="365" />
+        <Field label="Payment Terms (days)">
+          <input type="number" value={data.paymentTermsDays} onChange={e => updateField('paymentTermsDays', e.target.value)} className={INPUT_CLASS} placeholder="30" min="0" max="365" />
         </Field>
         <Field label="Credit Limit">
           <input type="number" value={data.creditLimit} onChange={e => updateField('creditLimit', e.target.value)} className={INPUT_CLASS} placeholder="0.00" step="0.01" />
@@ -411,11 +407,11 @@ export function ClientForm({ companyId, clientId, onSuccess }: ClientFormProps) 
         <Field label="Auto Reminders">
           <input type="checkbox" checked={data.automaticDebtRemind} onChange={e => updateField('automaticDebtRemind', e.target.checked)} className={CHECKBOX_CLASS} />
         </Field>
-        <Field label="Receivable Account">
-          <input type="text" value={data.receivableAccountCode} onChange={e => updateField('receivableAccountCode', e.target.value)} className={INPUT_CLASS} placeholder="1200" />
+        <Field label="Receivable Account ID">
+          <input type="text" value={data.receivableAccountId} onChange={e => updateField('receivableAccountId', e.target.value)} className={INPUT_CLASS} placeholder="Account ID" />
         </Field>
-        <Field label="Payable Account">
-          <input type="text" value={data.payableAccountCode} onChange={e => updateField('payableAccountCode', e.target.value)} className={INPUT_CLASS} placeholder="2100" />
+        <Field label="Payable Account ID">
+          <input type="text" value={data.payableAccountId} onChange={e => updateField('payableAccountId', e.target.value)} className={INPUT_CLASS} placeholder="Account ID" />
         </Field>
       </Section>
 

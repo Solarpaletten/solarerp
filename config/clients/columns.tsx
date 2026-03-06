@@ -1,8 +1,10 @@
-// config/clients/columns.ts
+// config/clients/columns.tsx
 // ═══════════════════════════════════════════════════
-// Task 44: Clients column definitions for ERPGrid
+// Task 55_5 FIXED: Clients column definitions for ERPGrid
 // ═══════════════════════════════════════════════════
-// Matches Site.pro: Registration date | Name | Display name | Code | VAT code | Phone | Fax | Email | Website
+// CHANGES:
+
+// Shows: Registration date | Name | Code | Type | Role | Status | Email | VAT code
 
 import { ColumnDef } from '@/components/erp';
 
@@ -12,6 +14,18 @@ const CLIENT_TYPE_LABELS: Record<string, string> = {
   INDIVIDUAL: 'Individual',
   GOVERNMENT: 'Government',
   NON_PROFIT: 'Non-Profit',
+};
+
+const CLIENT_ROLE_LABELS: Record<string, string> = {
+  CUSTOMER: 'Customer',
+  SUPPLIER: 'Supplier',
+  BOTH: 'Both',
+};
+
+const ROLE_COLORS: Record<string, string> = {
+  CUSTOMER: 'bg-blue-100 text-blue-700',
+  SUPPLIER: 'bg-purple-100 text-purple-700',
+  BOTH: 'bg-indigo-100 text-indigo-700',
 };
 
 export const clientColumns: ColumnDef[] = [
@@ -32,58 +46,90 @@ export const clientColumns: ColumnDef[] = [
     ),
   },
   {
-    key: 'shortName',
-    label: 'Display name',
-    type: 'text',
-    sortable: true,
-  },
-  {
     key: 'code',
     label: 'Code',
     type: 'text',
     width: '100px',
     sortable: true,
+    render: (val) => (
+      <span className="font-mono text-xs font-medium text-gray-600">{String(val || '—')}</span>
+    ),
   },
   {
     key: 'type',
     label: 'Type',
     type: 'badge',
-    width: '100px',
+    width: '110px',
     enumLabels: CLIENT_TYPE_LABELS,
     sortable: true,
   },
   {
-    key: 'isActive',
-    label: 'Active',
-    type: 'boolean',
-    width: '60px',
+    key: 'role',
+    label: 'Role',
+    type: 'text',
+    width: '100px',
     sortable: true,
+    render: (val) => {
+      const role = String(val || 'BOTH');
+      const color = ROLE_COLORS[role] || 'bg-gray-100 text-gray-700';
+      const label = CLIENT_ROLE_LABELS[role] || role;
+      return (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${color}`}>
+          {label}
+        </span>
+      );
+    },
   },
   {
-    key: 'vatCode',
-    label: 'VAT code',
+    key: 'isActive',
+    label: 'Status',
     type: 'text',
-    width: '130px',
-  },
-  {
-    key: 'phoneNumber',
-    label: 'Phone number',
-    type: 'text',
-    width: '120px',
-  },
-  {
-    key: 'faxNumber',
-    label: 'Fax number',
-    type: 'text',
-    width: '110px',
+    width: '90px',
+    sortable: true,
+    render: (val) => {
+      const active = Boolean(val);
+      const color = active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+      const label = active ? 'Active' : 'Inactive';
+      return (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${color}`}>
+          {label}
+        </span>
+      );
+    },
   },
   {
     key: 'email',
-    label: 'Email address',
+    label: 'Email',
     type: 'text',
     width: '180px',
     render: (val) => val ? (
-      <a href={`mailto:${val}`} className="text-blue-600 hover:underline text-xs">{String(val)}</a>
-    ) : <span className="text-gray-300">—</span>,
+      <a href={`mailto:${val}`} className="text-blue-600 hover:underline text-xs">
+        {String(val)}
+      </a>
+    ) : (
+      <span className="text-gray-300">—</span>
+    ),
+  },
+  {
+    key: 'vatCode',
+    label: 'VAT Code',
+    type: 'text',
+    width: '130px',
+    render: (val) => (
+      <span className="font-mono text-xs text-gray-600">{String(val || '—')}</span>
+    ),
+  },
+  {
+    key: 'phoneNumber',
+    label: 'Phone',
+    type: 'text',
+    width: '120px',
+    render: (val) => val ? (
+      <a href={`tel:${val}`} className="text-blue-600 hover:underline text-xs">
+        {String(val)}
+      </a>
+    ) : (
+      <span className="text-gray-300">—</span>
+    ),
   },
 ];

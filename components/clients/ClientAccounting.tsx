@@ -11,11 +11,11 @@ export function ClientAccounting({ data, set }: Props) {
       <Section title="Accounting" color="text-blue-700">
         <Field label="Receivable account (Debitor)">
           <input className={INPUT} value={String(data.receivableAccount || '')}
-            onChange={e => set('receivableAccount', e.target.value)} placeholder="1200 — Forderungen" />
+            onChange={e => set('receivableAccountId', e.target.value)} placeholder="1200 — Forderungen" />
         </Field>
         <Field label="Payable account (Kreditor)">
           <input className={INPUT} value={String(data.payableAccount || '')}
-            onChange={e => set('payableAccount', e.target.value)} placeholder="3300 — Verbindlichkeiten" />
+            onChange={e => set('payableAccountId', e.target.value)} placeholder="3300 — Verbindlichkeiten" />
         </Field>
         <Field label="Credit limit">
           <input className={INPUT} type="number" min="0" step="0.01"
@@ -27,7 +27,7 @@ export function ClientAccounting({ data, set }: Props) {
         </Field>
         <Field label="Payment terms (days)">
           <input className={INPUT} type="number" min="0"
-            value={String(data.payWithinDays || '')} onChange={e => set('payWithinDays', e.target.value)} />
+            value={String(data.paymentTermsDays || '')} onChange={e => set('paymentTermsDays', e.target.value)} />
         </Field>
       </Section>
 

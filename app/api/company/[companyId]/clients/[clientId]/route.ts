@@ -5,7 +5,6 @@
 // - PATCH validation (name cannot be empty)
 // - DELETE: soft + hard with proper reference checks
 // - Email validation
-// - payWithinDays bounds check
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
@@ -110,9 +109,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // payWithinDays validation (Dashka improvement: 0-365)
-    if (body.payWithinDays !== undefined && body.payWithinDays !== null) {
-      const days = Number(body.payWithinDays);
+    // paymentTermsDays validation (Dashka improvement: 0-365)
+    if (body.paymentTermsDays !== undefined && body.paymentTermsDays !== null) {
+      const days = Number(body.paymentTermsDays);
       if (days < 0 || days > 365) {
         return NextResponse.json(
           { error: 'Payment days must be between 0 and 365' },
@@ -167,7 +166,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (body.contactInfo !== undefined) updateData.contactInfo = body.contactInfo ? String(body.contactInfo).trim() : null;
 
     // Financial (DECIMAL for creditLimit)
-    if (body.payWithinDays !== undefined) updateData.payWithinDays = body.payWithinDays != null ? Number(body.payWithinDays) : null;
+    if (body.paymentTermsDays !== undefined) updateData.paymentTermsDays = body.paymentTermsDays != null ? Number(body.paymentTermsDays) : null;
     if (body.creditLimit !== undefined) {
       updateData.creditLimit = body.creditLimit != null
         ? new Prisma.Decimal(String(body.creditLimit))

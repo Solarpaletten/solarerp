@@ -16,7 +16,7 @@ export interface ClientOption {
   name: string;
   code: string | null;
   vatCode: string | null;
-  payWithinDays: number | null;
+  paymentTermsDays: number | null;
   type: string;
   role: string;
   isActive: boolean;
@@ -79,7 +79,7 @@ export function ClientSelector({
         name: String(c.name || ''),
         code: c.code ? String(c.code) : null,
         vatCode: c.vatCode ? String(c.vatCode) : null,
-        payWithinDays: c.payWithinDays != null ? Number(c.payWithinDays) : null,
+        paymentTermsDays: c.paymentTermsDays != null ? Number(c.paymentTermsDays) : null,
         type: String(c.type || ''),
         role: String(c.role || 'BOTH'),
         isActive: Boolean(c.isActive),
@@ -112,7 +112,7 @@ export function ClientSelector({
               name: c.name,
               code: c.code,
               vatCode: c.vatCode,
-              payWithinDays: c.payWithinDays,
+              paymentTermsDays: c.paymentTermsDays,
               type: c.type,
               role: c.role,
               isActive: c.isActive,
@@ -227,8 +227,8 @@ export function ClientSelector({
                         </div>
                         <div className="text-xs text-gray-500 space-y-0.5">
                           {client.vatCode && <div>VAT: {client.vatCode}</div>}
-                          {client.payWithinDays && (
-                            <div>Payment: {client.payWithinDays} days</div>
+                          {client.paymentTermsDays && (
+                            <div>Payment: {client.paymentTermsDays} days</div>
                           )}
                         </div>
                       </div>

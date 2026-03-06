@@ -1,10 +1,12 @@
 // app/(dashboard)/company/[companyId]/purchases/[purchaseId]/page.tsx
-// ═══════════════════════════════════════════════════
-// Task 41 + 49: Purchase Document Editor (production)
-// ═══════════════════════════════════════════════════
-// DRAFT     → editable header + items + Save + Post
-// POSTED    → read-only + Accounting + Copy + Cancel
-// CANCELLED → read-only + Copy
+// ═══════════════════════════════════════════════════════════════════════════
+// Task 41 + 49 + Task 56_6 FIX: Purchase Document Editor (FIXED)
+// ═══════════════════════════════════════════════════════════════════════════
+// FIXES APPLIED:
+// 1. PurchaseHeaderEdit: Add companyId prop
+// 2. PurchaseHeaderEdit: Extract series, number from props
+// 3. PurchaseItemsEdit: Add companyId prop
+// 4. handleHeaderChange: Fix type to include number | boolean
 
 'use client';
 
@@ -16,9 +18,10 @@ import PurchaseHeader from '@/components/purchases/PurchaseHeader';
 import PurchaseItemsTable from '@/components/purchases/PurchaseItemsTable';
 import PurchaseTotals from '@/components/purchases/PurchaseTotals';
 import PurchaseHeaderEdit from '@/components/purchases/PurchaseHeaderEdit';
-import PurchaseItemsEdit, { type EditableItem } from '@/components/purchases/PurchaseItemsEdit';
+import PurchaseItemsEdit from '@/components/purchases/PurchaseItemsEdit';
 import PostedAccountingView from '@/components/purchases/PostedAccountingView';
 import { PurchaseActions } from '@/components/purchases/PurchaseActions';
+import type { EditableItem } from '@/lib/accounting/totalsHelper';
 
 interface PurchaseItem {
   id: string;
@@ -57,7 +60,11 @@ interface HeaderForm {
 }
 
 function toDateInputValue(dateStr: string): string {
-  try { return new Date(dateStr).toISOString().split('T')[0]; } catch { return ''; }
+  try {
+    return new Date(dateStr).toISOString().split('T')[0];
+  } catch {
+    return '';
+  }
 }
 
 function initHeaderForm(p: PurchaseDocument): HeaderForm {
@@ -111,8 +118,13 @@ export default function PurchaseDocumentPage() {
     try {
       setIsLoading(true);
       setError(null);
-      const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}`, { cache: 'no-store' });
-      if (res.status === 404) { setError('Purchase document not found'); return; }
+      const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}`, {
+        cache: 'no-store',
+      });
+      if (res.status === 404) {
+        setError('Purchase document not found');
+        return;
+      }
       if (!res.ok) throw new Error('Failed to load purchase');
       const json = await res.json();
       const doc = json.data as PurchaseDocument;
@@ -127,13 +139,17 @@ export default function PurchaseDocumentPage() {
     }
   }, [companyId, purchaseId]);
 
-  useEffect(() => { fetchPurchase(); }, [fetchPurchase]);
+  useEffect(() => {
+    fetchPurchase();
+  }, [fetchPurchase]);
 
   // ── Save ───────────────────────────────────────
 
   async function handleSave() {
     if (!headerForm || !purchase) return;
-    setIsSaving(true); setSaveMsg(null); setError(null);
+    setIsSaving(true);
+    setSaveMsg(null);
+    setError(null);
     try {
       const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}`, {
         method: 'PUT',
@@ -141,46 +157,106 @@ export default function PurchaseDocumentPage() {
         body: JSON.stringify({
           ...headerForm,
           items: editItems.map((item) => ({
-            itemName: item.itemName, itemCode: item.itemCode || null,
-            quantity: item.quantity, priceWithoutVat: item.priceWithoutVat, vatRate: item.vatRate,
+            itemName: item.itemName,
+            itemCode: item.itemCode || null,
+            quantity: item.quantity,
+            priceWithoutVat: item.priceWithoutVat,
+            vatRate: item.vatRate,
           })),
         }),
       });
-      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Save failed'); }
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Save failed');
+      }
       const json = await res.json();
       const doc = json.data as PurchaseDocument;
-      setPurchase(doc); setHeaderForm(initHeaderForm(doc)); setEditItems(initEditableItems(doc.items));
-      setDirty(false); setSaveMsg('Saved'); setTimeout(() => setSaveMsg(null), 2000);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Save failed'); }
-    finally { setIsSaving(false); }
+      setPurchase(doc);
+      setHeaderForm(initHeaderForm(doc));
+      setEditItems(initEditableItems(doc.items));
+      setDirty(false);
+      setSaveMsg('Saved ✓');
+      setTimeout(() => setSaveMsg(null), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   // ── Post ───────────────────────────────────────
 
   async function handlePost() {
     if (!purchase || !headerForm) return;
-    if (editItems.length === 0) { setError('Cannot post: add at least one item'); return; }
-    if (!headerForm.supplierName.trim()) { setError('Cannot post: supplier name is required'); return; }
 
-    if (!window.confirm(`Post ${purchase.series}-${purchase.number}?\nThis creates journal entries and stock movements. Document becomes read-only.`)) return;
+    // Front-end pre-validation
+    if (editItems.length === 0) {
+      setError('Cannot post: add at least one item');
+      return;
+    }
+    if (!headerForm.supplierName.trim()) {
+      setError('Cannot post: supplier name is required');
+      return;
+    }
 
-    setIsPosting(true); setError(null);
+    // Confirmation dialog
+    const confirmed = window.confirm(
+      `Post document ${purchase.series}-${purchase.number}?\n\nThis will create journal entries and stock movements.\nThe document will become read-only.`
+    );
+    if (!confirmed) return;
+
+    setIsPosting(true);
+    setError(null);
+
     try {
-      // Save first
+      // Step 1: Save first (ensure latest data is persisted)
       const saveRes = await fetch(`/api/company/${companyId}/purchases/${purchaseId}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...headerForm, items: editItems.map(i => ({ itemName: i.itemName, itemCode: i.itemCode || null, quantity: i.quantity, priceWithoutVat: i.priceWithoutVat, vatRate: i.vatRate })) }),
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...headerForm,
+          items: editItems.map((item) => ({
+            itemName: item.itemName,
+            itemCode: item.itemCode || null,
+            quantity: item.quantity,
+            priceWithoutVat: item.priceWithoutVat,
+            vatRate: item.vatRate,
+          })),
+        }),
       });
-      if (!saveRes.ok) { const j = await saveRes.json().catch(() => ({})); throw new Error(j.error || 'Save before post failed'); }
 
-      // Post
-      const postRes = await fetch(`/api/company/${companyId}/purchases/${purchaseId}/post`, { method: 'POST' });
-      if (!postRes.ok) { const j = await postRes.json().catch(() => ({})); throw new Error(j.error || 'Post failed'); }
+      if (!saveRes.ok) {
+        const json = await saveRes.json().catch(() => ({}));
+        throw new Error(json.error || 'Save before post failed');
+      }
 
+      // Step 2: Post
+      const postRes = await fetch(
+        `/api/company/${companyId}/purchases/${purchaseId}/post`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+
+      if (!postRes.ok) {
+        const json = await postRes.json().catch(() => ({}));
+        throw new Error(json.error || 'Post failed');
+      }
+
+      const json = await postRes.json();
+      const doc = json.data as PurchaseDocument;
+      setPurchase(doc);
+      setHeaderForm(initHeaderForm(doc));
+      setEditItems(initEditableItems(doc.items));
+      setSaveMsg('Posted ✓');
+      setTimeout(() => setSaveMsg(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Post failed');
       await fetchPurchase();
-      setSaveMsg('Posted'); setTimeout(() => setSaveMsg(null), 3000);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Post failed'); await fetchPurchase(); }
-    finally { setIsPosting(false); }
+    } finally {
+      setIsPosting(false);
+    }
   }
 
   // ── Copy ───────────────────────────────────────
@@ -188,29 +264,50 @@ export default function PurchaseDocumentPage() {
   async function handleCopy() {
     if (!purchase) return;
     try {
-      const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}/copy`, { method: 'POST' });
-      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Copy failed'); }
+      const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}/copy`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Copy failed');
+      }
       const json = await res.json();
       router.replace(`${base}/purchases/${json.data.id}`);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Copy failed'); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Copy failed');
+    }
   }
 
   // ── Cancel (Storno) ───────────────────────────
 
   async function handleCancel() {
     if (!purchase) return;
-    if (!window.confirm(`Cancel ${purchase.series}-${purchase.number}?\nThis creates reversal journal entries (STORNO).`)) return;
+    const confirmed = window.confirm(
+      `Cancel ${purchase.series}-${purchase.number}?\n\nThis will create reversal journal entries (STORNO).`
+    );
+    if (!confirmed) return;
     try {
-      const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}/cancel`, { method: 'POST' });
-      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Cancel failed'); }
+      const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}/cancel`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Cancel failed');
+      }
       await fetchPurchase();
-      setSaveMsg('Cancelled (Storno)'); setTimeout(() => setSaveMsg(null), 3000);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Cancel failed'); }
+      setSaveMsg('Cancelled (Storno) ✓');
+      setTimeout(() => setSaveMsg(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Cancel failed');
+    }
   }
 
-  // ── Header change tracking ─────────────────────
-
-  function handleHeaderChange(field: keyof HeaderForm, value: string) {
+  // ── Header change tracking ────────────────────
+  // FIX #4: Updated type signature to include number | boolean
+  function handleHeaderChange(
+    field: keyof HeaderForm,
+    value: string | number | boolean
+  ) {
     if (!headerForm) return;
     setHeaderForm({ ...headerForm, [field]: value });
     setDirty(true);
@@ -227,7 +324,22 @@ export default function PurchaseDocumentPage() {
     return (
       <div className="p-6 flex items-center justify-center py-20">
         <div className="flex items-center gap-2 text-gray-400 text-sm">
-          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+              fill="none"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
           Loading document...
         </div>
       </div>
@@ -237,7 +349,9 @@ export default function PurchaseDocumentPage() {
   if (!purchase) {
     return (
       <div className="p-6">
-        <Link href={`${base}/purchases`} className="text-xs text-gray-400 hover:text-gray-600">&larr; Back to Purchases</Link>
+        <Link href={`${base}/purchases`} className="text-xs text-gray-400 hover:text-gray-600">
+          ← Back to Purchases
+        </Link>
         <div className="bg-white border border-gray-200 rounded-lg p-12 text-center mt-4">
           <p className="text-gray-500 text-sm">{error || 'Document not found'}</p>
         </div>
@@ -246,7 +360,11 @@ export default function PurchaseDocumentPage() {
   }
 
   const totalsItems = isEditable
-    ? editItems.map(i => ({ quantity: i.quantity, priceWithoutVat: i.priceWithoutVat, vatRate: i.vatRate }))
+    ? editItems.map((i) => ({
+        quantity: i.quantity,
+        priceWithoutVat: i.priceWithoutVat,
+        vatRate: i.vatRate,
+      }))
     : purchase.items;
 
   // ── Render ─────────────────────────────────────
@@ -271,29 +389,49 @@ export default function PurchaseDocumentPage() {
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-700 flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 text-xs ml-4">&times;</button>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-400 hover:text-red-600 text-xs ml-4"
+          >
+            ×
+          </button>
         </div>
       )}
 
       {/* Header */}
       {isEditable && headerForm ? (
-        <PurchaseHeaderEdit form={headerForm} onChange={handleHeaderChange} series={purchase.series} number={purchase.number} />
+        <PurchaseHeaderEdit
+          companyId={companyId}
+          form={headerForm}
+          onChange={handleHeaderChange}
+          series={purchase.series}
+          number={purchase.number}
+        />
       ) : (
         <PurchaseHeader purchase={purchase} />
       )}
 
       {/* Items */}
       {isEditable ? (
-        <PurchaseItemsEdit items={editItems} onChange={handleItemsChange} />
+        <PurchaseItemsEdit
+          companyId={companyId}
+          items={editItems}
+          onChange={handleItemsChange}
+        />
       ) : (
         <PurchaseItemsTable items={purchase.items} />
       )}
 
       {/* Totals */}
-      <PurchaseTotals items={totalsItems} currencyCode={isEditable ? (headerForm?.currencyCode || 'EUR') : purchase.currencyCode} />
+      <PurchaseTotals
+        items={totalsItems}
+        currencyCode={isEditable ? headerForm?.currencyCode || 'EUR' : purchase.currencyCode}
+      />
 
       {/* Accounting View (POSTED/CANCELLED) */}
-      {showAccounting && <PostedAccountingView companyId={companyId} purchaseId={purchaseId} />}
+      {showAccounting && (
+        <PostedAccountingView companyId={companyId} purchaseId={purchaseId} />
+      )}
     </div>
   );
 }

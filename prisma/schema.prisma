@@ -280,22 +280,25 @@ enum ClientRole {
 // REPLACE the entire Client model with this HARDENED version:
 
 model Client {
-  id        String @id @default(cuid())
-  companyId String
+  id String @id @default(cuid())
 
-  // Identity
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tenantId  String
+
+  // General
   name      String
   shortName String?
   code      String?
-  type      ClientType
-  role      ClientRole @default(BOTH) // NEW: allows filtering by role
-  isActive  Boolean    @default(true)
+  type      String  @default("COMPANY")
+  role      String  @default("BOTH")
+  location  String  @default("LOCAL")
+  isActive  Boolean @default(true)
 
-  // Legal & Tax
+  // Tax & Legal
   vatCode             String?
   businessLicenseCode String?
   residentTaxCode     String?
-  location            ClientLocation
 
   // Contact
   email       String?
@@ -304,22 +307,22 @@ model Client {
   contactInfo String?
   notes       String?
 
-  // Financial (DECIMAL for precision)
-  payWithinDays       Int?
-  creditLimit         Decimal? @db.Decimal(18, 2)
-  creditLimitCurrency String?  @default("EUR")
-  automaticDebtRemind Boolean  @default(false)
-
   // Individual
   birthday DateTime?
 
-  // Registration
+  // Financial (FIXED NAMES)
+  paymentTermsDays    Int? // 
+  creditLimit         Decimal?
+  creditLimitCurrency String   @default("EUR")
+  automaticDebtRemind Boolean  @default(false)
+
+  // Registration Address
   registrationCountryCode String?
   registrationCity        String?
   registrationAddress     String?
   registrationZipCode     String?
 
-  // Correspondence
+  // Correspondence Address
   correspondenceCountryCode String?
   correspondenceCity        String?
   correspondenceAddress     String?
@@ -331,36 +334,27 @@ model Client {
   bankCode      String?
   bankSwiftCode String?
 
-  // Accounting — links to Account codes
-  receivableAccountCode String?
-  payableAccountCode    String?
+  // Accounting
+  receivableAccountId String?
+  payableAccountId    String?
 
+  // Document relations
+  saleDocuments     SaleDocument[]     @relation("SaleClient")
+  purchaseDocuments PurchaseDocument[] @relation("PurchaseSupplier")
+
+  // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company Company @relation(fields: [companyId], references: [id])
-
-  // Relations to documents
-  salesAsClient       SaleDocument[]     @relation("SaleClient")
-  purchasesAsSupplier PurchaseDocument[] @relation("PurchaseSupplier")
-
-  // ═════════════════════════════════════════════════
-  // INDEXES (for performance):
-  // ═════════════════════════════════════════════════
-  // Uniqueness
+  // Indexes
   @@unique([companyId, code])
-  // Company-level queries
-  @@index([companyId])
-  @@index([companyId, isActive])
-  @@index([companyId, role])
-  // Search optimization (name, code lookups)
   @@index([companyId, name])
   @@index([companyId, code])
-  // Tax lookups
-  @@index([companyId, vatCode])
-  // Email lookups (for notifications)
+  @@index([companyId, role])
   @@index([companyId, email])
-  @@map("clients")
+  @@index([companyId, vatCode])
+  @@index([companyId, isActive])
+  @@index([companyId, tenantId])
 }
 
 // ============================================

@@ -185,9 +185,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // payWithinDays validation (Dashka improvement)
-    if (body.payWithinDays !== undefined && body.payWithinDays !== null) {
-      const days = Number(body.payWithinDays);
+    // paymentTermsDays validation (Dashka improvement)
+    if (body.paymentTermsDays !== undefined && body.paymentTermsDays !== null) {
+      const days = Number(body.paymentTermsDays);
       if (days < 0 || days > 365) {
         return NextResponse.json(
           { error: 'Payment days must be between 0 and 365' },
@@ -201,11 +201,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // ──────────────────────────────────
     const client = await prisma.client.create({
       data: {
-        companyId,
+        company: {
+          connect: { id: companyId }
+        },
+
+        tenantId,
         name: String(body.name).trim(),
         shortName: body.shortName ? String(body.shortName).trim() : null,
         code: trimmedCode,
-        type: body.type,
+        type: "BANANA", 
         location: body.location,
         role: body.role || 'BOTH',
         isActive: body.isActive !== false,
@@ -223,7 +227,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         notes: body.notes ? String(body.notes).trim() : null,
 
         // Financial (DECIMAL for precision)
-        payWithinDays: body.payWithinDays != null ? Number(body.payWithinDays) : null,
+        paymentTermsDays: body.paymentTermsDays != null ? Number(body.paymentTermsDays) : null,
         creditLimit:
           body.creditLimit != null
             ? new Prisma.Decimal(String(body.creditLimit))
@@ -253,8 +257,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         bankSwiftCode: body.bankSwiftCode ? String(body.bankSwiftCode).trim() : null,
 
         // Accounting
-        receivableAccountCode: body.receivableAccountCode ? String(body.receivableAccountCode).trim() : null,
-        payableAccountCode: body.payableAccountCode ? String(body.payableAccountCode).trim() : null,
+        receivableAccountId: body.receivableAccountId
+          ? String(body.receivableAccountId).trim()
+          : null,
+
+        payableAccountId: body.payableAccountId
+          ? String(body.payableAccountId).trim()
+          : null,
       },
     });
 

@@ -245,14 +245,6 @@ model AccountingPeriod {
 // ERP MODULE: CLIENTS (COUNTERPARTIES)
 // ============================================
 
-enum ClientType {
-  COMPANY
-  SOLE_TRADER
-  INDIVIDUAL
-  GOVERNMENT
-  NON_PROFIT
-}
-
 // ============================================
 // ERP MODULE: CLIENTS (COUNTERPARTIES)
 // ============================================
@@ -264,11 +256,28 @@ enum ClientType {
 // - unique(companyId, code) for deduplication
 // - index(companyId, vatCode) for tax lookups
 
+enum ClientType {
+  COMPANY
+  SOLE_TRADER
+  INDIVIDUAL
+  GOVERNMENT
+  NON_PROFIT
+}
+
 enum ClientLocation {
   LOCAL
   EU
   FOREIGN
 }
+
+enum ClientRole {
+  CUSTOMER
+  SUPPLIER
+  BOTH
+}
+
+// ═══════════════════════════════════════════════════
+// REPLACE the entire Client model with this HARDENED version:
 
 model Client {
   id        String @id @default(cuid())
@@ -279,6 +288,7 @@ model Client {
   shortName String?
   code      String?
   type      ClientType
+  role      ClientRole @default(BOTH) // NEW: allows filtering by role
   isActive  Boolean    @default(true)
 
   // Legal & Tax
@@ -294,10 +304,10 @@ model Client {
   contactInfo String?
   notes       String?
 
-  // Financial
+  // Financial (DECIMAL for precision)
   payWithinDays       Int?
   creditLimit         Decimal? @db.Decimal(18, 2)
-  creditLimitCurrency String?
+  creditLimitCurrency String?  @default("EUR")
   automaticDebtRemind Boolean  @default(false)
 
   // Individual
@@ -321,18 +331,35 @@ model Client {
   bankCode      String?
   bankSwiftCode String?
 
+  // Accounting — links to Account codes
+  receivableAccountCode String?
+  payableAccountCode    String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id])
 
+  // Relations to documents
   salesAsClient       SaleDocument[]     @relation("SaleClient")
   purchasesAsSupplier PurchaseDocument[] @relation("PurchaseSupplier")
 
+  // ═════════════════════════════════════════════════
+  // INDEXES (for performance):
+  // ═════════════════════════════════════════════════
+  // Uniqueness
   @@unique([companyId, code])
-  @@unique([companyId, id]) // Task 43: composite FK target
+  // Company-level queries
   @@index([companyId])
+  @@index([companyId, isActive])
+  @@index([companyId, role])
+  // Search optimization (name, code lookups)
+  @@index([companyId, name])
+  @@index([companyId, code])
+  // Tax lookups
   @@index([companyId, vatCode])
+  // Email lookups (for notifications)
+  @@index([companyId, email])
   @@map("clients")
 }
 
@@ -383,6 +410,8 @@ model Item {
 // ERP MODULE: SALES
 // ============================================
 
+// Update SaleDocument:
+
 model SaleDocument {
   id        String @id @default(cuid())
   companyId String
@@ -395,9 +424,9 @@ model SaleDocument {
   series String
   number String
 
+  clientId   String? // NEW: FK to Client
   clientName String
   clientCode String?
-  clientId   String?
   payerName  String?
   payerCode  String?
 
@@ -405,11 +434,13 @@ model SaleDocument {
   unloadCity    String?
   warehouseName String
 
-  operationType   String
-  currencyCode    String
-  employeeName    String?
-  status          String?
-  comments        String?
+  operationType String
+  currencyCode  String
+  employeeName  String?
+  status        String?
+  comments      String?
+
+  // Accounting
   debitAccountId  String?
   creditAccountId String?
 
@@ -418,12 +449,14 @@ model SaleDocument {
 
   items   SaleItem[]
   company Company    @relation(fields: [companyId], references: [id])
-  client  Client?    @relation("SaleClient", fields: [companyId, clientId], references: [companyId, id], onDelete: Restrict)
+
+  // NEW: Relation to Client
+  client Client? @relation("SaleClient", fields: [clientId], references: [id])
 
   @@unique([companyId, series, number])
   @@index([companyId])
   @@index([saleDate])
-  @@index([companyId, clientId])
+  @@index([clientId]) // NEW: for DELETE validation
   @@map("sale_documents")
 }
 
@@ -465,6 +498,8 @@ model SaleItem {
 // ERP MODULE: PURCHASES
 // ============================================
 
+// Update PurchaseDocument:
+
 model PurchaseDocument {
   id        String @id @default(cuid())
   companyId String
@@ -476,32 +511,36 @@ model PurchaseDocument {
   series String
   number String
 
+  supplierId      String? // NEW: FK to Client (as supplier)
   supplierName    String
   supplierCode    String?
-  supplierId      String?
   advanceEmployee String?
 
   warehouseName String
 
-  operationType   String
-  currencyCode    String
-  employeeName    String?
-  comments        String?
-  status          String?
+  operationType String
+  currencyCode  String
+  employeeName  String?
+  comments      String?
+  status        String?
+
+  // ADD BACK
   debitAccountId  String?
   creditAccountId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items    PurchaseItem[]
-  company  Company        @relation(fields: [companyId], references: [id])
-  supplier Client?        @relation("PurchaseSupplier", fields: [companyId, supplierId], references: [companyId, id], onDelete: Restrict)
+  items   PurchaseItem[]
+  company Company        @relation(fields: [companyId], references: [id])
+
+  // NEW: Relation to Client (as supplier)
+  supplier Client? @relation("PurchaseSupplier", fields: [supplierId], references: [id])
 
   @@unique([companyId, series, number])
   @@index([companyId])
   @@index([purchaseDate])
-  @@index([companyId, supplierId])
+  @@index([supplierId]) // NEW: for DELETE validation
   @@map("purchase_documents")
 }
 

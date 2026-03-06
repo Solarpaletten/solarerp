@@ -13,6 +13,9 @@ CREATE TYPE "ClientType" AS ENUM ('COMPANY', 'SOLE_TRADER', 'INDIVIDUAL', 'GOVER
 -- CreateEnum
 CREATE TYPE "ClientLocation" AS ENUM ('LOCAL', 'EU', 'FOREIGN');
 
+-- CreateEnum
+CREATE TYPE "ClientRole" AS ENUM ('CUSTOMER', 'SUPPLIER', 'BOTH');
+
 -- CreateTable
 CREATE TABLE "tenants" (
     "id" TEXT NOT NULL,
@@ -161,6 +164,7 @@ CREATE TABLE "clients" (
     "shortName" TEXT,
     "code" TEXT,
     "type" "ClientType" NOT NULL,
+    "role" "ClientRole" NOT NULL DEFAULT 'BOTH',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "vatCode" TEXT,
     "businessLicenseCode" TEXT,
@@ -173,7 +177,7 @@ CREATE TABLE "clients" (
     "notes" TEXT,
     "payWithinDays" INTEGER,
     "creditLimit" DECIMAL(18,2),
-    "creditLimitCurrency" TEXT,
+    "creditLimitCurrency" TEXT DEFAULT 'EUR',
     "automaticDebtRemind" BOOLEAN NOT NULL DEFAULT false,
     "birthday" TIMESTAMP(3),
     "registrationCountryCode" TEXT,
@@ -188,6 +192,8 @@ CREATE TABLE "clients" (
     "bankName" TEXT,
     "bankCode" TEXT,
     "bankSwiftCode" TEXT,
+    "receivableAccountCode" TEXT,
+    "payableAccountCode" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -232,9 +238,9 @@ CREATE TABLE "sale_documents" (
     "lockedAt" TIMESTAMP(3),
     "series" TEXT NOT NULL,
     "number" TEXT NOT NULL,
+    "clientId" TEXT,
     "clientName" TEXT NOT NULL,
     "clientCode" TEXT,
-    "clientId" TEXT,
     "payerName" TEXT,
     "payerCode" TEXT,
     "unloadAddress" TEXT,
@@ -245,8 +251,6 @@ CREATE TABLE "sale_documents" (
     "employeeName" TEXT,
     "status" TEXT,
     "comments" TEXT,
-    "debitAccountId" TEXT,
-    "creditAccountId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -289,9 +293,9 @@ CREATE TABLE "purchase_documents" (
     "advancePaymentDate" TIMESTAMP(3),
     "series" TEXT NOT NULL,
     "number" TEXT NOT NULL,
+    "supplierId" TEXT,
     "supplierName" TEXT NOT NULL,
     "supplierCode" TEXT,
-    "supplierId" TEXT,
     "advanceEmployee" TEXT,
     "warehouseName" TEXT NOT NULL,
     "operationType" TEXT NOT NULL,
@@ -299,8 +303,6 @@ CREATE TABLE "purchase_documents" (
     "employeeName" TEXT,
     "comments" TEXT,
     "status" TEXT,
-    "debitAccountId" TEXT,
-    "creditAccountId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -470,13 +472,25 @@ CREATE UNIQUE INDEX "accounting_periods_companyId_year_month_key" ON "accounting
 CREATE INDEX "clients_companyId_idx" ON "clients"("companyId");
 
 -- CreateIndex
+CREATE INDEX "clients_companyId_isActive_idx" ON "clients"("companyId", "isActive");
+
+-- CreateIndex
+CREATE INDEX "clients_companyId_role_idx" ON "clients"("companyId", "role");
+
+-- CreateIndex
+CREATE INDEX "clients_companyId_name_idx" ON "clients"("companyId", "name");
+
+-- CreateIndex
+CREATE INDEX "clients_companyId_code_idx" ON "clients"("companyId", "code");
+
+-- CreateIndex
 CREATE INDEX "clients_companyId_vatCode_idx" ON "clients"("companyId", "vatCode");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "clients_companyId_code_key" ON "clients"("companyId", "code");
+CREATE INDEX "clients_companyId_email_idx" ON "clients"("companyId", "email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "clients_companyId_id_key" ON "clients"("companyId", "id");
+CREATE UNIQUE INDEX "clients_companyId_code_key" ON "clients"("companyId", "code");
 
 -- CreateIndex
 CREATE INDEX "items_companyId_idx" ON "items"("companyId");
@@ -494,7 +508,7 @@ CREATE INDEX "sale_documents_companyId_idx" ON "sale_documents"("companyId");
 CREATE INDEX "sale_documents_saleDate_idx" ON "sale_documents"("saleDate");
 
 -- CreateIndex
-CREATE INDEX "sale_documents_companyId_clientId_idx" ON "sale_documents"("companyId", "clientId");
+CREATE INDEX "sale_documents_clientId_idx" ON "sale_documents"("clientId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "sale_documents_companyId_series_number_key" ON "sale_documents"("companyId", "series", "number");
@@ -509,7 +523,7 @@ CREATE INDEX "purchase_documents_companyId_idx" ON "purchase_documents"("company
 CREATE INDEX "purchase_documents_purchaseDate_idx" ON "purchase_documents"("purchaseDate");
 
 -- CreateIndex
-CREATE INDEX "purchase_documents_companyId_supplierId_idx" ON "purchase_documents"("companyId", "supplierId");
+CREATE INDEX "purchase_documents_supplierId_idx" ON "purchase_documents"("supplierId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "purchase_documents_companyId_series_number_key" ON "purchase_documents"("companyId", "series", "number");
@@ -587,7 +601,7 @@ ALTER TABLE "items" ADD CONSTRAINT "items_companyId_fkey" FOREIGN KEY ("companyI
 ALTER TABLE "sale_documents" ADD CONSTRAINT "sale_documents_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "sale_documents" ADD CONSTRAINT "sale_documents_companyId_clientId_fkey" FOREIGN KEY ("companyId", "clientId") REFERENCES "clients"("companyId", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "sale_documents" ADD CONSTRAINT "sale_documents_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "clients"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "sale_items" ADD CONSTRAINT "sale_items_saleId_fkey" FOREIGN KEY ("saleId") REFERENCES "sale_documents"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -596,7 +610,7 @@ ALTER TABLE "sale_items" ADD CONSTRAINT "sale_items_saleId_fkey" FOREIGN KEY ("s
 ALTER TABLE "purchase_documents" ADD CONSTRAINT "purchase_documents_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "purchase_documents" ADD CONSTRAINT "purchase_documents_companyId_supplierId_fkey" FOREIGN KEY ("companyId", "supplierId") REFERENCES "clients"("companyId", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "purchase_documents" ADD CONSTRAINT "purchase_documents_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "clients"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "purchase_items" ADD CONSTRAINT "purchase_items_purchaseId_fkey" FOREIGN KEY ("purchaseId") REFERENCES "purchase_documents"("id") ON DELETE CASCADE ON UPDATE CASCADE;

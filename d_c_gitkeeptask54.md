@@ -13,7 +13,7 @@ Leanid, сейчас **самое правильное время вернуть
 * Sales не сможет выбирать Customer
 * Journal не сможет вести AR/AP
 
-Я дам **полное production-ТЗ для Claude — Task: Clients Engine**.
+Я дам **полное production-ТЗ TSK 54 для Claude — Task: Clients Engine**.
 
 ---
 

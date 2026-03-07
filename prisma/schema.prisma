@@ -104,6 +104,10 @@ model Company {
   accountingPeriods AccountingPeriod[]
   stockLots         StockLot[]
   stockAllocations  StockAllocation[]
+  Warehouse         Warehouse[]
+  OperationType     OperationType[]
+  VatRate           VatRate[]
+  Employee          Employee[]
 
   @@index([tenantId])
   @@map("companies")
@@ -346,6 +350,11 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  warehouses     Warehouse[]
+  operationTypes OperationType[]
+  vatRates       VatRate[]
+  employees      Employee[]
+
   // Indexes
   @@unique([companyId, code])
   @@index([companyId, name])
@@ -355,6 +364,130 @@ model Client {
   @@index([companyId, vatCode])
   @@index([companyId, isActive])
   @@index([companyId, tenantId])
+}
+
+model Warehouse {
+  id        String @id @default(cuid())
+  companyId String
+
+  name      String
+  code      String?
+  isDefault Boolean @default(false)
+  isActive  Boolean @default(true)
+  address   String?
+
+  responsibleEmployeeId String?
+  responsibleEmployee   Employee? @relation("WarehouseResponsible", fields: [responsibleEmployeeId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  Client   Client? @relation(fields: [clientId], references: [id])
+  clientId String?
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@index([companyId, isActive])
+  @@map("warehouses")
+}
+
+// ============================================
+// ERP MODULE: OPERATION TYPES
+// ============================================
+
+model OperationType {
+  id        String @id @default(cuid())
+  companyId String
+
+  name   String
+  code   String
+  module String @default("PURCHASE") // PURCHASE | SALE | ADJUSTMENT
+
+  // Accounting mapping — which accounts to use
+  debitAccountCode   String? // e.g. "2040" (Inventory) or "6002" (Services expense)
+  creditAccountCode  String? // e.g. "4430" (Supplier)
+  vatAccountCode     String? // e.g. "2441" (VAT input)
+  expenseAccountCode String? // e.g. "5000" (COGS)
+  revenueAccountCode String? // for sales
+  advanceAccountCode String? // e.g. "2350" (Advances paid)
+
+  // Behavior flags
+  affectsWarehouse Boolean @default(true) // goods = true, services = false
+  affectsVat       Boolean @default(true)
+
+  isActive Boolean @default(true)
+  priority Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  Client   Client? @relation(fields: [clientId], references: [id])
+  clientId String?
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([companyId, module])
+  @@map("operation_types")
+}
+
+// ============================================
+// ERP MODULE: VAT RATES
+// ============================================
+
+model VatRate {
+  id        String @id @default(cuid())
+  companyId String
+
+  name     String // "21%", "PVM 5%", "Ne PVM objektas"
+  rate     Decimal // 21.00, 5.00, 0.00
+  code     String? // "PVM1", "PVM3", "PVM5"
+  category String  @default("STANDARD") // STANDARD | REDUCED | ZERO_EXPORT | ZERO_INTRACOM | REVERSE_CHARGE | NO_VAT
+
+  isDefault     Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  effectiveFrom DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  Client   Client? @relation(fields: [clientId], references: [id])
+  clientId String?
+
+  @@index([companyId])
+  @@index([companyId, isActive])
+  @@map("vat_rates")
+}
+
+// ============================================
+// ERP MODULE: EMPLOYEES
+// ============================================
+
+model Employee {
+  id        String @id @default(cuid())
+  companyId String
+
+  name       String
+  code       String?
+  position   String?
+  department String?
+  email      String?
+  phone      String?
+  isActive   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  warehouses Warehouse[] @relation("WarehouseResponsible")
+  Client     Client?     @relation(fields: [clientId], references: [id])
+  clientId   String?
+
+  @@index([companyId])
+  @@index([companyId, isActive])
+  @@map("employees")
 }
 
 // ============================================

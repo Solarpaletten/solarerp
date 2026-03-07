@@ -176,6 +176,7 @@ CREATE TABLE "Client" (
     "faxNumber" TEXT,
     "contactInfo" TEXT,
     "notes" TEXT,
+    "birthday" TIMESTAMP(3),
     "paymentTermsDays" INTEGER,
     "creditLimit" DECIMAL(65,30),
     "creditLimitCurrency" TEXT NOT NULL DEFAULT 'EUR',
@@ -198,6 +199,83 @@ CREATE TABLE "Client" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Client_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "warehouses" (
+    "id" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "code" TEXT,
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "address" TEXT,
+    "responsibleEmployeeId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "clientId" TEXT,
+
+    CONSTRAINT "warehouses_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "operation_types" (
+    "id" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "module" TEXT NOT NULL DEFAULT 'PURCHASE',
+    "debitAccountCode" TEXT,
+    "creditAccountCode" TEXT,
+    "vatAccountCode" TEXT,
+    "expenseAccountCode" TEXT,
+    "revenueAccountCode" TEXT,
+    "advanceAccountCode" TEXT,
+    "affectsWarehouse" BOOLEAN NOT NULL DEFAULT true,
+    "affectsVat" BOOLEAN NOT NULL DEFAULT true,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "priority" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "clientId" TEXT,
+
+    CONSTRAINT "operation_types_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "vat_rates" (
+    "id" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "rate" DECIMAL(65,30) NOT NULL,
+    "code" TEXT,
+    "category" TEXT NOT NULL DEFAULT 'STANDARD',
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "effectiveFrom" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "clientId" TEXT,
+
+    CONSTRAINT "vat_rates_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "employees" (
+    "id" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "code" TEXT,
+    "position" TEXT,
+    "department" TEXT,
+    "email" TEXT,
+    "phone" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "clientId" TEXT,
+
+    CONSTRAINT "employees_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -497,6 +575,36 @@ CREATE INDEX "Client_companyId_tenantId_idx" ON "Client"("companyId", "tenantId"
 CREATE UNIQUE INDEX "Client_companyId_code_key" ON "Client"("companyId", "code");
 
 -- CreateIndex
+CREATE INDEX "warehouses_companyId_idx" ON "warehouses"("companyId");
+
+-- CreateIndex
+CREATE INDEX "warehouses_companyId_isActive_idx" ON "warehouses"("companyId", "isActive");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "warehouses_companyId_name_key" ON "warehouses"("companyId", "name");
+
+-- CreateIndex
+CREATE INDEX "operation_types_companyId_idx" ON "operation_types"("companyId");
+
+-- CreateIndex
+CREATE INDEX "operation_types_companyId_module_idx" ON "operation_types"("companyId", "module");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "operation_types_companyId_code_key" ON "operation_types"("companyId", "code");
+
+-- CreateIndex
+CREATE INDEX "vat_rates_companyId_idx" ON "vat_rates"("companyId");
+
+-- CreateIndex
+CREATE INDEX "vat_rates_companyId_isActive_idx" ON "vat_rates"("companyId", "isActive");
+
+-- CreateIndex
+CREATE INDEX "employees_companyId_idx" ON "employees"("companyId");
+
+-- CreateIndex
+CREATE INDEX "employees_companyId_isActive_idx" ON "employees"("companyId", "isActive");
+
+-- CreateIndex
 CREATE INDEX "items_companyId_idx" ON "items"("companyId");
 
 -- CreateIndex
@@ -597,6 +705,33 @@ ALTER TABLE "accounting_periods" ADD CONSTRAINT "accounting_periods_companyId_fk
 
 -- AddForeignKey
 ALTER TABLE "Client" ADD CONSTRAINT "Client_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "warehouses" ADD CONSTRAINT "warehouses_responsibleEmployeeId_fkey" FOREIGN KEY ("responsibleEmployeeId") REFERENCES "employees"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "warehouses" ADD CONSTRAINT "warehouses_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "warehouses" ADD CONSTRAINT "warehouses_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "operation_types" ADD CONSTRAINT "operation_types_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "operation_types" ADD CONSTRAINT "operation_types_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "vat_rates" ADD CONSTRAINT "vat_rates_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "vat_rates" ADD CONSTRAINT "vat_rates_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "employees" ADD CONSTRAINT "employees_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "employees" ADD CONSTRAINT "employees_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "items" ADD CONSTRAINT "items_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

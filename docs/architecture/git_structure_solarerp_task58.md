@@ -1,4 +1,19 @@
-➜  solar-erp git:(main) tree
+➜  solar-erp git:(main) ✗ git add .                           
+➜  solar-erp git:(main) ✗ git commit -m "d_c_gitkeeptask58.md"
+[main 16a0550] d_c_gitkeeptask58.md
+ 1 file changed, 659 insertions(+)
+ create mode 100644 docs/architecture/git_structure_solarerp_task58.md
+➜  solar-erp git:(main) git push                            
+Enumerating objects: 8, done.
+Counting objects: 100% (8/8), done.
+Delta compression using up to 10 threads
+Compressing objects: 100% (4/4), done.
+Writing objects: 100% (5/5), 3.96 KiB | 3.96 MiB/s, done.
+Total 5 (delta 1), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (1/1), completed with 1 local object.
+To https://github.com/Solarpaletten/solarerp.git
+   1719eb0..16a0550  main -> main
+➜  solar-erp git:(main) tree       
 .
 ├── DEVELOPMENT_ROADMAP.md
 ├── PRODUCTION_RELEASE_APPROVAL.md
@@ -222,7 +237,8 @@
 ├── d_c_gitkeeptask58.md
 ├── docs
 │   └── architecture
-│       └── ai-dev-system-architecture.md
+│       ├── ai-dev-system-architecture.md
+│       └── git_structure_solarerp_task58.md
 ├── lib
 │   ├── accounting
 │   │   ├── __tests__
@@ -287,338 +303,8 @@
 ├── tailwind.config.js
 └── tsconfig.json
 
-132 directories, 155 files
-➜  solar-erp git:(main) tree components
-components
-├── clients
-│   ├── ClientAccounting.tsx
-│   ├── ClientActions.tsx
-│   ├── ClientAddressForm.tsx
-│   ├── ClientContactForm.tsx
-│   ├── ClientForm.tsx
-│   ├── ClientGeneralForm.tsx
-│   ├── ClientHeader.tsx
-│   └── ClientSelector.tsx
-├── erp
-│   ├── ERPDetailTabs.tsx
-│   ├── ERPGrid.tsx
-│   ├── ERPToolbar.tsx
-│   └── index.ts
-├── forms
-│   └── AuthForm.tsx
-├── layouts
-│   ├── AccountSidebar.tsx
-│   └── CompanySidebar.tsx
-├── products
-│   └── ProductSelector.tsx
-├── purchases
-│   ├── PostedAccountingView.tsx
-│   ├── PurchaseActionBar.tsx
-│   ├── PurchaseActions.tsx
-│   ├── PurchaseHeader.tsx
-│   ├── PurchaseHeaderEdit.tsx
-│   ├── PurchaseItemsEdit.tsx
-│   ├── PurchaseItemsTable.tsx
-│   ├── PurchaseTable.tsx
-│   └── PurchaseTotals.tsx
-├── select
-│   ├── AccountSelectDialog.tsx
-│   ├── ClientSelectDialog.tsx
-│   ├── EmployeeSelectDialog.tsx
-│   ├── EntitySelectDialog.tsx
-│   ├── OperationTypeSelectDialog.tsx
-│   ├── ProductSelectDialog.tsx
-│   ├── VATRateSelectDialog.tsx
-│   ├── WarehouseSelectDialog.tsx
-│   └── index.ts
-└── ui
-    ├── Button.tsx
-    ├── Card.tsx
-    ├── FormField.tsx
-    └── Input.tsx
-
-9 directories, 38 files
-➜  solar-erp git:(main) tree app       
-app
-├── (auth)
-│   ├── login
-│   │   ├── LoginClient.tsx
-│   │   └── page.tsx
-│   └── signup
-│       └── page.tsx
-├── (dashboard)
-│   ├── account
-│   │   └── companies
-│   │       └── page.tsx
-│   ├── company
-│   │   └── [companyId]
-│   │       ├── CompanyHeader.tsx
-│   │       ├── bank
-│   │       │   ├── new
-│   │       │   │   └── page.tsx
-│   │       │   └── page.tsx
-│   │       ├── chart-of-accounts
-│   │       │   └── page.tsx
-│   │       ├── clients
-│   │       │   ├── [clientId]
-│   │       │   │   └── page.tsx
-│   │       │   └── page.tsx
-│   │       ├── dashboard
-│   │       │   └── page.tsx
-│   │       ├── layout.tsx
-│   │       ├── page.tsx
-│   │       ├── products
-│   │       │   ├── [productId]
-│   │       │   │   └── page.tsx
-│   │       │   ├── new
-│   │       │   │   └── page.tsx
-│   │       │   └── page.tsx
-│   │       ├── purchases
-│   │       │   ├── [purchaseId]
-│   │       │   │   └── page.tsx
-│   │       │   ├── new
-│   │       │   │   └── page.tsx
-│   │       │   └── page.tsx
-│   │       ├── reports
-│   │       │   └── page.tsx
-│   │       ├── sales
-│   │       │   ├── [saleId]
-│   │       │   │   └── page.tsx
-│   │       │   ├── new
-│   │       │   │   └── page.tsx
-│   │       │   └── page.tsx
-│   │       └── warehouse
-│   │           ├── [warehouseId]
-│   │           │   └── page.tsx
-│   │           ├── new
-│   │           │   └── page.tsx
-│   │           └── page.tsx
-│   └── layout.tsx
-├── api
-│   ├── account
-│   │   └── companies
-│   │       ├── [companyId]
-│   │       │   └── route.ts
-│   │       ├── priorities
-│   │       │   └── route.ts
-│   │       └── route.ts
-│   ├── auth
-│   │   ├── login
-│   │   │   └── route.ts
-│   │   ├── logout
-│   │   │   └── route.ts
-│   │   ├── me
-│   │   │   └── route.ts
-│   │   └── signup
-│   │       └── route.ts
-│   ├── company
-│   │   └── [companyId]
-│   │       ├── accounts
-│   │       │   ├── [accountId]
-│   │       │   │   └── route.ts
-│   │       │   ├── bulk
-│   │       │   │   └── route.ts
-│   │       │   └── route.ts
-│   │       ├── chart-of-accounts
-│   │       │   └── import
-│   │       │       └── skr03
-│   │       │           └── route.ts
-│   │       ├── clients
-│   │       │   ├── [clientId]
-│   │       │   │   └── route.ts
-│   │       │   └── route.ts
-│   │       ├── employees
-│   │       │   └── route.ts
-│   │       ├── journal
-│   │       │   └── manual
-│   │       │       └── route.ts
-│   │       ├── operation-types
-│   │       │   └── route.ts
-│   │       ├── periods
-│   │       │   └── [year]
-│   │       │       └── [month]
-│   │       │           └── close
-│   │       │               └── route.ts
-│   │       ├── products
-│   │       │   ├── [productId]
-│   │       │   │   └── route.ts
-│   │       │   └── route.ts
-│   │       ├── purchases
-│   │       │   ├── [purchaseId]
-│   │       │   │   ├── accounting
-│   │       │   │   │   └── route.ts
-│   │       │   │   ├── cancel
-│   │       │   │   │   └── route.ts
-│   │       │   │   ├── copy
-│   │       │   │   │   └── route.ts
-│   │       │   │   ├── post
-│   │       │   │   │   └── route.ts
-│   │       │   │   ├── receipt
-│   │       │   │   │   └── route.ts
-│   │       │   │   └── route.ts
-│   │       │   ├── draft
-│   │       │   │   └── route.ts
-│   │       │   └── route.ts
-│   │       ├── reports
-│   │       │   ├── balance-sheet
-│   │       │   │   └── route.ts
-│   │       │   ├── osv
-│   │       │   │   └── route.ts
-│   │       │   ├── pnl
-│   │       │   │   └── route.ts
-│   │       │   └── trial-balance
-│   │       │       └── route.ts
-│   │       ├── repost
-│   │       │   └── route.ts
-│   │       ├── sales
-│   │       │   ├── [saleId]
-│   │       │   │   ├── cancel
-│   │       │   │   │   └── route.ts
-│   │       │   │   ├── copy
-│   │       │   │   │   └── route.ts
-│   │       │   │   └── route.ts
-│   │       │   ├── draft
-│   │       │   │   └── route.ts
-│   │       │   └── route.ts
-│   │       ├── vat-rates
-│   │       │   └── route.ts
-│   │       ├── warehouse
-│   │       │   ├── balance
-│   │       │   │   └── route.ts
-│   │       │   └── movements
-│   │       │       └── route.ts
-│   │       └── warehouses
-│   │           └── route.ts
-│   └── health
-│       └── route.ts
-├── globals.css
-├── layout.tsx
-└── page.tsx
-
-83 directories, 72 files
-➜  solar-erp git:(main) tree app/api                              
-app/api
-├── account
-│   └── companies
-│       ├── [companyId]
-│       │   └── route.ts
-│       ├── priorities
-│       │   └── route.ts
-│       └── route.ts
-├── auth
-│   ├── login
-│   │   └── route.ts
-│   ├── logout
-│   │   └── route.ts
-│   ├── me
-│   │   └── route.ts
-│   └── signup
-│       └── route.ts
-├── company
-│   └── [companyId]
-│       ├── accounts
-│       │   ├── [accountId]
-│       │   │   └── route.ts
-│       │   ├── bulk
-│       │   │   └── route.ts
-│       │   └── route.ts
-│       ├── chart-of-accounts
-│       │   └── import
-│       │       └── skr03
-│       │           └── route.ts
-│       ├── clients
-│       │   ├── [clientId]
-│       │   │   └── route.ts
-│       │   └── route.ts
-│       ├── employees
-│       │   └── route.ts
-│       ├── journal
-│       │   └── manual
-│       │       └── route.ts
-│       ├── operation-types
-│       │   └── route.ts
-│       ├── periods
-│       │   └── [year]
-│       │       └── [month]
-│       │           └── close
-│       │               └── route.ts
-│       ├── products
-│       │   ├── [productId]
-│       │   │   └── route.ts
-│       │   └── route.ts
-│       ├── purchases
-│       │   ├── [purchaseId]
-│       │   │   ├── accounting
-│       │   │   │   └── route.ts
-│       │   │   ├── cancel
-│       │   │   │   └── route.ts
-│       │   │   ├── copy
-│       │   │   │   └── route.ts
-│       │   │   ├── post
-│       │   │   │   └── route.ts
-│       │   │   ├── receipt
-│       │   │   │   └── route.ts
-│       │   │   └── route.ts
-│       │   ├── draft
-│       │   │   └── route.ts
-│       │   └── route.ts
-│       ├── reports
-│       │   ├── balance-sheet
-│       │   │   └── route.ts
-│       │   ├── osv
-│       │   │   └── route.ts
-│       │   ├── pnl
-│       │   │   └── route.ts
-│       │   └── trial-balance
-│       │       └── route.ts
-│       ├── repost
-│       │   └── route.ts
-│       ├── sales
-│       │   ├── [saleId]
-│       │   │   ├── cancel
-│       │   │   │   └── route.ts
-│       │   │   ├── copy
-│       │   │   │   └── route.ts
-│       │   │   └── route.ts
-│       │   ├── draft
-│       │   │   └── route.ts
-│       │   └── route.ts
-│       ├── vat-rates
-│       │   └── route.ts
-│       ├── warehouse
-│       │   ├── balance
-│       │   │   └── route.ts
-│       │   └── movements
-│       │       └── route.ts
-│       └── warehouses
-│           └── route.ts
-└── health
-    └── route.ts
-
-55 directories, 42 files
-➜  solar-erp git:(main) tree config    
-config
-├── clients
-│   └── columns.tsx
-├── products
-│   └── columns.tsx
-├── purchases
-│   └── columns.tsx
-└── sales
-    └── columns.tsx
-
-5 directories, 4 files
-➜  solar-erp git:(main) tree prisma 
-prisma
-├── migrations
-│   ├── 20260308021928_init_full_schema
-│   │   └── migration.sql
-│   └── migration_lock.toml
-├── schema.prisma
-└── seed.ts
-
-3 directories, 4 files
-➜  solar-erp git:(main) ls -la       
+132 directories, 156 files
+➜  solar-erp git:(main) ls -la
 total 1328
 drwxr-xr-x@ 36 leanid  staff    1152 Mar  8 16:00 .
 drwxr-xr-x@  7 leanid  staff     224 Mar  3 01:44 ..
@@ -626,7 +312,7 @@ drwxr-xr-x@  7 leanid  staff     224 Mar  3 01:44 ..
 -rw-r--r--@  1 leanid  staff     148 Feb 28 13:38 .env
 -rw-r--r--@  1 leanid  staff     148 Feb 28 13:40 .env.local
 -rw-r--r--@  1 leanid  staff      40 Jan 27 01:22 .eslintrc.json
-drwxr-xr-x@ 13 leanid  staff     416 Mar  8 16:01 .git
+drwxr-xr-x@ 13 leanid  staff     416 Mar  8 16:04 .git
 -rw-r--r--@  1 leanid  staff     478 Jan 27 01:22 .gitignore
 drwxr-xr-x@ 11 leanid  staff     352 Mar  8 03:24 .next
 -rw-r--r--@  1 leanid  staff   10164 Mar  6 12:28 DEVELOPMENT_ROADMAP.md

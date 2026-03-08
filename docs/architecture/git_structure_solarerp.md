@@ -1,26 +1,8 @@
-➜  solar-erp git:(main) ✗ git add .                           
-➜  solar-erp git:(main) ✗ git commit -m "d_c_gitkeeptask58.md"
-[main 16a0550] d_c_gitkeeptask58.md
- 1 file changed, 659 insertions(+)
- create mode 100644 docs/architecture/git_structure_solarerp_task58.md
-➜  solar-erp git:(main) git push                            
-Enumerating objects: 8, done.
-Counting objects: 100% (8/8), done.
-Delta compression using up to 10 threads
-Compressing objects: 100% (4/4), done.
-Writing objects: 100% (5/5), 3.96 KiB | 3.96 MiB/s, done.
-Total 5 (delta 1), reused 0 (delta 0), pack-reused 0 (from 0)
-remote: Resolving deltas: 100% (1/1), completed with 1 local object.
-To https://github.com/Solarpaletten/solarerp.git
-   1719eb0..16a0550  main -> main
-➜  solar-erp git:(main) tree       
+➜  solar-erp git:(main) tree
 .
 ├── DEVELOPMENT_ROADMAP.md
 ├── PRODUCTION_RELEASE_APPROVAL.md
 ├── README.md
-├── TASK_54_COMPLETION_SUMMARY.md
-├── TASK_57_ARCHITECTURE_Entity_Selection_System.md
-├── TASK_57_SPECIFICATION_Entity_Selection_Windows.md
 ├── app
 │   ├── (auth)
 │   │   ├── login
@@ -238,7 +220,7 @@ To https://github.com/Solarpaletten/solarerp.git
 ├── docs
 │   └── architecture
 │       ├── ai-dev-system-architecture.md
-│       └── git_structure_solarerp_task58.md
+│       └── git_structure_solarerp.md
 ├── lib
 │   ├── accounting
 │   │   ├── __tests__
@@ -303,24 +285,21 @@ To https://github.com/Solarpaletten/solarerp.git
 ├── tailwind.config.js
 └── tsconfig.json
 
-132 directories, 156 files
+132 directories, 153 files
 ➜  solar-erp git:(main) ls -la
-total 1328
-drwxr-xr-x@ 36 leanid  staff    1152 Mar  8 16:00 .
+total 1232
+drwxr-xr-x@ 33 leanid  staff    1056 Mar  8 16:09 .
 drwxr-xr-x@  7 leanid  staff     224 Mar  3 01:44 ..
 -rw-r--r--@  1 leanid  staff    6148 Mar  8 02:35 .DS_Store
 -rw-r--r--@  1 leanid  staff     148 Feb 28 13:38 .env
 -rw-r--r--@  1 leanid  staff     148 Feb 28 13:40 .env.local
 -rw-r--r--@  1 leanid  staff      40 Jan 27 01:22 .eslintrc.json
-drwxr-xr-x@ 13 leanid  staff     416 Mar  8 16:04 .git
+drwxr-xr-x@ 13 leanid  staff     416 Mar  8 16:10 .git
 -rw-r--r--@  1 leanid  staff     478 Jan 27 01:22 .gitignore
 drwxr-xr-x@ 11 leanid  staff     352 Mar  8 03:24 .next
 -rw-r--r--@  1 leanid  staff   10164 Mar  6 12:28 DEVELOPMENT_ROADMAP.md
 -rw-r--r--@  1 leanid  staff    8728 Mar  6 12:28 PRODUCTION_RELEASE_APPROVAL.md
 -rw-r--r--@  1 leanid  staff    5974 Mar  1 09:40 README.md
--rw-r--r--@  1 leanid  staff    7532 Mar  6 12:27 TASK_54_COMPLETION_SUMMARY.md
--rw-r--r--@  1 leanid  staff   17541 Mar  6 21:26 TASK_57_ARCHITECTURE_Entity_Selection_System.md
--rw-r--r--@  1 leanid  staff   17090 Mar  6 21:26 TASK_57_SPECIFICATION_Entity_Selection_Windows.md
 drwxr-xr-x@  9 leanid  staff     288 Feb 20 01:30 app
 -rw-r--r--@  1 leanid  staff  390413 Mar  1 22:10 audit-package.md
 drwxr-xr-x@ 11 leanid  staff     352 Mar  6 21:56 components
@@ -342,4 +321,15 @@ drwxr-xr-x@  3 leanid  staff      96 Feb 28 14:18 scripts
 drwxr-xr-x@  4 leanid  staff     128 Mar  1 11:57 smart
 -rw-r--r--@  1 leanid  staff     213 Jan 27 01:22 tailwind.config.js
 -rw-r--r--@  1 leanid  staff     674 Feb 27 19:29 tsconfig.json
-➜  solar-erp git:(main) 
+➜  solar-erp git:(main) pwd
+/Users/leanid/Projects/AI-SERVER_solarerp/projects/solar-erp
+➜  solar-erp git:(main) ✗ ls    
+DEVELOPMENT_ROADMAP.md         d_c_gitkeeptask58.md           pnpm-lock.yaml
+PRODUCTION_RELEASE_APPROVAL.md docs                           pnpm-workspace.yaml
+README.md                      lib                            postcss.config.js
+app                            middleware.ts                  prisma
+audit-package.md               next-env.d.ts                  scripts
+components                     next.config.js                 smart
+config                         node_modules                   tailwind.config.js
+cookies.txt                    package.json                   tsconfig.json
+➜  solar-erp git:(main) ✗ 

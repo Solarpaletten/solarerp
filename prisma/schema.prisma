@@ -104,10 +104,10 @@ model Company {
   accountingPeriods AccountingPeriod[]
   stockLots         StockLot[]
   stockAllocations  StockAllocation[]
-  Warehouse         Warehouse[]
-  OperationType     OperationType[]
-  VatRate           VatRate[]
-  Employee          Employee[]
+  warehouses        Warehouse[]
+  operationTypes    OperationType[]
+  vatRates          VatRate[]
+  employees         Employee[]
 
   @@index([tenantId])
   @@map("companies")
@@ -132,7 +132,6 @@ model StockLot {
   company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   allocations StockAllocation[]
 
-  // FIFO ordering index — critical for deterministic allocation
   @@index([companyId, warehouseName, itemCode, purchaseDate, id], name: "stock_lots_fifo_idx")
   @@index([companyId, sourceDocumentId], name: "stock_lots_source_idx")
   @@index([companyId])
@@ -142,7 +141,7 @@ model StockLot {
 model StockAllocation {
   id           String   @id @default(cuid())
   companyId    String
-  documentType String // SALE | SALE_REVERSAL
+  documentType String
   documentId   String
   saleItemId   String?
   lotId        String
@@ -249,17 +248,6 @@ model AccountingPeriod {
 // ERP MODULE: CLIENTS (COUNTERPARTIES)
 // ============================================
 
-// ============================================
-// ERP MODULE: CLIENTS (COUNTERPARTIES)
-// ============================================
-// Task 42: Enterprise Client Model v2
-// - isJuridical removed → type ClientType
-// - isActive added
-// - creditLimit precision enforced
-// - creditLimitCurrency for multi-currency prep
-// - unique(companyId, code) for deduplication
-// - index(companyId, vatCode) for tax lookups
-
 enum ClientType {
   COMPANY
   SOLE_TRADER
@@ -279,9 +267,6 @@ enum ClientRole {
   SUPPLIER
   BOTH
 }
-
-// ═══════════════════════════════════════════════════
-// REPLACE the entire Client model with this HARDENED version:
 
 model Client {
   id String @id @default(cuid())
@@ -314,8 +299,9 @@ model Client {
   // Individual
   birthday DateTime?
 
-  // Financial (FIXED NAMES)
-  paymentTermsDays    Int? // 
+  // Financial
+  paymentTermsDays    Int?
+  payWithinDays       Int?
   creditLimit         Decimal?
   creditLimitCurrency String   @default("EUR")
   automaticDebtRemind Boolean  @default(false)
@@ -350,12 +336,6 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  warehouses     Warehouse[]
-  operationTypes OperationType[]
-  vatRates       VatRate[]
-  employees      Employee[]
-
-  // Indexes
   @@unique([companyId, code])
   @@index([companyId, name])
   @@index([companyId, code])
@@ -365,6 +345,10 @@ model Client {
   @@index([companyId, isActive])
   @@index([companyId, tenantId])
 }
+
+// ============================================
+// ERP MODULE: WAREHOUSES
+// ============================================
 
 model Warehouse {
   id        String @id @default(cuid())
@@ -382,9 +366,7 @@ model Warehouse {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company  Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  Client   Client? @relation(fields: [clientId], references: [id])
-  clientId String?
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, name])
   @@index([companyId])
@@ -402,18 +384,16 @@ model OperationType {
 
   name   String
   code   String
-  module String @default("PURCHASE") // PURCHASE | SALE | ADJUSTMENT
+  module String @default("PURCHASE")
 
-  // Accounting mapping — which accounts to use
-  debitAccountCode   String? // e.g. "2040" (Inventory) or "6002" (Services expense)
-  creditAccountCode  String? // e.g. "4430" (Supplier)
-  vatAccountCode     String? // e.g. "2441" (VAT input)
-  expenseAccountCode String? // e.g. "5000" (COGS)
-  revenueAccountCode String? // for sales
-  advanceAccountCode String? // e.g. "2350" (Advances paid)
+  debitAccountCode   String?
+  creditAccountCode  String?
+  vatAccountCode     String?
+  expenseAccountCode String?
+  revenueAccountCode String?
+  advanceAccountCode String?
 
-  // Behavior flags
-  affectsWarehouse Boolean @default(true) // goods = true, services = false
+  affectsWarehouse Boolean @default(true)
   affectsVat       Boolean @default(true)
 
   isActive Boolean @default(true)
@@ -422,9 +402,7 @@ model OperationType {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company  Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  Client   Client? @relation(fields: [clientId], references: [id])
-  clientId String?
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -440,10 +418,10 @@ model VatRate {
   id        String @id @default(cuid())
   companyId String
 
-  name     String // "21%", "PVM 5%", "Ne PVM objektas"
-  rate     Decimal // 21.00, 5.00, 0.00
-  code     String? // "PVM1", "PVM3", "PVM5"
-  category String  @default("STANDARD") // STANDARD | REDUCED | ZERO_EXPORT | ZERO_INTRACOM | REVERSE_CHARGE | NO_VAT
+  name     String
+  rate     Decimal
+  code     String?
+  category String  @default("STANDARD")
 
   isDefault     Boolean   @default(false)
   isActive      Boolean   @default(true)
@@ -452,9 +430,7 @@ model VatRate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company  Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  Client   Client? @relation(fields: [clientId], references: [id])
-  clientId String?
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([companyId, isActive])
@@ -482,8 +458,6 @@ model Employee {
 
   company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   warehouses Warehouse[] @relation("WarehouseResponsible")
-  Client     Client?     @relation(fields: [clientId], references: [id])
-  clientId   String?
 
   @@index([companyId])
   @@index([companyId, isActive])
@@ -537,8 +511,6 @@ model Item {
 // ERP MODULE: SALES
 // ============================================
 
-// Update SaleDocument:
-
 model SaleDocument {
   id        String @id @default(cuid())
   companyId String
@@ -551,7 +523,7 @@ model SaleDocument {
   series String
   number String
 
-  clientId   String? // NEW: FK to Client
+  clientId   String?
   clientName String
   clientCode String?
   payerName  String?
@@ -567,7 +539,6 @@ model SaleDocument {
   status        String?
   comments      String?
 
-  // Accounting
   debitAccountId  String?
   creditAccountId String?
 
@@ -576,14 +547,12 @@ model SaleDocument {
 
   items   SaleItem[]
   company Company    @relation(fields: [companyId], references: [id])
-
-  // NEW: Relation to Client
-  client Client? @relation("SaleClient", fields: [clientId], references: [id])
+  client  Client?    @relation("SaleClient", fields: [clientId], references: [id])
 
   @@unique([companyId, series, number])
   @@index([companyId])
   @@index([saleDate])
-  @@index([clientId]) // NEW: for DELETE validation
+  @@index([clientId])
   @@map("sale_documents")
 }
 
@@ -625,8 +594,6 @@ model SaleItem {
 // ERP MODULE: PURCHASES
 // ============================================
 
-// Update PurchaseDocument:
-
 model PurchaseDocument {
   id        String @id @default(cuid())
   companyId String
@@ -638,7 +605,7 @@ model PurchaseDocument {
   series String
   number String
 
-  supplierId      String? // NEW: FK to Client (as supplier)
+  supplierId      String?
   supplierName    String
   supplierCode    String?
   advanceEmployee String?
@@ -651,23 +618,20 @@ model PurchaseDocument {
   comments      String?
   status        String?
 
-  // ADD BACK
   debitAccountId  String?
   creditAccountId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items   PurchaseItem[]
-  company Company        @relation(fields: [companyId], references: [id])
-
-  // NEW: Relation to Client (as supplier)
-  supplier Client? @relation("PurchaseSupplier", fields: [supplierId], references: [id])
+  items    PurchaseItem[]
+  company  Company        @relation(fields: [companyId], references: [id])
+  supplier Client?        @relation("PurchaseSupplier", fields: [supplierId], references: [id])
 
   @@unique([companyId, series, number])
   @@index([companyId])
   @@index([purchaseDate])
-  @@index([supplierId]) // NEW: for DELETE validation
+  @@index([supplierId])
   @@map("purchase_documents")
 }
 
@@ -747,10 +711,9 @@ model StockMovement {
   externalId      String?
   freePrice       Boolean  @default(false)
 
-  // ─── Task 34: Stock Engine additions ───────────
-  direction    String // IN | OUT
-  documentType String // PURCHASE | SALE | ADJUSTMENT | PURCHASE_REVERSAL | SALE_REVERSAL
-  documentId   String? // FK to PurchaseDocument.id or SaleDocument.id
+  direction    String
+  documentType String
+  documentId   String?
 
   createdAt DateTime @default(now())
 

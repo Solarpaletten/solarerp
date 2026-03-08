@@ -1,5 +1,7 @@
 // prisma/seed.ts
-// 55_6 FINAL SEED SCRIPT 
+// ═══════════════════════════════════════════════════
+// Solar ERP Seed — Task 57 Phase 2
+// ═══════════════════════════════════════════════════
 
 import { PrismaClient, Prisma, CompanyStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
@@ -52,7 +54,6 @@ async function main() {
   // CUSTOMER
   const client = await prisma.client.create({
     data: {
-      // ✅ CORRECT: Use company.connect (Prisma relation syntax)
       company: {
         connect: { id: company.id },
       },
@@ -79,7 +80,6 @@ async function main() {
   // SUPPLIER
   const supplier = await prisma.client.create({
     data: {
-      // ✅ CORRECT: Use company.connect (Prisma relation syntax)
       company: {
         connect: { id: company.id },
       },
@@ -121,6 +121,209 @@ async function main() {
   });
 
   // =============================
+  // TASK 57: EMPLOYEES
+  // =============================
+  const employee = await prisma.employee.create({
+    data: {
+      companyId: company.id,
+      name: 'Leanid Kanoplich',
+      code: 'DIR-01',
+      position: 'Director',
+      department: 'Management',
+      email: 'leanid@solar.com',
+      isActive: true,
+    },
+  });
+
+  const manager = await prisma.employee.create({
+    data: {
+      companyId: company.id,
+      name: 'Anna Schmidt',
+      code: 'MGR-01',
+      position: 'Purchase Manager',
+      department: 'Procurement',
+      email: 'anna@solar.com',
+      isActive: true,
+    },
+  });
+
+  console.log('  ✓ Employees: Leanid (Director), Anna (Purchase Manager)');
+
+  // =============================
+  // TASK 57: WAREHOUSES
+  // =============================
+  const warehouseMain = await prisma.warehouse.create({
+    data: {
+      companyId: company.id,
+      name: 'Main',
+      code: 'WH-MAIN',
+      isDefault: true,
+      isActive: true,
+      address: 'Hamburg, Germany',
+      responsibleEmployeeId: employee.id,
+    },
+  });
+
+  const warehouseGoods = await prisma.warehouse.create({
+    data: {
+      companyId: company.id,
+      name: 'Goods',
+      code: 'WH-GOODS',
+      isDefault: false,
+      isActive: true,
+    },
+  });
+
+  console.log('  ✓ Warehouses: Main (default), Goods');
+
+  // =============================
+  // TASK 57: OPERATION TYPES (SKR03)
+  // =============================
+  const opPurchaseGoods = await prisma.operationType.create({
+    data: {
+      companyId: company.id,
+      name: 'Purchase goods',
+      code: 'PIRK',
+      module: 'PURCHASE',
+      debitAccountCode: '3400',
+      creditAccountCode: '1600',
+      vatAccountCode: '1576',
+      expenseAccountCode: '5000',
+      affectsWarehouse: true,
+      affectsVat: true,
+      priority: 10,
+    },
+  });
+
+  const opPurchaseServices = await prisma.operationType.create({
+    data: {
+      companyId: company.id,
+      name: 'Purchase services',
+      code: 'PPS',
+      module: 'PURCHASE',
+      debitAccountCode: '4900',
+      creditAccountCode: '1600',
+      vatAccountCode: '1576',
+      affectsWarehouse: false,
+      affectsVat: true,
+      priority: 5,
+    },
+  });
+
+  const opAdvance = await prisma.operationType.create({
+    data: {
+      companyId: company.id,
+      name: 'Advance invoice',
+      code: 'AV',
+      module: 'PURCHASE',
+      debitAccountCode: '1518',
+      creditAccountCode: '1600',
+      affectsWarehouse: false,
+      affectsVat: false,
+      priority: 1,
+    },
+  });
+
+  const opSaleGoods = await prisma.operationType.create({
+    data: {
+      companyId: company.id,
+      name: 'Sale goods',
+      code: 'SALE',
+      module: 'SALE',
+      debitAccountCode: '1200',
+      creditAccountCode: '8400',
+      vatAccountCode: '1776',
+      expenseAccountCode: '5800',
+      affectsWarehouse: true,
+      affectsVat: true,
+      priority: 10,
+    },
+  });
+
+  const opSaleServices = await prisma.operationType.create({
+    data: {
+      companyId: company.id,
+      name: 'Sale services',
+      code: 'SSVC',
+      module: 'SALE',
+      debitAccountCode: '1200',
+      creditAccountCode: '8400',
+      vatAccountCode: '1776',
+      affectsWarehouse: false,
+      affectsVat: true,
+      priority: 5,
+    },
+  });
+
+  console.log('  ✓ Operation Types: PIRK, PPS, AV, SALE, SSVC');
+
+  // =============================
+  // TASK 57: VAT RATES (German/EU)
+  // =============================
+  await prisma.vatRate.createMany({
+    data: [
+      {
+        companyId: company.id,
+        name: '19% Standard',
+        rate: new Prisma.Decimal(19),
+        code: 'PVM1',
+        category: 'STANDARD',
+        isDefault: true,
+        isActive: true,
+        effectiveFrom: new Date('2007-01-01'),
+      },
+      {
+        companyId: company.id,
+        name: '7% Reduced',
+        rate: new Prisma.Decimal(7),
+        code: 'PVM2',
+        category: 'REDUCED',
+        isDefault: false,
+        isActive: true,
+        effectiveFrom: new Date('2007-01-01'),
+      },
+      {
+        companyId: company.id,
+        name: '0% Export',
+        rate: new Prisma.Decimal(0),
+        code: 'PVM5',
+        category: 'ZERO_EXPORT',
+        isDefault: false,
+        isActive: true,
+      },
+      {
+        companyId: company.id,
+        name: '0% Intra-community',
+        rate: new Prisma.Decimal(0),
+        code: 'PVM15',
+        category: 'ZERO_INTRACOM',
+        isDefault: false,
+        isActive: true,
+      },
+      {
+        companyId: company.id,
+        name: 'Reverse Charge',
+        rate: new Prisma.Decimal(0),
+        code: 'PVM16',
+        category: 'REVERSE_CHARGE',
+        isDefault: false,
+        isActive: true,
+      },
+      {
+        companyId: company.id,
+        name: 'No VAT',
+        rate: new Prisma.Decimal(0),
+        code: 'PVM100',
+        category: 'NO_VAT',
+        isDefault: false,
+        isActive: true,
+      },
+    ],
+  });
+
+  console.log('  ✓ VAT Rates: 19%, 7%, 0% Export, 0% Intra, Reverse Charge, No VAT');
+
+  // =============================
   // SALE DOCUMENT
   // =============================
   const sale = await prisma.saleDocument.create({
@@ -130,7 +333,6 @@ async function main() {
       series: 'S',
       number: '0001',
 
-      // ✅ Link to Client (for foreign key integrity)
       clientId: client.id,
       clientName: client.name,
       clientCode: client.code,
@@ -163,7 +365,6 @@ async function main() {
       series: 'P',
       number: '0001',
 
-      // ✅ Link to Supplier (Client with role=SUPPLIER)
       supplierId: supplier.id,
       supplierName: supplier.name,
       supplierCode: supplier.code,
@@ -234,6 +435,7 @@ async function main() {
   console.log('Company:', company.name);
   console.log('Client:', client.name, `(${client.code})`);
   console.log('Supplier:', supplier.name, `(${supplier.code})`);
+  console.log('Employees: 2 | Warehouses: 2 | OpTypes: 5 | VAT Rates: 6');
 }
 
 main()

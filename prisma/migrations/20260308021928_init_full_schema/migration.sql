@@ -178,6 +178,7 @@ CREATE TABLE "Client" (
     "notes" TEXT,
     "birthday" TIMESTAMP(3),
     "paymentTermsDays" INTEGER,
+    "payWithinDays" INTEGER,
     "creditLimit" DECIMAL(65,30),
     "creditLimitCurrency" TEXT NOT NULL DEFAULT 'EUR',
     "automaticDebtRemind" BOOLEAN NOT NULL DEFAULT false,
@@ -213,7 +214,6 @@ CREATE TABLE "warehouses" (
     "responsibleEmployeeId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "clientId" TEXT,
 
     CONSTRAINT "warehouses_pkey" PRIMARY KEY ("id")
 );
@@ -237,7 +237,6 @@ CREATE TABLE "operation_types" (
     "priority" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "clientId" TEXT,
 
     CONSTRAINT "operation_types_pkey" PRIMARY KEY ("id")
 );
@@ -255,7 +254,6 @@ CREATE TABLE "vat_rates" (
     "effectiveFrom" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "clientId" TEXT,
 
     CONSTRAINT "vat_rates_pkey" PRIMARY KEY ("id")
 );
@@ -273,7 +271,6 @@ CREATE TABLE "employees" (
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "clientId" TEXT,
 
     CONSTRAINT "employees_pkey" PRIMARY KEY ("id")
 );
@@ -713,25 +710,13 @@ ALTER TABLE "warehouses" ADD CONSTRAINT "warehouses_responsibleEmployeeId_fkey" 
 ALTER TABLE "warehouses" ADD CONSTRAINT "warehouses_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "warehouses" ADD CONSTRAINT "warehouses_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "operation_types" ADD CONSTRAINT "operation_types_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "operation_types" ADD CONSTRAINT "operation_types_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "vat_rates" ADD CONSTRAINT "vat_rates_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "vat_rates" ADD CONSTRAINT "vat_rates_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "employees" ADD CONSTRAINT "employees_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "employees" ADD CONSTRAINT "employees_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "items" ADD CONSTRAINT "items_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

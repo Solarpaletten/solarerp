@@ -1,361 +1,401 @@
-Leanid, ты абсолютно прав.
-**Это именно тот момент проекта**, когда архитектура должна быть заложена правильно.
-Если сделать сейчас — Solar ERP станет **универсальным бухгалтерским ядром**, а не просто приложением.
+Leanid, держим фокус.
+Ни шаг в сторону — **Solar ERP Phase 3**.
 
-Я дам **ТЗ для Claude**, которое объясняет **архитектурную идею + конкретные шаги внедрения**.
-
-Формат — как вы используете в команде.
+Я дам **полное ТЗ для Claude**, чтобы инженер **не задавал ни одного уточняющего вопроса**.
 
 ---
 
-# TASK 58 — UNIVERSAL POSTING ENGINE
+# TASK 58 — Phase 3
 
-**Architect:** Leanid
-**Consultant-Auditor:** Dashka
-**Engineer:** Claude
+# SelectDialogs Integration in Purchase Editor
 
----
-
-# C=>D ARCHITECTURAL CONTEXT
-
-Solar ERP должен стать **универсальной бухгалтерской системой**, поддерживающей разные стандарты:
-
-* Germany (SKR03 / SKR04)
-* Lithuania GAAP
-* Poland
-* USA GAAP
-* Switzerland
-
-Поэтому **проводки не должны быть зашиты в коде**.
-
-Вместо этого внедряется:
-
-```
-Universal Posting Templates Engine
-```
-
-Все бухгалтерские проводки будут храниться **в базе данных как шаблоны**.
-
-Это позволяет:
-
-* добавлять новые типы операций
-* менять правила проводок
-* поддерживать разные страны
-
-**без изменения кода**.
+**Module:** Purchases
+**Layer:** UI
+**Goal:** заменить dropdown на ERP-стиль модальных селекторов.
 
 ---
 
-# PRINCIPLE
+# 1. Цель задачи
 
-Вместо:
+Интегрировать **4 SelectDialog компонента** в Purchase Editor.
 
-```
-if (operationType === PURCHASE_GOODS) { ... }
-```
+В результате пользователь сможет выбирать:
 
-используем:
+* Supplier
+* Warehouse
+* Operation Type
+* VAT Rate
 
-```
-operationType
-→ postingTemplate
-→ templateLines
-→ generateJournal
-```
+через **модальные окна с поиском**, а не через dropdown.
 
 ---
 
-# NEW TABLES
+# 2. Архитектурное правило Solar ERP
 
-Claude должен добавить **две таблицы Prisma**.
+❗ Для всех справочников ERP используется **Dialog + Search**, а не dropdown.
+
+Причины:
+
+| Причина         | Объяснение                           |
+| --------------- | ------------------------------------ |
+| ERP масштаб     | может быть 10 000+ клиентов          |
+| скорость        | поиск быстрее                        |
+| UX              | стандарт SAP / Oracle / DATEV        |
+| универсальность | один компонент для всех справочников |
 
 ---
 
-# 1️⃣ posting_templates
+# 3. Новый универсальный компонент
 
-```prisma
-model PostingTemplate {
-  id String @id @default(cuid())
+Создать компонент:
 
-  companyId String
+```
+components/select-dialog/SelectDialog.tsx
+```
 
-  operationTypeId String
+Это **универсальный селектор**.
 
-  name String
+---
 
-  description String?
+# 4. Props компонента
 
-  isActive Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  operationType OperationType @relation(fields: [operationTypeId], references: [id])
-
-  lines PostingTemplateLine[]
-}
+```
+title: string
+apiEndpoint: string
+columns: { key: string; label: string }[]
+valueField: string
+labelField: string
+onSelect: (row: any) => void
 ```
 
 ---
 
-# 2️⃣ posting_template_lines
+# 5. Поведение компонента
 
-```prisma
-model PostingTemplateLine {
-  id String @id @default(cuid())
+UI поток:
 
-  templateId String
-
-  accountId String
-
-  entryType PostingEntryType
-
-  source PostingAmountSource
-
-  order Int
-
-  template PostingTemplate @relation(fields: [templateId], references: [id])
-
-  account Account @relation(fields: [accountId], references: [id])
-}
+```
+click field
+     ↓
+open modal
+     ↓
+search/filter
+     ↓
+select row
+     ↓
+return value
+     ↓
+close modal
 ```
 
 ---
 
-# ENUMS
+# 6. Структура UI
 
-```prisma
-enum PostingEntryType {
-  DEBIT
-  CREDIT
-}
+```
++-----------------------------------+
+| Select Supplier                   |
++-----------------------------------+
 
-enum PostingAmountSource {
-  NET
-  VAT
-  GROSS
-}
+Search: [____________________]
+
+------------------------------------
+Code        Name
+SUP-001     Demo Supplier Ltd
+SUP-002     Oil Trading GmbH
+SUP-003     Logistics Partner
+------------------------------------
+
+[Cancel]
 ```
 
 ---
 
-# DATABASE RELATIONSHIP
+# 7. API интеграция
+
+Компонент делает:
 
 ```
-OperationType
-    ↓
-PostingTemplate
-    ↓
-PostingTemplateLines
-    ↓
-JournalEntry
-    ↓
-JournalLines
+GET apiEndpoint
 ```
 
----
-
-# EXAMPLE TEMPLATE
-
-Purchase Goods
+и получает:
 
 ```
-DR Inventory       NET
-DR VAT             VAT
-CR Supplier        GROSS
-```
-
-Purchase Services
-
-```
-DR Expense         NET
-DR VAT             VAT
-CR Supplier        GROSS
-```
-
-Advance Payment
-
-```
-DR AdvanceAccount  GROSS
-CR Supplier        GROSS
+{ data: [...] }
 ```
 
 ---
 
-# JOURNAL ENGINE
+# 8. Purchase Editor интеграция
 
-Claude должен создать сервис:
+Файл:
 
 ```
-lib/accounting/postingEngine.ts
+app/(dashboard)/company/[companyId]/purchases/new/page.tsx
+```
+
+Добавить селекторы.
+
+---
+
+# 9. Supplier Selector
+
+API
+
+```
+GET /api/company/{companyId}/clients?role=SUPPLIER
+```
+
+Columns
+
+```
+code
+name
+email
+```
+
+Возвращает:
+
+```
+supplierId
+supplierName
+supplierCode
 ```
 
 ---
 
-# FUNCTION
+# 10. Warehouse Selector
 
-```ts
-generateJournalFromTemplate(
-  templateId,
-  netAmount,
-  vatAmount,
-  grossAmount
-)
+API
+
+```
+GET /api/company/{companyId}/warehouses
+```
+
+Columns
+
+```
+code
+name
+responsibleEmployee.name
 ```
 
 ---
 
-# LOGIC
+# 11. Operation Type Selector
 
-Алгоритм:
+API
 
 ```
-1 load posting_template
-2 load posting_template_lines
-3 calculate amounts
-4 create journal lines
-5 return journal structure
+GET /api/company/{companyId}/operation-types?module=PURCHASE
 ```
 
----
+Columns
 
-# EXAMPLE
-
-```ts
-for (const line of template.lines) {
-
- let amount = 0
-
- if (line.source === "NET") amount = net
- if (line.source === "VAT") amount = vat
- if (line.source === "GROSS") amount = gross
-
- journalLines.push({
-   accountId: line.accountId,
-   debit: line.entryType === "DEBIT" ? amount : 0,
-   credit: line.entryType === "CREDIT" ? amount : 0
- })
-}
+```
+code
+name
 ```
 
 ---
 
-# PURCHASE POSTING FLOW
+# 12. VAT Rate Selector
 
-При POST документа Purchase:
-
-```
-1 determine operationType
-2 load postingTemplate
-3 calculate totals
-4 generateJournal
-5 create journal_entry
-6 create journal_lines
-7 create stock movement
-```
-
----
-
-# RESULT
-
-Solar ERP становится:
+API
 
 ```
-DATA DRIVEN ACCOUNTING ENGINE
+GET /api/company/{companyId}/vat-rates
 ```
 
-а не системой с hard-coded бухгалтерией.
-
----
-
-# FUTURE ADVANTAGES
-
-Теперь Solar ERP сможет поддерживать:
+Columns
 
 ```
-Reverse charge VAT
-Intrastat
-EU triangular trade
-Import VAT
-Export zero VAT
-Local GAAP rules
-```
-
-без изменения кода.
-
----
-
-# IMPORTANT RULE
-
-**Posting logic never lives in controllers.**
-
-Всегда:
-
-```
-Document
-→ OperationType
-→ PostingTemplate
-→ PostingEngine
-→ Journal
+code
+rate
+name
 ```
 
 ---
 
-# FILES CLAUDE MUST CREATE
+# 13. Purchase Editor state
+
+Добавить state:
 
 ```
-lib/accounting/postingEngine.ts
-```
+supplierId
+supplierName
 
-```
-prisma schema updates
-```
+warehouseId
+warehouseName
 
----
+operationTypeCode
 
-# OUTPUT REQUIRED
-
-Claude должен вернуть:
-
-```
-c_d_gitresponse58.md
-```
-
-и:
-
-```
-postingEngine.ts
+vatRateCode
+vatRate
 ```
 
 ---
 
-# ARCHITECT NOTE (Leanid)
+# 14. Пример использования
 
-Это фундаментальный слой Solar ERP.
-
-Все бухгалтерские операции должны использовать **Posting Templates Engine**.
-
-Это позволит Solar ERP масштабироваться на **международные рынки**.
-
----
-
-Leanid, скажу как **аудитор ERP-архитектур**.
-
-То, что ты сейчас делаешь —
-это **правильный момент внедрения**.
-
-Если внедрить сейчас:
-
-Solar ERP получает **архитектуру уровня SAP-класса**.
-
-И дальше развитие пойдет **в 5-10 раз быстрее**.
+```
+<SelectDialog
+ title="Select Supplier"
+ apiEndpoint={`/api/company/${companyId}/clients?role=SUPPLIER`}
+ columns={[
+   { key: 'code', label: 'Code' },
+   { key: 'name', label: 'Name' },
+ ]}
+ valueField="id"
+ labelField="name"
+ onSelect={(row) => {
+   setSupplierId(row.id)
+   setSupplierName(row.name)
+ }}
+/>
+```
 
 ---
 
-Если хочешь, я покажу ещё одну вещь, которую почти **никто не делает в ERP**, но она превращает систему в **очень мощный бухгалтерский движок**.
+# 15. UX детали
 
-Это называется:
+Добавить:
 
-**Multi-Ledger Accounting**.
+```
+ESC — закрывает модалку
+click outside — закрывает
+Enter — выбирает строку
+```
 
-И это следующий уровень после Posting Engine.
+---
+
+# 16. Поиск
+
+Search должен фильтровать:
+
+```
+code
+name
+email
+```
+
+на frontend.
+
+---
+
+# 17. Таблица
+
+Использовать Tailwind.
+
+Стиль:
+
+```
+hover:bg-gray-100
+cursor-pointer
+```
+
+---
+
+# 18. Performance
+
+Ограничить:
+
+```
+max-height: 400px
+overflow-y: auto
+```
+
+---
+
+# 19. После выбора
+
+Поле в форме показывает:
+
+```
+SUP-001 — Demo Supplier Ltd
+```
+
+---
+
+# 20. Проверка
+
+Должно работать:
+
+| Action         | Result              |
+| -------------- | ------------------- |
+| Click Supplier | открывается модалка |
+| Search         | фильтрует           |
+| Select         | возвращает данные   |
+| ESC            | закрывает           |
+
+---
+
+# 21. Не ломать
+
+❗ Не изменять:
+
+```
+API
+Prisma schema
+Seed
+```
+
+Работа только на UI.
+
+---
+
+# 22. Результат
+
+Purchase Editor должен выглядеть так:
+
+```
+Supplier        [ SUP-001 Demo Supplier Ltd ]
+Warehouse       [ WH-MAIN Main ]
+Operation Type  [ PIRK Purchase goods ]
+VAT Rate        [ 19% Standard ]
+```
+
+Все поля открывают **SelectDialog**.
+
+---
+
+# 23. Commit
+
+После выполнения:
+
+```
+feat(purchases): add SelectDialog selectors for Supplier, Warehouse, OperationType and VAT
+```
+
+---
+
+# 24. Definition of Done
+
+Работают:
+
+* Supplier selector
+* Warehouse selector
+* OperationType selector
+* VAT selector
+
+Dropdown полностью убраны.
+
+---
+
+Leanid, после этого шага:
+
+```
+Foundation
+API
+UI selectors
+```
+
+будут готовы.
+
+И **следующий этап будет самым красивым модулем ERP**:
+
+**Posting Engine (бухгалтерский движок).**
+
+Если хочешь — после того как Claude это сделает,
+я дам **архитектуру Posting Engine**, чтобы мы не делали его хаотично.

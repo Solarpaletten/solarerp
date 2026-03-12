@@ -24,20 +24,27 @@ model Tenant {
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id           String  @id @default(cuid())
   email        String
-  passwordHash String
+  passwordHash String? // ← was String (required), now optional
   name         String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  surname      String? // ← NEW
+  phone        String? // ← NEW (optional — our competitive advantage)
+  googleId     String? // ← NEW @unique
+  avatarUrl    String? // ← NEW
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  sessions Session[]
+  sessions     Session[]
+  companyUsers CompanyUser[] // NEW relation
 
   @@unique([tenantId, email])
   @@index([tenantId])
+  @@index([googleId]) // ← NEW index for fast Google lookup
   @@map("users")
 }
 
@@ -79,20 +86,28 @@ enum AccountType {
 }
 
 model Company {
-  id        String        @id @default(cuid())
-  tenantId  String
-  name      String
-  code      String?
-  vatNumber String?
-  country   String?
-  status    CompanyStatus @default(ACTIVE)
-  priority  Int           @default(0)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id                    String        @id @default(cuid())
+  tenantId              String
+  name                  String
+  code                  String?
+  vatNumber             String?
+  country               String?
+  legalType             String? // ← NEW  UAB, GmbH, LLC, OÜ, SIA…
+  currencyCode          String        @default("EUR") // ← NEW
+  vatPayer              Boolean       @default(true) // ← NEW
+  onboardingCompletedAt DateTime? // ← NEW  null = not done
+  createdByUserId       String? // ← NEW  audit trail
+  status                CompanyStatus @default(ACTIVE)
+  priority              Int           @default(0)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  // ERP Relations
+  companyUsers      CompanyUser[] // NEW relation
+  documentSequences DocumentSequence[]
+
+  // ERP Relations (unchanged)
   clients           Client[]
   items             Item[]
   saleDocuments     SaleDocument[]
@@ -111,6 +126,38 @@ model Company {
 
   @@index([tenantId])
   @@map("companies")
+}
+
+model CompanyUser {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  role      String   @default("OWNER") // OWNER | ACCOUNTANT | MANAGER | EMPLOYEE | VIEWER
+  isOwner   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([userId])
+  @@index([companyId])
+  @@map("company_users")
+}
+
+model DocumentSequence {
+  id        String   @id @default(cuid())
+  companyId String
+  prefix    String
+  year      Int
+  lastSeq   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, prefix, year])
+  @@index([companyId])
+  @@map("document_sequences")
 }
 
 model StockLot {

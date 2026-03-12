@@ -30,8 +30,12 @@ CREATE TABLE "tenants" (
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "passwordHash" TEXT NOT NULL,
+    "passwordHash" TEXT,
     "name" TEXT,
+    "surname" TEXT,
+    "phone" TEXT,
+    "googleId" TEXT,
+    "avatarUrl" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "tenantId" TEXT NOT NULL,
@@ -59,12 +63,41 @@ CREATE TABLE "companies" (
     "code" TEXT,
     "vatNumber" TEXT,
     "country" TEXT,
+    "legalType" TEXT,
+    "currencyCode" TEXT NOT NULL DEFAULT 'EUR',
+    "vatPayer" BOOLEAN NOT NULL DEFAULT true,
+    "onboardingCompletedAt" TIMESTAMP(3),
+    "createdByUserId" TEXT,
     "status" "CompanyStatus" NOT NULL DEFAULT 'ACTIVE',
     "priority" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "companies_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "company_users" (
+    "id" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'OWNER',
+    "isOwner" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "company_users_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "document_sequences" (
+    "id" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "prefix" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "lastSeq" INTEGER NOT NULL DEFAULT 0,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "document_sequences_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -479,6 +512,9 @@ CREATE TABLE "bank_statements" (
 CREATE INDEX "users_tenantId_idx" ON "users"("tenantId");
 
 -- CreateIndex
+CREATE INDEX "users_googleId_idx" ON "users"("googleId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "users_tenantId_email_key" ON "users"("tenantId", "email");
 
 -- CreateIndex
@@ -492,6 +528,21 @@ CREATE INDEX "sessions_expiresAt_idx" ON "sessions"("expiresAt");
 
 -- CreateIndex
 CREATE INDEX "companies_tenantId_idx" ON "companies"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "company_users_userId_idx" ON "company_users"("userId");
+
+-- CreateIndex
+CREATE INDEX "company_users_companyId_idx" ON "company_users"("companyId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "company_users_companyId_userId_key" ON "company_users"("companyId", "userId");
+
+-- CreateIndex
+CREATE INDEX "document_sequences_companyId_idx" ON "document_sequences"("companyId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "document_sequences_companyId_prefix_year_key" ON "document_sequences"("companyId", "prefix", "year");
 
 -- CreateIndex
 CREATE INDEX "stock_lots_fifo_idx" ON "stock_lots"("companyId", "warehouseName", "itemCode", "purchaseDate", "id");
@@ -675,6 +726,15 @@ ALTER TABLE "sessions" ADD CONSTRAINT "sessions_userId_fkey" FOREIGN KEY ("userI
 
 -- AddForeignKey
 ALTER TABLE "companies" ADD CONSTRAINT "companies_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "company_users" ADD CONSTRAINT "company_users_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "company_users" ADD CONSTRAINT "company_users_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "document_sequences" ADD CONSTRAINT "document_sequences_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "stock_lots" ADD CONSTRAINT "stock_lots_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -1,0 +1,36 @@
+{
+  "task": "task59",
+  "title": "Company Switcher + Company Context",
+  "checks": [
+    {
+      "name": "Company Switcher UI",
+      "url": "http://localhost:3000/account/companies",
+      "what": "Список компаний, переключатель, активная компания",
+      "file": "components/layouts/CompanySwitcher.tsx"
+    },
+    {
+      "name": "Middleware — NO header → 400",
+      "url": "curl http://localhost:3000/api/company/seed-company-solar-erp-demo/clients -H \"Cookie: solar_session=$COOKIE\"",
+      "what": "{\"error\":\"COMPANY_CONTEXT_MISSING\"}",
+      "file": "lib/auth/requireCompanyContext.ts"
+    },
+    {
+      "name": "Clients API — valid → 200",
+      "url": "curl http://localhost:3000/api/company/seed-company-solar-erp-demo/clients -H \"Cookie: solar_session=$COOKIE\" -H \"X-Company-Id: seed-company-solar-erp-demo\"",
+      "what": "{\"data\":[...], \"total\": N}",
+      "file": "app/api/company/[companyId]/clients/route.ts"
+    },
+    {
+      "name": "Companies list API",
+      "url": "http://localhost:3000/api/account/companies",
+      "what": "{\"data\":[{\"id\":\"...\",\"name\":\"...\",\"role\":\"OWNER\"}]}",
+      "file": "app/api/account/companies/route.ts"
+    },
+    {
+      "name": "API Client — AbortController",
+      "url": "http://localhost:3000/account/companies",
+      "what": "Переключи компанию быстро 2 раза — данные не смешиваются",
+      "file": "lib/api/apiClient.ts"
+    }
+  ]
+}

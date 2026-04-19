@@ -1,0 +1,9 @@
+UI
+↓
+API
+↓
+Services
+↓
+Prisma
+↓
+PostgreSQL

@@ -1,0 +1,12 @@
+{
+  "task": "fix_typescript",
+  "title": "TypeScript Pre-existing Errors Fix",
+  "checks": [
+    {
+      "name": "Build passes cleanly",
+      "url": "pnpm build",
+      "what": "Compiled successfully — no type errors",
+      "file": "tsconfig.json"
+    }
+  ]
+}

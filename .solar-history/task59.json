@@ -1,0 +1,21 @@
+{
+  "task": "task59",
+  "timestamp": "2026-04-19T21:57:34.568Z",
+  "files_created": 3,
+  "files_modified": 3,
+  "files_skipped": 0,
+  "dirs_created": 1,
+  "ts_errors": 0,
+  "build": "passed",
+  "bundle": "/Users/leanid/Projects/AI-SERVER_solarerp/projects/solar-erp/.solar-bundles/after_task59.tar.gz",
+  "created": [
+    "components/layouts/CompanySwitcher.tsx",
+    "lib/api/apiClient.ts",
+    "lib/auth/requireCompanyContext.ts"
+  ],
+  "modified": [
+    "app/api/account/companies/route.ts",
+    "app/api/company/[companyId]/clients/route.ts",
+    "verification.json"
+  ]
+}

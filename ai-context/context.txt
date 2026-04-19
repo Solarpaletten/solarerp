@@ -1,0 +1,1940 @@
+{
+  "name": "solarerp",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "postinstall": "prisma generate",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type": "module"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0",
+    "bcryptjs": "^3.0.3",
+    "decimal.js": "^10.6.0",
+    "lucide-react": "^0.575.0",
+    "next": "14.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@prisma/client": "5.22.0",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.23",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "16.1.3",
+    "postcss": "^8.5.6",
+    "prisma": "5.22.0",
+    "tailwindcss": "^3.4.19",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.0"
+  }
+}
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// LEVEL 1: ACCOUNT / TENANT
+// ============================================
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companies Company[]
+  users     User[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String  @id @default(cuid())
+  email        String
+  passwordHash String? // ← was String (required), now optional
+  name         String?
+  surname      String? // ← NEW
+  phone        String? // ← NEW (optional — our competitive advantage)
+  googleId     String? // ← NEW @unique
+  avatarUrl    String? // ← NEW
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  sessions     Session[]
+  companyUsers CompanyUser[] // NEW relation
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([googleId]) // ← NEW index for fast Google lookup
+  @@map("users")
+}
+
+// ============================================
+// AUTH: SESSION (HttpOnly cookie auth)
+// ============================================
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  tenantId  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ============================================
+// LEVEL 2: COMPANY / ERP CONTEXT
+// ============================================
+
+enum CompanyStatus {
+  ACTIVE
+  FROZEN
+  ARCHIVED
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+model Company {
+  id                    String        @id @default(cuid())
+  tenantId              String
+  name                  String
+  code                  String?
+  vatNumber             String?
+  country               String?
+  legalType             String? // ← NEW  UAB, GmbH, LLC, OÜ, SIA…
+  currencyCode          String        @default("EUR") // ← NEW
+  vatPayer              Boolean       @default(true) // ← NEW
+  onboardingCompletedAt DateTime? // ← NEW  null = not done
+  createdByUserId       String? // ← NEW  audit trail
+  status                CompanyStatus @default(ACTIVE)
+  priority              Int           @default(0)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  companyUsers      CompanyUser[] // NEW relation
+  documentSequences DocumentSequence[]
+
+  // ERP Relations (unchanged)
+  clients           Client[]
+  items             Item[]
+  saleDocuments     SaleDocument[]
+  purchaseDocuments PurchaseDocument[]
+  stockMovements    StockMovement[]
+  bankStatements    BankStatement[]
+  accounts          Account[]
+  journalEntries    JournalEntry[]
+  accountingPeriods AccountingPeriod[]
+  stockLots         StockLot[]
+  stockAllocations  StockAllocation[]
+  warehouses        Warehouse[]
+  operationTypes    OperationType[]
+  vatRates          VatRate[]
+  employees         Employee[]
+
+  @@index([tenantId])
+  @@map("companies")
+}
+
+model CompanyUser {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  role      String   @default("OWNER") // OWNER | ACCOUNTANT | MANAGER | EMPLOYEE | VIEWER
+  isOwner   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([userId])
+  @@index([companyId])
+  @@map("company_users")
+}
+
+model DocumentSequence {
+  id        String   @id @default(cuid())
+  companyId String
+  prefix    String
+  year      Int
+  lastSeq   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, prefix, year])
+  @@index([companyId])
+  @@map("document_sequences")
+}
+
+model StockLot {
+  id                 String   @id @default(cuid())
+  companyId          String
+  warehouseName      String
+  itemCode           String
+  itemName           String
+  sourceDocumentType String   @default("PURCHASE")
+  sourceDocumentId   String
+  purchaseDate       DateTime
+  unitCost           Decimal  @db.Decimal(18, 2)
+  qtyInitial         Decimal  @db.Decimal(18, 4)
+  qtyRemaining       Decimal  @db.Decimal(18, 4)
+  currencyCode       String   @default("EUR")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  allocations StockAllocation[]
+
+  @@index([companyId, warehouseName, itemCode, purchaseDate, id], name: "stock_lots_fifo_idx")
+  @@index([companyId, sourceDocumentId], name: "stock_lots_source_idx")
+  @@index([companyId])
+  @@map("stock_lots")
+}
+
+model StockAllocation {
+  id           String   @id @default(cuid())
+  companyId    String
+  documentType String
+  documentId   String
+  saleItemId   String?
+  lotId        String
+  qty          Decimal  @db.Decimal(18, 4)
+  unitCost     Decimal  @db.Decimal(18, 2)
+  amount       Decimal  @db.Decimal(18, 2)
+  createdAt    DateTime @default(now())
+
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lot     StockLot @relation(fields: [lotId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, documentType, documentId], name: "stock_allocations_doc_idx")
+  @@index([companyId, lotId], name: "stock_allocations_lot_idx")
+  @@index([companyId])
+  @@map("stock_allocations")
+}
+
+model Account {
+  id        String      @id @default(cuid())
+  companyId String
+  code      String
+  nameDe    String
+  nameEn    String
+  type      AccountType
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journalLines JournalLine[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("accounts")
+}
+
+// ============================================
+// ACCOUNTING CORE: JOURNAL (LEDGER)
+// ============================================
+
+enum JournalSource {
+  SYSTEM
+  MANUAL
+}
+
+model JournalEntry {
+  id           String        @id @default(cuid())
+  companyId    String
+  date         DateTime
+  documentType String
+  documentId   String?
+  source       JournalSource @default(SYSTEM)
+  description  String?
+  createdAt    DateTime      @default(now())
+
+  lines   JournalLine[]
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([date])
+  @@index([documentType])
+  @@index([documentId])
+  @@index([companyId, date])
+  @@index([companyId, source])
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id        String  @id @default(cuid())
+  entryId   String
+  accountId String
+  debit     Decimal @default(0) @db.Decimal(18, 2)
+  credit    Decimal @default(0) @db.Decimal(18, 2)
+
+  entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account Account      @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
+  @@index([entryId])
+  @@map("journal_lines")
+}
+
+// ============================================
+// ACCOUNTING: PERIOD LOCKING
+// ============================================
+
+model AccountingPeriod {
+  id        String    @id @default(cuid())
+  companyId String
+  year      Int
+  month     Int
+  isClosed  Boolean   @default(false)
+  closedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, year, month])
+  @@index([companyId])
+  @@map("accounting_periods")
+}
+
+// ============================================
+// ERP MODULE: CLIENTS (COUNTERPARTIES)
+// ============================================
+
+enum ClientType {
+  COMPANY
+  SOLE_TRADER
+  INDIVIDUAL
+  GOVERNMENT
+  NON_PROFIT
+}
+
+enum ClientLocation {
+  LOCAL
+  EU
+  FOREIGN
+}
+
+enum ClientRole {
+  CUSTOMER
+  SUPPLIER
+  BOTH
+}
+
+model Client {
+  id String @id @default(cuid())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tenantId  String
+
+  // General
+  name      String
+  shortName String?
+  code      String?
+  type      String  @default("COMPANY")
+  role      String  @default("BOTH")
+  location  String  @default("LOCAL")
+  isActive  Boolean @default(true)
+
+  // Tax & Legal
+  vatCode             String?
+  businessLicenseCode String?
+  residentTaxCode     String?
+
+  // Contact
+  email       String?
+  phoneNumber String?
+  faxNumber   String?
+  contactInfo String?
+  notes       String?
+
+  // Individual
+  birthday DateTime?
+
+  // Financial
+  paymentTermsDays    Int?
+  payWithinDays       Int?
+  creditLimit         Decimal?
+  creditLimitCurrency String   @default("EUR")
+  automaticDebtRemind Boolean  @default(false)
+
+  // Registration Address
+  registrationCountryCode String?
+  registrationCity        String?
+  registrationAddress     String?
+  registrationZipCode     String?
+
+  // Correspondence Address
+  correspondenceCountryCode String?
+  correspondenceCity        String?
+  correspondenceAddress     String?
+  correspondenceZipCode     String?
+
+  // Banking
+  bankAccount   String?
+  bankName      String?
+  bankCode      String?
+  bankSwiftCode String?
+
+  // Accounting
+  receivableAccountId String?
+  payableAccountId    String?
+
+  // Document relations
+  saleDocuments     SaleDocument[]     @relation("SaleClient")
+  purchaseDocuments PurchaseDocument[] @relation("PurchaseSupplier")
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId, name])
+  @@index([companyId, code])
+  @@index([companyId, role])
+  @@index([companyId, email])
+  @@index([companyId, vatCode])
+  @@index([companyId, isActive])
+  @@index([companyId, tenantId])
+}
+
+// ============================================
+// ERP MODULE: WAREHOUSES
+// ============================================
+
+model Warehouse {
+  id        String @id @default(cuid())
+  companyId String
+
+  name      String
+  code      String?
+  isDefault Boolean @default(false)
+  isActive  Boolean @default(true)
+  address   String?
+
+  responsibleEmployeeId String?
+  responsibleEmployee   Employee? @relation("WarehouseResponsible", fields: [responsibleEmployeeId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@index([companyId, isActive])
+  @@map("warehouses")
+}
+
+// ============================================
+// ERP MODULE: OPERATION TYPES
+// ============================================
+
+model OperationType {
+  id        String @id @default(cuid())
+  companyId String
+
+  name   String
+  code   String
+  module String @default("PURCHASE")
+
+  debitAccountCode   String?
+  creditAccountCode  String?
+  vatAccountCode     String?
+  expenseAccountCode String?
+  revenueAccountCode String?
+  advanceAccountCode String?
+
+  affectsWarehouse Boolean @default(true)
+  affectsVat       Boolean @default(true)
+
+  isActive Boolean @default(true)
+  priority Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([companyId, module])
+  @@map("operation_types")
+}
+
+// ============================================
+// ERP MODULE: VAT RATES
+// ============================================
+
+model VatRate {
+  id        String @id @default(cuid())
+  companyId String
+
+  name     String
+  rate     Decimal
+  code     String?
+  category String  @default("STANDARD")
+
+  isDefault     Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  effectiveFrom DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([companyId, isActive])
+  @@map("vat_rates")
+}
+
+// ============================================
+// ERP MODULE: EMPLOYEES
+// ============================================
+
+model Employee {
+  id        String @id @default(cuid())
+  companyId String
+
+  name       String
+  code       String?
+  position   String?
+  department String?
+  email      String?
+  phone      String?
+  isActive   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  warehouses Warehouse[] @relation("WarehouseResponsible")
+
+  @@index([companyId])
+  @@index([companyId, isActive])
+  @@map("employees")
+}
+
+// ============================================
+// ERP MODULE: ITEMS (PRODUCTS / SERVICES)
+// ============================================
+
+model Item {
+  id        String @id @default(cuid())
+  companyId String
+
+  name    String
+  code    String?
+  barcode String?
+
+  vatRate         Decimal?
+  priceWithoutVat Decimal?
+  priceWithVat    Decimal?
+
+  attributeName   String?
+  groupName       String?
+  manufacturer    String?
+  countryOfOrigin String?
+
+  unitName String
+
+  purchaseAccountCode String?
+  saleAccountCode     String?
+  expenseAccountCode  String?
+
+  minimumQuantity Decimal?
+  description     String?
+  externalId      String?
+  freePrice       Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([code])
+  @@index([barcode])
+  @@map("items")
+}
+
+// ============================================
+// ERP MODULE: SALES
+// ============================================
+
+model SaleDocument {
+  id        String @id @default(cuid())
+  companyId String
+
+  saleDate       DateTime
+  payUntil       DateTime?
+  accountingDate DateTime?
+  lockedAt       DateTime?
+
+  series String
+  number String
+
+  clientId   String?
+  clientName String
+  clientCode String?
+  payerName  String?
+  payerCode  String?
+
+  unloadAddress String?
+  unloadCity    String?
+  warehouseName String
+
+  operationType String
+  currencyCode  String
+  employeeName  String?
+  status        String?
+  comments      String?
+
+  debitAccountId  String?
+  creditAccountId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items   SaleItem[]
+  company Company    @relation(fields: [companyId], references: [id])
+  client  Client?    @relation("SaleClient", fields: [clientId], references: [id])
+
+  @@unique([companyId, series, number])
+  @@index([companyId])
+  @@index([saleDate])
+  @@index([clientId])
+  @@map("sale_documents")
+}
+
+model SaleItem {
+  id     String @id @default(cuid())
+  saleId String
+
+  itemName String
+  itemCode String?
+  barcode  String?
+
+  quantity        Decimal
+  priceWithoutVat Decimal
+  unitDiscount    Decimal?
+  vatRate         Decimal?
+  vatClassifier   String?
+
+  salesAccountCode   String?
+  expenseAccountCode String?
+  costCenter         String?
+
+  postscript String?
+  accComment String?
+
+  intraTransactionCode String?
+  intraDeliveryTerms   String?
+  intraTransportCode   String?
+  intraCountryCode     String?
+  intrastatWeightNetto Decimal?
+  vatRateName          String?
+
+  sale SaleDocument @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@map("sale_items")
+}
+
+// ============================================
+// ERP MODULE: PURCHASES
+// ============================================
+
+model PurchaseDocument {
+  id        String @id @default(cuid())
+  companyId String
+
+  purchaseDate       DateTime
+  payUntil           DateTime?
+  advancePaymentDate DateTime?
+
+  series String
+  number String
+
+  supplierId      String?
+  supplierName    String
+  supplierCode    String?
+  advanceEmployee String?
+
+  warehouseName String
+
+  operationType String
+  currencyCode  String
+  employeeName  String?
+  comments      String?
+  status        String?
+
+  debitAccountId  String?
+  creditAccountId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items    PurchaseItem[]
+  company  Company        @relation(fields: [companyId], references: [id])
+  supplier Client?        @relation("PurchaseSupplier", fields: [supplierId], references: [id])
+
+  @@unique([companyId, series, number])
+  @@index([companyId])
+  @@index([purchaseDate])
+  @@index([supplierId])
+  @@map("purchase_documents")
+}
+
+model PurchaseItem {
+  id         String @id @default(cuid())
+  purchaseId String
+
+  itemName String
+  itemCode String?
+  barcode  String?
+
+  quantity        Decimal
+  priceWithoutVat Decimal
+  unitDiscount    Decimal?
+  vatRate         Decimal?
+  vatClassifier   String?
+
+  corAccountCode String?
+  costCenter     String?
+
+  notes        String?
+  accComment   String?
+  carRegNumber String?
+  fuelCard     String?
+
+  intraTransactionCode     String?
+  intraDeliveryTerms       String?
+  intraTransportCode       String?
+  intraCountryOfOriginCode String?
+  intrastatWeightNetto     Decimal?
+
+  vatRegister String?
+  gpaisMethod String?
+
+  purchase PurchaseDocument @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+  @@map("purchase_items")
+}
+
+// ============================================
+// ERP MODULE: STOCK MOVEMENTS
+// ============================================
+
+model StockMovement {
+  id        String @id @default(cuid())
+  companyId String
+
+  warehouseName String
+  operationType String
+  documentDate  DateTime
+  series        String
+  number        String
+
+  itemName String
+  itemCode String?
+  barcode  String?
+
+  quantity        Decimal
+  cost            Decimal
+  vatRate         Decimal?
+  priceWithoutVat Decimal?
+  priceWithVat    Decimal?
+
+  attributeName   String?
+  groupName       String?
+  manufacturer    String?
+  countryOfOrigin String?
+  unitName        String?
+
+  purchaseAccountCode String?
+  saleAccountCode     String?
+  expenseAccountCode  String?
+
+  minimumQuantity Decimal?
+  description     String?
+  externalId      String?
+  freePrice       Boolean  @default(false)
+
+  direction    String
+  documentType String
+  documentId   String?
+
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([documentDate])
+  @@index([warehouseName])
+  @@index([itemCode])
+  @@index([direction])
+  @@index([documentId])
+  @@map("stock_movements")
+}
+
+// ============================================
+// ERP MODULE: BANK STATEMENTS
+// ============================================
+
+model BankStatement {
+  id        String @id @default(cuid())
+  companyId String
+
+  accountNumber String
+  currencyCode  String
+  period        DateTime
+
+  transactionNumber String
+  amount            Decimal
+  operationType     Int
+
+  clientName        String
+  clientCode        String?
+  clientBankAccount String?
+
+  paymentPurpose String?
+
+  correspondenceAccountCode String?
+  correspondenceAccountName String?
+
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, transactionNumber])
+  @@index([companyId])
+  @@index([period])
+  @@map("bank_statements")
+}
+journal
+
+fifoService
+
+reposting
+
+periodLock
+
+trial balance/api/company/[companyId]/*UI
+↓
+API
+↓
+Services
+↓
+Prisma
+↓
+PostgreSQL# Solar ERP Code Map
+
+This document describes how the Solar ERP codebase is structured.
+
+Solar ERP follows a layered architecture:
+
+modules → services → API → database
+
+---
+
+## Modules (Domain Layer)
+
+Business domains are organized as ERP modules.
+
+Examples:
+
+- clients
+- products
+- purchases
+- sales
+- warehouse
+- accounting
+- reports
+
+Modules define business entities and workflows.
+
+---
+
+## Services (Business Logic Layer)
+
+Business logic lives in:
+
+lib/
+
+Important service groups:
+
+lib/accounting
+lib/auth
+lib/company
+lib/onboarding
+lib/services
+
+Examples:
+
+- fifoService
+- journalService
+- repostingService
+- stockService
+- periodLock
+- documentNumberService
+
+Services implement ERP rules and domain logic.
+
+---
+
+## API Layer
+
+The API layer exposes services to the frontend.
+
+Location:
+
+app/api/
+
+Main pattern:
+
+/api/company/[companyId]/*
+
+Example endpoints:
+
+- clients
+- products
+- purchases
+- sales
+- warehouse
+- reports
+
+API routes should remain thin controllers.
+
+They call services from lib/.
+
+---
+
+## Database Layer
+
+Database schema is defined using Prisma.
+
+Location:
+
+prisma/schema.prisma
+
+Migrations:
+
+prisma/migrations
+
+Rules:
+
+- every entity contains tenantId
+- Prisma enforces relations
+- monetary values use Decimal# Solar ERP Data Flow
+
+Solar ERP processes business events through a layered pipeline:
+
+document
+→ warehouse movement
+→ inventory valuation
+→ accounting entry
+→ financial reports
+
+This document describes how business events propagate through the ERP system.
+
+---
+
+## Purchase Flow
+
+purchase document
+→ warehouse movement
+→ inventory layers update
+→ FIFO cost layer creation
+→ accounting journal entry
+
+Responsible services:
+
+- stockService
+- fifoService
+- journalService
+
+---
+
+## Sales Flow
+
+sales document
+→ revenue recognition
+→ FIFO inventory reduction
+→ cost of goods sold (COGS)
+→ accounting journal entry
+
+Responsible services:
+
+- fifoService
+- journalService
+
+---
+
+## Reposting Flow
+
+document update
+→ remove previous accounting entries
+→ recalculate FIFO layers
+→ recreate accounting journal entries
+
+Responsible services:
+
+- repostingService
+- fifoService
+- journalService
+
+---
+
+## Adjustment Flow
+
+manual adjustment
+→ warehouse movement correction
+→ FIFO layers recalculation
+→ accounting adjustment entry
+
+Responsible services:
+
+- stockService
+- fifoService
+- journalService
+
+---
+
+## Manual Accounting Flow
+
+manual journal entry
+→ validate accounts
+→ create journal entry
+→ update financial reports
+
+Responsible services:
+
+- journalService# Solar ERP Document Actions
+
+Solar ERP documents support several standard actions.
+
+These actions control the lifecycle of business documents.
+
+---
+
+## Post
+
+The post action finalizes a document.
+
+Effects:
+
+- document status changes from draft → posted
+- accounting entries are created
+- warehouse movements are generated
+- document becomes immutable
+
+Posting logic uses:
+
+- journalService
+- stockService
+- fifoService
+
+---
+
+## Cancel
+
+Cancel reverses the effect of a posted document.
+
+Effects:
+
+- accounting entries are reversed
+- warehouse movements are reversed
+- document status becomes cancelled
+
+Cancel operations must preserve accounting balance.
+
+---
+
+## Repost
+
+Repost recalculates accounting and inventory.
+
+Used when:
+
+- document data changes
+- FIFO layers must be recalculated
+- accounting entries must be regenerated
+
+Effects:
+
+- remove existing journal entries
+- recompute FIFO inventory layers
+- recreate accounting entries
+
+Handled by:
+
+- repostingService
+- fifoService
+- journalService
+
+---
+
+## Copy
+
+Copy creates a new draft document based on an existing one.
+
+Rules:
+
+- copied document resets lifecycle state
+- copied document receives new document number
+- accounting entries are not copied
+
+Used to quickly create similar documents.
+
+---
+
+## Close Period
+
+Closing an accounting period prevents further modifications.
+
+Rules:
+
+- documents cannot be posted into closed periods
+- existing documents cannot be modified
+- corrections must use adjusting entries
+
+Period closing is handled by:
+
+lib/accounting/periodLockdraft
+→ posted
+→ accounting
+→ warehouse# Solar ERP Document Model
+
+Solar ERP is a document-driven system.
+
+Business processes are implemented through documents.
+
+Documents control accounting, warehouse movements and financial reporting.
+
+---
+
+## Document Types
+
+Solar ERP supports several document types.
+
+Main document categories:
+
+- purchase documents
+- sales documents
+- warehouse documents
+- manual journal entries
+
+Examples:
+
+purchase → increases inventory and creates payable  
+sale → creates revenue and cost of goods sold
+
+---
+
+## Document Lifecycle
+
+Documents follow a lifecycle.
+
+draft → posted → accounting → warehouse
+
+Stages:
+
+draft  
+- document can be edited  
+- no accounting impact  
+
+posted  
+- document becomes immutable  
+- accounting entries are created  
+
+accounting  
+- journal entries are generated  
+
+warehouse  
+- inventory movements are recorded
+
+---
+
+## Document Actions
+
+Documents support standard ERP actions.
+
+Available actions:
+
+- draft
+- post
+- cancel
+- copy
+- repost
+
+These actions are handled by the document engine.
+
+---
+
+## Document Integrity Rules
+
+Solar ERP enforces strict document integrity.
+
+Rules:
+
+- posted documents cannot change financial totals
+- corrections must use reposting or adjustments
+- accounting entries must always remain balanced
+
+These rules guarantee auditability.# Solar ERP Domain Map
+
+Solar ERP is structured as a set of interconnected business domains.
+
+Each domain represents a functional area of the ERP system.
+
+Domains communicate through documents, events and services.
+
+---
+
+## Core Domain
+
+Core domain manages system identity and tenant isolation.
+
+Components:
+
+- companies
+- users
+- authentication
+- onboarding
+
+Responsibilities:
+
+- tenant management
+- user access control
+- company initialization
+
+Services:
+
+lib/auth  
+lib/company  
+lib/onboarding
+
+---
+
+## Master Data Domain
+
+Master data stores business entities used by documents.
+
+Entities:
+
+- clients
+- products
+- employees
+- chart-of-accounts
+- vat-rates
+- operation-types
+- warehouses
+
+Responsibilities:
+
+- maintain business reference data
+- validate entities used in documents
+
+---
+
+## Document Domain
+
+Documents represent business transactions.
+
+Document types:
+
+- purchases
+- sales
+- warehouse adjustments
+- manual journal entries
+
+Responsibilities:
+
+- control document lifecycle
+- generate accounting entries
+- generate warehouse movements
+
+Services:
+
+documentEngine  
+repostingService
+
+---
+
+## Warehouse Domain
+
+Warehouse domain manages physical inventory.
+
+Components:
+
+- warehouses
+- warehouse movements
+- warehouse balances
+
+Responsibilities:
+
+- track stock levels
+- create inventory movements
+- maintain FIFO inventory layers
+
+Services:
+
+stockService  
+fifoService
+
+---
+
+## Accounting Domain
+
+Accounting domain records financial transactions.
+
+Components:
+
+- journal entries
+- accounting periods
+- chart of accounts
+- financial totals
+
+Responsibilities:
+
+- enforce double entry accounting
+- record financial transactions
+- calculate financial balances
+
+Services:
+
+journalService  
+periodLock
+
+---
+
+## Reporting Domain
+
+Reporting domain generates financial statements.
+
+Reports:
+
+- balance sheet
+- profit and loss
+- trial balance
+- inventory reports
+
+Responsibilities:
+
+- aggregate journal data
+- present financial information
+
+Reports derive data from:
+
+journal entries  
+inventory valuation
+
+---
+
+## Domain Interaction
+
+Domains interact through documents and events.
+
+Example purchase flow:
+
+purchase document  
+→ warehouse movement  
+→ FIFO valuation  
+→ accounting entry  
+→ financial reports
+
+This interaction guarantees system consistency.# ERP Invariants
+
+These are the fundamental invariants of the Solar ERP system.
+
+---
+
+## Double Entry Accounting
+
+All accounting transactions must follow double-entry principles.
+
+Every posting must create:
+
+- one debit entry
+- one credit entry
+
+Total debit must always equal total credit.
+
+---
+
+## Posting Rules
+
+Business documents generate accounting entries when posted.
+
+Examples:
+
+- purchase document → inventory + payable
+- sales document → receivable + revenue
+
+Posting logic must be implemented inside:
+
+lib/accounting/journalService
+
+---
+
+## Inventory Valuation
+
+Inventory must be valued using FIFO.
+
+Rules:
+
+- warehouse movements update inventory layers
+- cost of goods sold must follow FIFO layers
+- valuation logic lives inside fifoService
+
+---
+
+## Document Posting Invariants
+
+Documents follow lifecycle stages:
+
+draft → posted → accounting → warehouse
+
+Once a document is posted:
+
+- accounting entries must exist
+- warehouse movements must exist
+- document cannot change historical totals
+
+---
+
+## Tenant Isolation
+
+Solar ERP is a multi-tenant system.
+
+Rules:
+
+- every entity must include tenantId
+- queries must always filter by tenantId
+- cross-tenant data access is forbidden
+
+---
+
+## Accounting Period Locking
+
+Accounting periods can be locked.
+
+Rules:
+
+- transactions cannot be modified in locked periods
+- reposting must respect accounting period boundaries
+- corrections must be done via adjusting entries
+
+Period locking logic is implemented in:
+
+lib/accounting/periodLock
+
+---
+
+## Document Immutability
+
+Posted documents must be immutable.
+
+Rules:
+
+- posted documents cannot change financial totals
+- corrections must be done via reversal or adjustment
+- audit trail must be preserved
+
+Document mutation after posting is forbidden.# Solar ERP Philosophy
+
+Solar ERP follows strict accounting and inventory principles.
+
+The system is designed to guarantee financial correctness, inventory accuracy and auditability.
+
+---
+
+## Accounting Philosophy
+
+Solar ERP follows classical double-entry accounting.
+
+Rules:
+
+- every financial transaction must create balanced journal entries
+- total debit must always equal total credit
+- accounting entries are generated by business documents
+
+Accounting logic is implemented inside:
+
+lib/accounting/journalService
+
+---
+
+## Inventory Philosophy
+
+Inventory is treated as a financial asset.
+
+Rules:
+
+- every warehouse movement must affect inventory valuation
+- inventory valuation must follow FIFO
+- cost of goods sold must be derived from FIFO layers
+
+Inventory logic is implemented inside:
+
+lib/accounting/fifoService
+lib/accounting/stockService
+
+---
+
+## Document Lifecycle Philosophy
+
+Business documents drive system state.
+
+Documents follow lifecycle stages:
+
+draft → posted → accounting → warehouse
+
+Rules:
+
+- draft documents do not affect accounting
+- posted documents generate accounting entries
+- posted documents become immutable
+
+---
+
+## ERP Invariants
+
+Solar ERP guarantees the following invariants:
+
+- double entry accounting
+- tenant isolation
+- FIFO inventory valuation
+- accounting period locking
+- document immutability
+
+These invariants ensure financial integrity and auditability of the system.# Solar ERP Event Model
+
+Solar ERP follows an event-driven model.
+
+Business actions generate events that propagate through the system.
+
+Events trigger accounting, inventory and reporting updates.
+
+---
+
+## Core Event Flow
+
+document posted
+→ warehouse updated
+→ FIFO recalculated
+→ journal entries created
+→ financial reports updated
+
+This pipeline guarantees that business events are consistently reflected across the system.
+
+---
+
+## Document Posted Event
+
+When a document is posted, the system generates a **document_posted** event.
+
+Effects:
+
+- document becomes immutable
+- accounting entries are created
+- warehouse movements are generated
+
+Triggered services:
+
+- stockService
+- fifoService
+- journalService
+
+---
+
+## Warehouse Updated Event
+
+Warehouse movements generate **warehouse_updated** events.
+
+Effects:
+
+- inventory layers are updated
+- FIFO cost layers are recalculated
+
+Handled by:
+
+- stockService
+- fifoService
+
+---
+
+## FIFO Recalculated Event
+
+When inventory layers change, **fifo_recalculated** event occurs.
+
+Effects:
+
+- cost of goods sold (COGS) is recalculated
+- inventory valuation is updated
+
+Handled by:
+
+- fifoService
+
+---
+
+## Journal Created Event
+
+Accounting entries trigger **journal_created** events.
+
+Effects:
+
+- journal entries recorded
+- financial totals recalculated
+
+Handled by:
+
+- journalService
+
+---
+
+## Report Updated Event
+
+When accounting data changes, reports must be updated.
+
+Reports include:
+
+- balance sheet
+- profit and loss
+- trial balance
+
+Reports are derived from journal entries.
+
+---
+
+## Event Integrity
+
+Solar ERP events must preserve system invariants.
+
+Rules:
+
+- accounting must remain balanced
+- FIFO layers must remain consistent
+- tenant isolation must always be enforced# Solar ERP Financial Model
+
+This document describes the financial model used by Solar ERP.
+
+Solar ERP follows classical accounting principles used in modern ERP systems.
+
+---
+
+## Accounts
+
+Solar ERP uses a chart of accounts.
+
+Accounts are used to classify financial transactions.
+
+Typical account groups:
+
+- assets
+- liabilities
+- equity
+- revenue
+- expenses
+
+Examples:
+
+inventory → asset account  
+accounts receivable → asset account  
+accounts payable → liability account  
+revenue → income account  
+cost of goods sold → expense account
+
+---
+
+## Inventory Asset
+
+Inventory is treated as a financial asset.
+
+Rules:
+
+- inventory increases when goods are purchased
+- inventory decreases when goods are sold
+- inventory value is calculated using FIFO
+
+Inventory valuation is handled by:
+
+lib/accounting/fifoService
+
+---
+
+## Cost of Goods Sold (COGS)
+
+COGS represents the cost of inventory sold.
+
+Rules:
+
+- COGS is calculated from FIFO inventory layers
+- every sales document must generate COGS
+
+Example accounting entry:
+
+debit → cost of goods sold  
+credit → inventory
+
+---
+
+## Revenue Recognition
+
+Revenue is recognized when goods are sold.
+
+Example accounting entry:
+
+debit → accounts receivable  
+credit → revenue
+
+Revenue must be matched with COGS.
+
+This ensures correct profit calculation.
+
+---
+
+## Financial Statements
+
+Solar ERP generates financial reports based on journal entries.
+
+Main reports:
+
+- balance sheet
+- profit and loss
+- trial balance
+
+Reports are derived from:
+
+journal entries# Solar ERP Module Map
+
+Solar ERP consists of several functional domains.
+
+## Core
+
+- companies
+- users
+- authentication
+- onboarding
+
+## Master Data
+
+- clients
+- products
+- employees
+- chart-of-accounts
+- vat-rates
+- operation-types
+
+## Documents
+
+- purchases → inventory increase + accounts payable
+- sales → accounts receivable + revenue recognition
+
+## Warehouse
+
+- warehouses
+- warehouse movements
+- warehouse balances
+
+Warehouse movements are generated by:
+
+- purchases
+- sales
+- internal transfers
+
+## Inventory Control
+
+- stock valuation
+- FIFO layers
+- cost of goods sold
+
+## Accounting
+
+- journal entries
+- FIFO inventory valuation
+- reposting
+- accounting periods
+- financial reports
+
+## Reports
+
+- balance sheet
+- profit and loss
+- trial balance# Solar ERP Document State Machine
+
+Solar ERP documents follow a defined state machine.
+
+The state machine guarantees document integrity and prevents invalid transitions.
+
+---
+
+## Document States
+
+Business documents can exist in the following states:
+
+draft  
+posted  
+cancelled  
+
+Optional internal states:
+
+accounting_processed  
+warehouse_processed  
+
+---
+
+## State Transitions
+
+Allowed transitions:
+
+draft → posted  
+draft → cancelled  
+
+posted → cancelled  
+
+posted → reposted (via repost operation)
+
+Invalid transitions are forbidden.
+
+Examples:
+
+posted → draft ❌  
+cancelled → posted ❌  
+
+---
+
+## Draft State
+
+Draft documents:
+
+- can be edited
+- can be deleted
+- do not affect accounting
+- do not affect warehouse inventory
+
+Allowed actions:
+
+edit  
+copy  
+post  
+cancel
+
+---
+
+## Posted State
+
+Posted documents are finalized.
+
+Effects:
+
+- document becomes immutable
+- accounting entries are generated
+- warehouse movements are recorded
+
+Allowed actions:
+
+copy  
+cancel  
+repost
+
+Direct editing is forbidden.
+
+---
+
+## Cancelled State
+
+Cancelled documents represent reversed transactions.
+
+Effects:
+
+- accounting entries are reversed
+- warehouse movements are reversed
+- document is locked
+
+No further transitions allowed.
+
+---
+
+## Repost Operation
+
+Reposting is a special transition.
+
+posted → reposted → posted
+
+Steps:
+
+- remove previous accounting entries
+- recalculate FIFO layers
+- regenerate journal entries
+
+Handled by:
+
+repostingService
+
+---
+
+## Period Lock Interaction
+
+When an accounting period is closed:
+
+- documents cannot transition to posted
+- existing posted documents cannot be modified
+
+Period locking is handled by:
+
+lib/accounting/periodLock
+
+---
+
+## State Integrity Rules
+
+The state machine guarantees:
+
+- accounting integrity
+- warehouse consistency
+- auditability of documents
+
+Invalid transitions must always be rejected.warehouse
+warehouse movements
+inventory valuation
+FIFO

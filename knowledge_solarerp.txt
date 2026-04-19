@@ -1,0 +1,1443 @@
+# Solar AI Lab — Knowledge Base
+
+## Purpose
+Project-specific memory for Solar ERP + ICoder development team.
+Agents (Claude, Qwen, Dashka) read this before answering.
+
+## Structure
+```
+knowledge/
+  task-history/     ← Completed tasks with decisions and fixes
+  patterns/         ← Accepted solutions for recurring problems
+  failures/         ← What didn't work and why
+```
+
+## Team
+| Role | Agent | Provider |
+|------|-------|----------|
+| Architect | Leanid (L) | — |
+| Super-Senior / Auditor | Dashka (D) | ChatGPT |
+| Engineer | Claude (C) | Anthropic API |
+| Local Engineer | Qwen (Q) | Ollama :11434 |
+
+## Task Protocol
+- Task files: `d_c_gitkeeptask{N}.md` (Dashka → Claude)
+- Response files: `c_d_gitresponsetask{N}.md` (Claude → Dashka)
+- Tags: `L=>C`, `C=>D`, `D=>C`, `L=>D/C/Q`
+
+## Current Task Index
+| Task | Status | Summary |
+|------|--------|---------|
+| 57 | ✅ | Reference data: Warehouse, OperationType, VatRate, Employee |
+| 57.5 | ✅ | initialize-defaults endpoint (idempotent) |
+| 58 | ✅ | Google OAuth, company onboarding wizard, accounting bootstrap |
+| ICoder MVP-1 | ✅ | Qwen/Ollama provider added to ICoder |
+| ICoder MVP-2 | 🔜 | Task Memory (this file) |
+| 59 | 🔜 | Account Workspace / Company Switcher |
+
+## Key Invariants (never violate)
+1. Counterparty role = document-scoped, not entity-scoped (SAP standard)
+2. Reference tables scope to Company, not Client
+3. Seed must be idempotent (upsert + fixed IDs)
+4. pnpm build must pass before closing any task
+5. Schema changes: patch → migrate → generate → seed → build
+
+## Stack
+- Next.js 14.2, Prisma 5.22, PostgreSQL, TypeScript
+- Auth: HttpOnly cookie `solar_session`
+- Auth pattern: `requireTenant(request)` → `{ userId, tenantId }`
+- DB: PostgreSQL at 207.154.220.86:5433, database `solarerp`
+- Repo: Solarpaletten/solarerp
+journal
+
+fifoService
+
+reposting
+
+periodLock
+
+trial balance/api/company/[companyId]/*UI
+↓
+API
+↓
+Services
+↓
+Prisma
+↓
+PostgreSQL# Solar ERP Code Map
+
+This document describes how the Solar ERP codebase is structured.
+
+Solar ERP follows a layered architecture:
+
+modules → services → API → database
+
+---
+
+## Modules (Domain Layer)
+
+Business domains are organized as ERP modules.
+
+Examples:
+
+- clients
+- products
+- purchases
+- sales
+- warehouse
+- accounting
+- reports
+
+Modules define business entities and workflows.
+
+---
+
+## Services (Business Logic Layer)
+
+Business logic lives in:
+
+lib/
+
+Important service groups:
+
+lib/accounting
+lib/auth
+lib/company
+lib/onboarding
+lib/services
+
+Examples:
+
+- fifoService
+- journalService
+- repostingService
+- stockService
+- periodLock
+- documentNumberService
+
+Services implement ERP rules and domain logic.
+
+---
+
+## API Layer
+
+The API layer exposes services to the frontend.
+
+Location:
+
+app/api/
+
+Main pattern:
+
+/api/company/[companyId]/*
+
+Example endpoints:
+
+- clients
+- products
+- purchases
+- sales
+- warehouse
+- reports
+
+API routes should remain thin controllers.
+
+They call services from lib/.
+
+---
+
+## Database Layer
+
+Database schema is defined using Prisma.
+
+Location:
+
+prisma/schema.prisma
+
+Migrations:
+
+prisma/migrations
+
+Rules:
+
+- every entity contains tenantId
+- Prisma enforces relations
+- monetary values use Decimal# Failure: Cursor Continuum — No File Access Without Configuration
+
+## Date
+2026-03-14
+
+## Context
+Solar ERP team onboarding Qwen2.5 72B as local engineer.
+Testing two methods to give Qwen access to project files.
+
+## Problem
+Cursor Continuum (VS Code extension) reported:
+> "I don't have direct access to your filesystem. Please provide file contents."
+
+Even with `@codebase` command — returned generic Next.js description,
+not actual Solar ERP structure.
+
+## Root Cause
+Cursor file access requires workspace configuration.
+Without proper setup, `@codebase` gives generic responses.
+The extension reads package.json but NOT the actual src/ files.
+
+## What Worked Instead
+Terminal (Ollama CLI) with manually provided context:
+
+```bash
+cat ai-context/project-structure.txt | ollama run qwen2.5:72b
+```
+
+When Leanid provided `project-structure.txt` directly,
+Qwen correctly analyzed the full Solar ERP architecture.
+
+## Solution Applied
+Created `ai-context/` directory in solar-erp project:
+```
+ai-context/
+  project-structure.txt   ← tree output
+  file-list.txt           ← all file paths
+```
+
+Then in terminal:
+```bash
+cat ai-context/project-structure.txt
+# → paste output to Qwen in Ollama terminal
+```
+
+## Fix for Cursor
+To properly configure Cursor file access:
+1. Open project folder in Cursor (not just a file)
+2. Configure `.cursorrules` file in project root
+3. Use Agent mode (not Chat mode) for codebase access
+4. Verify with `@codebase explain this repository`
+
+## Accepted Pattern
+For now: **Terminal + ai-context/ files** is reliable.
+Cursor Continuum: needs configuration before it's useful.
+
+## Lesson
+Do not assume Cursor has file access.
+Always verify with a specific file question, not generic "explain".
+
+## Impact
+Low — Terminal method works well.
+Future: Configure Cursor properly for full power.
+# Solar ERP Data Flow
+
+Solar ERP processes business events through a layered pipeline:
+
+document
+→ warehouse movement
+→ inventory valuation
+→ accounting entry
+→ financial reports
+
+This document describes how business events propagate through the ERP system.
+
+---
+
+## Purchase Flow
+
+purchase document
+→ warehouse movement
+→ inventory layers update
+→ FIFO cost layer creation
+→ accounting journal entry
+
+Responsible services:
+
+- stockService
+- fifoService
+- journalService
+
+---
+
+## Sales Flow
+
+sales document
+→ revenue recognition
+→ FIFO inventory reduction
+→ cost of goods sold (COGS)
+→ accounting journal entry
+
+Responsible services:
+
+- fifoService
+- journalService
+
+---
+
+## Reposting Flow
+
+document update
+→ remove previous accounting entries
+→ recalculate FIFO layers
+→ recreate accounting journal entries
+
+Responsible services:
+
+- repostingService
+- fifoService
+- journalService
+
+---
+
+## Adjustment Flow
+
+manual adjustment
+→ warehouse movement correction
+→ FIFO layers recalculation
+→ accounting adjustment entry
+
+Responsible services:
+
+- stockService
+- fifoService
+- journalService
+
+---
+
+## Manual Accounting Flow
+
+manual journal entry
+→ validate accounts
+→ create journal entry
+→ update financial reports
+
+Responsible services:
+
+- journalService# Solar ERP Document Actions
+
+Solar ERP documents support several standard actions.
+
+These actions control the lifecycle of business documents.
+
+---
+
+## Post
+
+The post action finalizes a document.
+
+Effects:
+
+- document status changes from draft → posted
+- accounting entries are created
+- warehouse movements are generated
+- document becomes immutable
+
+Posting logic uses:
+
+- journalService
+- stockService
+- fifoService
+
+---
+
+## Cancel
+
+Cancel reverses the effect of a posted document.
+
+Effects:
+
+- accounting entries are reversed
+- warehouse movements are reversed
+- document status becomes cancelled
+
+Cancel operations must preserve accounting balance.
+
+---
+
+## Repost
+
+Repost recalculates accounting and inventory.
+
+Used when:
+
+- document data changes
+- FIFO layers must be recalculated
+- accounting entries must be regenerated
+
+Effects:
+
+- remove existing journal entries
+- recompute FIFO inventory layers
+- recreate accounting entries
+
+Handled by:
+
+- repostingService
+- fifoService
+- journalService
+
+---
+
+## Copy
+
+Copy creates a new draft document based on an existing one.
+
+Rules:
+
+- copied document resets lifecycle state
+- copied document receives new document number
+- accounting entries are not copied
+
+Used to quickly create similar documents.
+
+---
+
+## Close Period
+
+Closing an accounting period prevents further modifications.
+
+Rules:
+
+- documents cannot be posted into closed periods
+- existing documents cannot be modified
+- corrections must use adjusting entries
+
+Period closing is handled by:
+
+lib/accounting/periodLockdraft
+→ posted
+→ accounting
+→ warehouse# Solar ERP Document Model
+
+Solar ERP is a document-driven system.
+
+Business processes are implemented through documents.
+
+Documents control accounting, warehouse movements and financial reporting.
+
+---
+
+## Document Types
+
+Solar ERP supports several document types.
+
+Main document categories:
+
+- purchase documents
+- sales documents
+- warehouse documents
+- manual journal entries
+
+Examples:
+
+purchase → increases inventory and creates payable  
+sale → creates revenue and cost of goods sold
+
+---
+
+## Document Lifecycle
+
+Documents follow a lifecycle.
+
+draft → posted → accounting → warehouse
+
+Stages:
+
+draft  
+- document can be edited  
+- no accounting impact  
+
+posted  
+- document becomes immutable  
+- accounting entries are created  
+
+accounting  
+- journal entries are generated  
+
+warehouse  
+- inventory movements are recorded
+
+---
+
+## Document Actions
+
+Documents support standard ERP actions.
+
+Available actions:
+
+- draft
+- post
+- cancel
+- copy
+- repost
+
+These actions are handled by the document engine.
+
+---
+
+## Document Integrity Rules
+
+Solar ERP enforces strict document integrity.
+
+Rules:
+
+- posted documents cannot change financial totals
+- corrections must use reposting or adjustments
+- accounting entries must always remain balanced
+
+These rules guarantee auditability.# Solar ERP Domain Map
+
+Solar ERP is structured as a set of interconnected business domains.
+
+Each domain represents a functional area of the ERP system.
+
+Domains communicate through documents, events and services.
+
+---
+
+## Core Domain
+
+Core domain manages system identity and tenant isolation.
+
+Components:
+
+- companies
+- users
+- authentication
+- onboarding
+
+Responsibilities:
+
+- tenant management
+- user access control
+- company initialization
+
+Services:
+
+lib/auth  
+lib/company  
+lib/onboarding
+
+---
+
+## Master Data Domain
+
+Master data stores business entities used by documents.
+
+Entities:
+
+- clients
+- products
+- employees
+- chart-of-accounts
+- vat-rates
+- operation-types
+- warehouses
+
+Responsibilities:
+
+- maintain business reference data
+- validate entities used in documents
+
+---
+
+## Document Domain
+
+Documents represent business transactions.
+
+Document types:
+
+- purchases
+- sales
+- warehouse adjustments
+- manual journal entries
+
+Responsibilities:
+
+- control document lifecycle
+- generate accounting entries
+- generate warehouse movements
+
+Services:
+
+documentEngine  
+repostingService
+
+---
+
+## Warehouse Domain
+
+Warehouse domain manages physical inventory.
+
+Components:
+
+- warehouses
+- warehouse movements
+- warehouse balances
+
+Responsibilities:
+
+- track stock levels
+- create inventory movements
+- maintain FIFO inventory layers
+
+Services:
+
+stockService  
+fifoService
+
+---
+
+## Accounting Domain
+
+Accounting domain records financial transactions.
+
+Components:
+
+- journal entries
+- accounting periods
+- chart of accounts
+- financial totals
+
+Responsibilities:
+
+- enforce double entry accounting
+- record financial transactions
+- calculate financial balances
+
+Services:
+
+journalService  
+periodLock
+
+---
+
+## Reporting Domain
+
+Reporting domain generates financial statements.
+
+Reports:
+
+- balance sheet
+- profit and loss
+- trial balance
+- inventory reports
+
+Responsibilities:
+
+- aggregate journal data
+- present financial information
+
+Reports derive data from:
+
+journal entries  
+inventory valuation
+
+---
+
+## Domain Interaction
+
+Domains interact through documents and events.
+
+Example purchase flow:
+
+purchase document  
+→ warehouse movement  
+→ FIFO valuation  
+→ accounting entry  
+→ financial reports
+
+This interaction guarantees system consistency.# ERP Invariants
+
+These are the fundamental invariants of the Solar ERP system.
+
+---
+
+## Double Entry Accounting
+
+All accounting transactions must follow double-entry principles.
+
+Every posting must create:
+
+- one debit entry
+- one credit entry
+
+Total debit must always equal total credit.
+
+---
+
+## Posting Rules
+
+Business documents generate accounting entries when posted.
+
+Examples:
+
+- purchase document → inventory + payable
+- sales document → receivable + revenue
+
+Posting logic must be implemented inside:
+
+lib/accounting/journalService
+
+---
+
+## Inventory Valuation
+
+Inventory must be valued using FIFO.
+
+Rules:
+
+- warehouse movements update inventory layers
+- cost of goods sold must follow FIFO layers
+- valuation logic lives inside fifoService
+
+---
+
+## Document Posting Invariants
+
+Documents follow lifecycle stages:
+
+draft → posted → accounting → warehouse
+
+Once a document is posted:
+
+- accounting entries must exist
+- warehouse movements must exist
+- document cannot change historical totals
+
+---
+
+## Tenant Isolation
+
+Solar ERP is a multi-tenant system.
+
+Rules:
+
+- every entity must include tenantId
+- queries must always filter by tenantId
+- cross-tenant data access is forbidden
+
+---
+
+## Accounting Period Locking
+
+Accounting periods can be locked.
+
+Rules:
+
+- transactions cannot be modified in locked periods
+- reposting must respect accounting period boundaries
+- corrections must be done via adjusting entries
+
+Period locking logic is implemented in:
+
+lib/accounting/periodLock
+
+---
+
+## Document Immutability
+
+Posted documents must be immutable.
+
+Rules:
+
+- posted documents cannot change financial totals
+- corrections must be done via reversal or adjustment
+- audit trail must be preserved
+
+Document mutation after posting is forbidden.# Solar ERP Philosophy
+
+Solar ERP follows strict accounting and inventory principles.
+
+The system is designed to guarantee financial correctness, inventory accuracy and auditability.
+
+---
+
+## Accounting Philosophy
+
+Solar ERP follows classical double-entry accounting.
+
+Rules:
+
+- every financial transaction must create balanced journal entries
+- total debit must always equal total credit
+- accounting entries are generated by business documents
+
+Accounting logic is implemented inside:
+
+lib/accounting/journalService
+
+---
+
+## Inventory Philosophy
+
+Inventory is treated as a financial asset.
+
+Rules:
+
+- every warehouse movement must affect inventory valuation
+- inventory valuation must follow FIFO
+- cost of goods sold must be derived from FIFO layers
+
+Inventory logic is implemented inside:
+
+lib/accounting/fifoService
+lib/accounting/stockService
+
+---
+
+## Document Lifecycle Philosophy
+
+Business documents drive system state.
+
+Documents follow lifecycle stages:
+
+draft → posted → accounting → warehouse
+
+Rules:
+
+- draft documents do not affect accounting
+- posted documents generate accounting entries
+- posted documents become immutable
+
+---
+
+## ERP Invariants
+
+Solar ERP guarantees the following invariants:
+
+- double entry accounting
+- tenant isolation
+- FIFO inventory valuation
+- accounting period locking
+- document immutability
+
+These invariants ensure financial integrity and auditability of the system.# Solar ERP Event Model
+
+Solar ERP follows an event-driven model.
+
+Business actions generate events that propagate through the system.
+
+Events trigger accounting, inventory and reporting updates.
+
+---
+
+## Core Event Flow
+
+document posted
+→ warehouse updated
+→ FIFO recalculated
+→ journal entries created
+→ financial reports updated
+
+This pipeline guarantees that business events are consistently reflected across the system.
+
+---
+
+## Document Posted Event
+
+When a document is posted, the system generates a **document_posted** event.
+
+Effects:
+
+- document becomes immutable
+- accounting entries are created
+- warehouse movements are generated
+
+Triggered services:
+
+- stockService
+- fifoService
+- journalService
+
+---
+
+## Warehouse Updated Event
+
+Warehouse movements generate **warehouse_updated** events.
+
+Effects:
+
+- inventory layers are updated
+- FIFO cost layers are recalculated
+
+Handled by:
+
+- stockService
+- fifoService
+
+---
+
+## FIFO Recalculated Event
+
+When inventory layers change, **fifo_recalculated** event occurs.
+
+Effects:
+
+- cost of goods sold (COGS) is recalculated
+- inventory valuation is updated
+
+Handled by:
+
+- fifoService
+
+---
+
+## Journal Created Event
+
+Accounting entries trigger **journal_created** events.
+
+Effects:
+
+- journal entries recorded
+- financial totals recalculated
+
+Handled by:
+
+- journalService
+
+---
+
+## Report Updated Event
+
+When accounting data changes, reports must be updated.
+
+Reports include:
+
+- balance sheet
+- profit and loss
+- trial balance
+
+Reports are derived from journal entries.
+
+---
+
+## Event Integrity
+
+Solar ERP events must preserve system invariants.
+
+Rules:
+
+- accounting must remain balanced
+- FIFO layers must remain consistent
+- tenant isolation must always be enforced# Solar ERP Financial Model
+
+This document describes the financial model used by Solar ERP.
+
+Solar ERP follows classical accounting principles used in modern ERP systems.
+
+---
+
+## Accounts
+
+Solar ERP uses a chart of accounts.
+
+Accounts are used to classify financial transactions.
+
+Typical account groups:
+
+- assets
+- liabilities
+- equity
+- revenue
+- expenses
+
+Examples:
+
+inventory → asset account  
+accounts receivable → asset account  
+accounts payable → liability account  
+revenue → income account  
+cost of goods sold → expense account
+
+---
+
+## Inventory Asset
+
+Inventory is treated as a financial asset.
+
+Rules:
+
+- inventory increases when goods are purchased
+- inventory decreases when goods are sold
+- inventory value is calculated using FIFO
+
+Inventory valuation is handled by:
+
+lib/accounting/fifoService
+
+---
+
+## Cost of Goods Sold (COGS)
+
+COGS represents the cost of inventory sold.
+
+Rules:
+
+- COGS is calculated from FIFO inventory layers
+- every sales document must generate COGS
+
+Example accounting entry:
+
+debit → cost of goods sold  
+credit → inventory
+
+---
+
+## Revenue Recognition
+
+Revenue is recognized when goods are sold.
+
+Example accounting entry:
+
+debit → accounts receivable  
+credit → revenue
+
+Revenue must be matched with COGS.
+
+This ensures correct profit calculation.
+
+---
+
+## Financial Statements
+
+Solar ERP generates financial reports based on journal entries.
+
+Main reports:
+
+- balance sheet
+- profit and loss
+- trial balance
+
+Reports are derived from:
+
+journal entries# Solar ERP Module Map
+
+Solar ERP consists of several functional domains.
+
+## Core
+
+- companies
+- users
+- authentication
+- onboarding
+
+## Master Data
+
+- clients
+- products
+- employees
+- chart-of-accounts
+- vat-rates
+- operation-types
+
+## Documents
+
+- purchases → inventory increase + accounts payable
+- sales → accounts receivable + revenue recognition
+
+## Warehouse
+
+- warehouses
+- warehouse movements
+- warehouse balances
+
+Warehouse movements are generated by:
+
+- purchases
+- sales
+- internal transfers
+
+## Inventory Control
+
+- stock valuation
+- FIFO layers
+- cost of goods sold
+
+## Accounting
+
+- journal entries
+- FIFO inventory valuation
+- reposting
+- accounting periods
+- financial reports
+
+## Reports
+
+- balance sheet
+- profit and loss
+- trial balance# Pattern: Ollama / Qwen Local Provider Integration
+
+## Context
+ICoder Plus — AI Development Platform
+Mac Mini M4 server, Ollama local inference
+
+## Problem
+Need local AI provider alongside cloud providers (OpenAI, Anthropic, DeepSeek).
+Local model = no data leaves server, works offline, no API costs.
+
+## Solution
+Add `ollama` as 4th provider in backend AI gateway.
+
+## Backend — aiRoutes.js
+```javascript
+// Handler
+async function handleOllama(messages) {
+  const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
+  const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:72b';
+
+  const response = await fetch(`${OLLAMA_URL}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: OLLAMA_MODEL,
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+      stream: false
+    }),
+    signal: AbortSignal.timeout(120000)  // ← CRITICAL: 72B model is slow
+  });
+
+  const data = await response.json();
+  return {
+    success: true,
+    response: data.message?.content || '',
+    usage: {
+      prompt_tokens: data.prompt_eval_count || 0,
+      completion_tokens: data.eval_count || 0,
+      total_tokens: (data.prompt_eval_count || 0) + (data.eval_count || 0)
+    }
+  };
+}
+
+// Health check
+async function testOllama() {
+  const response = await fetch('http://localhost:11434/api/tags',
+    { signal: AbortSignal.timeout(5000) }
+  );
+  const data = await response.json();
+  return data.models?.some(m => m.name.includes('qwen')) || false;
+}
+
+// Router
+case 'ollama':
+  result = await handleOllama(messages);
+  break;
+```
+
+## Frontend — AIService.ts
+```typescript
+// Add to provider type
+type Provider = 'openai' | 'anthropic' | 'deepseek' | 'ollama';
+
+// Add to mapping
+private mapAssistantToProvider(assistant: string) {
+  const mapping = {
+    'Dashka':   'openai',
+    'Claude':   'anthropic',
+    'DeepSeek': 'deepseek',
+    'Qwen':     'ollama'    // ← NEW
+  };
+}
+
+// Add method
+async sendToQwen(message: string): Promise<AIResponse> {
+  return this.sendMessageToBackend('ollama', [{
+    role: 'system',
+    content: 'Ты Qwen — локальный инженер Solar ERP. Работаешь на Mac Mini M4 через Ollama. Отвечай кратко и по делу.',
+    timestamp: Date.now()
+  }, {
+    role: 'user', content: message, timestamp: Date.now()
+  }]);
+}
+```
+
+## Frontend — types/index.ts
+```typescript
+export type AgentType = 'dashka' | 'claudy' | 'qwen';  // add 'qwen'
+```
+
+## Frontend — AIAssistant.tsx
+```tsx
+// Add to AGENTS array
+{ id: 'qwen', label: 'Qwen', emoji: '⚡',
+  description: 'Local engineer — Qwen2.5 72B on Mac M4',
+  color: 'bg-emerald-600' }
+```
+
+## Key Learnings
+- Timeout 120000ms (2 min) is REQUIRED — 72B model first tokens are slow
+- Use `/api/tags` endpoint to detect if Qwen model is loaded
+- Mock fallback prevents UI crash when Ollama is down
+- `stream: false` simplifies response handling vs streaming
+- Model name check: `m.name.includes('qwen')` — works for qwen2.5:72b
+
+## Environment Variables (.env)
+```
+OLLAMA_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:72b
+```
+
+## Architecture Result
+```
+ICoder Frontend
+      │
+ICoder Backend AI Gateway
+      ├── OpenAI    (Dashka — architect)
+      ├── Anthropic (Claude — engineer)
+      ├── DeepSeek  (optimizer)
+      └── Ollama    (Qwen — local engineer)  ← NEW
+```
+# Solar ERP Document State Machine
+
+Solar ERP documents follow a defined state machine.
+
+The state machine guarantees document integrity and prevents invalid transitions.
+
+---
+
+## Document States
+
+Business documents can exist in the following states:
+
+draft  
+posted  
+cancelled  
+
+Optional internal states:
+
+accounting_processed  
+warehouse_processed  
+
+---
+
+## State Transitions
+
+Allowed transitions:
+
+draft → posted  
+draft → cancelled  
+
+posted → cancelled  
+
+posted → reposted (via repost operation)
+
+Invalid transitions are forbidden.
+
+Examples:
+
+posted → draft ❌  
+cancelled → posted ❌  
+
+---
+
+## Draft State
+
+Draft documents:
+
+- can be edited
+- can be deleted
+- do not affect accounting
+- do not affect warehouse inventory
+
+Allowed actions:
+
+edit  
+copy  
+post  
+cancel
+
+---
+
+## Posted State
+
+Posted documents are finalized.
+
+Effects:
+
+- document becomes immutable
+- accounting entries are generated
+- warehouse movements are recorded
+
+Allowed actions:
+
+copy  
+cancel  
+repost
+
+Direct editing is forbidden.
+
+---
+
+## Cancelled State
+
+Cancelled documents represent reversed transactions.
+
+Effects:
+
+- accounting entries are reversed
+- warehouse movements are reversed
+- document is locked
+
+No further transitions allowed.
+
+---
+
+## Repost Operation
+
+Reposting is a special transition.
+
+posted → reposted → posted
+
+Steps:
+
+- remove previous accounting entries
+- recalculate FIFO layers
+- regenerate journal entries
+
+Handled by:
+
+repostingService
+
+---
+
+## Period Lock Interaction
+
+When an accounting period is closed:
+
+- documents cannot transition to posted
+- existing posted documents cannot be modified
+
+Period locking is handled by:
+
+lib/accounting/periodLock
+
+---
+
+## State Integrity Rules
+
+The state machine guarantees:
+
+- accounting integrity
+- warehouse consistency
+- auditability of documents
+
+Invalid transitions must always be rejected.# Task 58 — Google OAuth + Company Onboarding + Accounting Bootstrap
+
+## Status
+✅ CLOSED | Verified on 2 machines
+
+## Problem
+After git reset, 17 of 18 Task 58 files were missing from project.
+Migration history deleted. Only schema.prisma and seed.ts remained.
+
+## Architecture Decisions
+- `passwordHash String?` — nullable for Google users (no password)
+- `CompanyUser` model — links User↔Company with role (OWNER/ACCOUNTANT/etc)
+- `DocumentSequence` model — PUR-2026-00001 counter per company
+- `googleId @unique` + `@@index([googleId])` — fast Google lookup
+- Counterparty role is document-scoped, not entity-scoped (SAP standard)
+
+## Files Changed (17 files)
+```
+lib/auth/googleAuthService.ts
+lib/company/companyAccessService.ts
+lib/onboarding/companyBootstrapService.ts
+lib/onboarding/templateResolver.ts
+lib/onboarding/templates/types.ts
+lib/onboarding/templates/lt_uab_vat.ts
+lib/onboarding/templates/global_default.ts
+lib/onboarding/templates/chart_of_accounts/global_default.ts
+lib/onboarding/templates/chart_of_accounts/lt_uab.ts
+lib/onboarding/templates/chart_of_accounts/de_gmbh.ts
+lib/services/documentNumberService.ts
+app/api/auth/google/route.ts
+app/api/auth/google/callback/route.ts
+app/api/auth/forgot-password/SCAFFOLDS_AND_ENV.ts
+app/api/account/onboarding/route.ts
+app/api/account/onboarding/company/route.ts
+app/(auth)/onboarding/page.tsx
+```
+
+## Schema Additions
+```prisma
+model User {
+  passwordHash String?   // was String (required)
+  surname      String?
+  phone        String?
+  googleId     String?  @unique
+  avatarUrl    String?
+  companyUsers CompanyUser[]
+  @@index([googleId])
+}
+
+model Company {
+  legalType             String?
+  currencyCode          String   @default("EUR")
+  vatPayer              Boolean  @default(true)
+  onboardingCompletedAt DateTime?
+  createdByUserId       String?
+  companyUsers          CompanyUser[]
+  documentSequences     DocumentSequence[]
+}
+
+model CompanyUser {
+  companyId String
+  userId    String
+  role      String  @default("OWNER")
+  isOwner   Boolean @default(false)
+  @@unique([companyId, userId])
+  @@map("company_users")
+}
+
+model DocumentSequence {
+  companyId String
+  prefix    String
+  year      Int
+  lastSeq   Int @default(0)
+  @@unique([companyId, prefix, year])
+  @@map("document_sequences")
+}
+```
+
+## Migration Fix
+```bash
+npx prisma migrate dev --name task58_google_auth
+# Prisma detected drift → reset public schema → applied migration
+npx prisma generate
+npx prisma db seed
+```
+
+## Seed Fix (idempotent)
+Changed all `create` → `upsert` with fixed `seed-*` IDs.
+Added `companyUser.create` for OWNER role.
+Key: `where: { companyId_userId: { companyId, userId } }`
+
+## Build Verification
+```
+✓ Compiled successfully
+✓ Checking validity of types
+✓ Generating static pages (19/19)
+```
+
+## Accepted Pattern
+1. Schema patch → `prisma migrate dev` → `prisma generate` → `prisma db seed`
+2. Seed must be idempotent — use `upsert` + fixed IDs
+3. Always verify with `pnpm build` before closing task
+4. `tsconfig.json` must exclude `task58/` reference directory
+
+## Bootstrap Flow (new company via Google OAuth)
+```
+Google Login → handleGoogleAuth() → createSession()
+→ hasCompany? → /account/companies : /account/onboarding
+→ POST /api/account/onboarding/company
+→ initializeCompanyFromTemplate() — 8 steps:
+   1. createCompanyOwner()
+   2. createDefaultAccounts() → 17-21 CoA
+   3. createDefaultVatRates() → 6-7 rates
+   4. createDefaultOperationTypes() → 5
+   5. createDefaultWarehouses() → 2
+   6. createDefaultEmployees() → 3
+   7. createDefaultClients() → 5
+   8. createDefaultProducts() → 4
+   9. markOnboardingComplete()
+```
+warehouse
+warehouse movements
+inventory valuation
+FIFO

@@ -1,0 +1,4 @@
+draft
+→ posted
+→ accounting
+→ warehouse

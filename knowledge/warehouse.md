@@ -1,0 +1,4 @@
+warehouse
+warehouse movements
+inventory valuation
+FIFO

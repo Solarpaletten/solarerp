@@ -1,0 +1,329 @@
+.
+├── README.md
+├── ai-context
+│   ├── context.txt
+│   ├── file-list.txt
+│   ├── project-structure.txt
+│   └── solar-erp-context.tar.gz
+├── app
+│   ├── (auth)
+│   │   ├── login
+│   │   │   ├── LoginClient.tsx
+│   │   │   └── page.tsx
+│   │   ├── onboarding
+│   │   │   └── page.tsx
+│   │   └── signup
+│   │       └── page.tsx
+│   ├── (dashboard)
+│   │   ├── account
+│   │   │   └── companies
+│   │   │       └── page.tsx
+│   │   ├── company
+│   │   │   └── [companyId]
+│   │   │       ├── CompanyHeader.tsx
+│   │   │       ├── bank
+│   │   │       │   ├── new
+│   │   │       │   │   └── page.tsx
+│   │   │       │   └── page.tsx
+│   │   │       ├── chart-of-accounts
+│   │   │       │   └── page.tsx
+│   │   │       ├── clients
+│   │   │       │   ├── [clientId]
+│   │   │       │   │   └── page.tsx
+│   │   │       │   └── page.tsx
+│   │   │       ├── dashboard
+│   │   │       │   └── page.tsx
+│   │   │       ├── layout.tsx
+│   │   │       ├── page.tsx
+│   │   │       ├── products
+│   │   │       │   ├── [productId]
+│   │   │       │   │   └── page.tsx
+│   │   │       │   ├── new
+│   │   │       │   │   └── page.tsx
+│   │   │       │   └── page.tsx
+│   │   │       ├── purchases
+│   │   │       │   ├── [purchaseId]
+│   │   │       │   │   └── page.tsx
+│   │   │       │   ├── new
+│   │   │       │   │   └── page.tsx
+│   │   │       │   └── page.tsx
+│   │   │       ├── reports
+│   │   │       │   └── page.tsx
+│   │   │       ├── sales
+│   │   │       │   ├── [saleId]
+│   │   │       │   │   └── page.tsx
+│   │   │       │   ├── new
+│   │   │       │   │   └── page.tsx
+│   │   │       │   └── page.tsx
+│   │   │       └── warehouse
+│   │   │           ├── [warehouseId]
+│   │   │           │   └── page.tsx
+│   │   │           ├── new
+│   │   │           │   └── page.tsx
+│   │   │           └── page.tsx
+│   │   └── layout.tsx
+│   ├── api
+│   │   ├── account
+│   │   │   ├── companies
+│   │   │   │   ├── [companyId]
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── priorities
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   └── onboarding
+│   │   │       ├── company
+│   │   │       │   └── route.ts
+│   │   │       └── route.ts
+│   │   ├── auth
+│   │   │   ├── forgot-password
+│   │   │   │   └── SCAFFOLDS_AND_ENV.ts
+│   │   │   ├── google
+│   │   │   │   ├── callback
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   ├── login
+│   │   │   │   └── route.ts
+│   │   │   ├── logout
+│   │   │   │   └── route.ts
+│   │   │   ├── me
+│   │   │   │   └── route.ts
+│   │   │   └── signup
+│   │   │       └── route.ts
+│   │   ├── company
+│   │   │   └── [companyId]
+│   │   │       ├── accounts
+│   │   │       │   ├── [accountId]
+│   │   │       │   │   └── route.ts
+│   │   │       │   ├── bulk
+│   │   │       │   │   └── route.ts
+│   │   │       │   └── route.ts
+│   │   │       ├── chart-of-accounts
+│   │   │       │   └── import
+│   │   │       │       └── skr03
+│   │   │       │           └── route.ts
+│   │   │       ├── clients
+│   │   │       │   ├── [clientId]
+│   │   │       │   │   └── route.ts
+│   │   │       │   └── route.ts
+│   │   │       ├── employees
+│   │   │       │   └── route.ts
+│   │   │       ├── initialize-defaults
+│   │   │       │   └── route.ts
+│   │   │       ├── journal
+│   │   │       │   └── manual
+│   │   │       │       └── route.ts
+│   │   │       ├── operation-types
+│   │   │       │   └── route.ts
+│   │   │       ├── periods
+│   │   │       │   └── [year]
+│   │   │       │       └── [month]
+│   │   │       │           └── close
+│   │   │       │               └── route.ts
+│   │   │       ├── products
+│   │   │       │   ├── [productId]
+│   │   │       │   │   └── route.ts
+│   │   │       │   └── route.ts
+│   │   │       ├── purchases
+│   │   │       │   ├── [purchaseId]
+│   │   │       │   │   ├── accounting
+│   │   │       │   │   │   └── route.ts
+│   │   │       │   │   ├── cancel
+│   │   │       │   │   │   └── route.ts
+│   │   │       │   │   ├── copy
+│   │   │       │   │   │   └── route.ts
+│   │   │       │   │   ├── post
+│   │   │       │   │   │   └── route.ts
+│   │   │       │   │   ├── receipt
+│   │   │       │   │   │   └── route.ts
+│   │   │       │   │   └── route.ts
+│   │   │       │   ├── draft
+│   │   │       │   │   └── route.ts
+│   │   │       │   └── route.ts
+│   │   │       ├── reports
+│   │   │       │   ├── balance-sheet
+│   │   │       │   │   └── route.ts
+│   │   │       │   ├── osv
+│   │   │       │   │   └── route.ts
+│   │   │       │   ├── pnl
+│   │   │       │   │   └── route.ts
+│   │   │       │   └── trial-balance
+│   │   │       │       └── route.ts
+│   │   │       ├── repost
+│   │   │       │   └── route.ts
+│   │   │       ├── sales
+│   │   │       │   ├── [saleId]
+│   │   │       │   │   ├── cancel
+│   │   │       │   │   │   └── route.ts
+│   │   │       │   │   ├── copy
+│   │   │       │   │   │   └── route.ts
+│   │   │       │   │   └── route.ts
+│   │   │       │   ├── draft
+│   │   │       │   │   └── route.ts
+│   │   │       │   └── route.ts
+│   │   │       ├── vat-rates
+│   │   │       │   └── route.ts
+│   │   │       ├── warehouse
+│   │   │       │   ├── balance
+│   │   │       │   │   └── route.ts
+│   │   │       │   └── movements
+│   │   │       │       └── route.ts
+│   │   │       └── warehouses
+│   │   │           └── route.ts
+│   │   └── health
+│   │       └── route.ts
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── components
+│   ├── clients
+│   │   ├── ClientAccounting.tsx
+│   │   ├── ClientActions.tsx
+│   │   ├── ClientAddressForm.tsx
+│   │   ├── ClientContactForm.tsx
+│   │   ├── ClientForm.tsx
+│   │   ├── ClientGeneralForm.tsx
+│   │   ├── ClientHeader.tsx
+│   │   └── ClientSelector.tsx
+│   ├── erp
+│   │   ├── ERPDetailTabs.tsx
+│   │   ├── ERPGrid.tsx
+│   │   ├── ERPToolbar.tsx
+│   │   └── index.ts
+│   ├── forms
+│   │   └── AuthForm.tsx
+│   ├── layouts
+│   │   ├── AccountSidebar.tsx
+│   │   ├── CompanySidebar.tsx
+│   │   └── CompanySwitcher.tsx
+│   ├── products
+│   │   └── ProductSelector.tsx
+│   ├── purchases
+│   │   ├── PostedAccountingView.tsx
+│   │   ├── PurchaseActionBar.tsx
+│   │   ├── PurchaseActions.tsx
+│   │   ├── PurchaseHeader.tsx
+│   │   ├── PurchaseHeaderEdit.tsx
+│   │   ├── PurchaseItemsEdit.tsx
+│   │   ├── PurchaseItemsTable.tsx
+│   │   ├── PurchaseTable.tsx
+│   │   └── PurchaseTotals.tsx
+│   ├── select
+│   │   ├── AccountSelectDialog.tsx
+│   │   ├── ClientSelectDialog.tsx
+│   │   ├── EmployeeSelectDialog.tsx
+│   │   ├── EntitySelectDialog.tsx
+│   │   ├── OperationTypeSelectDialog.tsx
+│   │   ├── ProductSelectDialog.tsx
+│   │   ├── VATRateSelectDialog.tsx
+│   │   ├── WarehouseSelectDialog.tsx
+│   │   └── index.ts
+│   └── ui
+│       ├── Button.tsx
+│       ├── Card.tsx
+│       ├── FormField.tsx
+│       └── Input.tsx
+├── config
+│   ├── clients
+│   │   └── columns.tsx
+│   ├── products
+│   │   └── columns.tsx
+│   ├── purchases
+│   │   └── columns.tsx
+│   └── sales
+│       └── columns.tsx
+├── cookies.txt
+├── gitkeep_L_D_C_Q
+│   ├── L-Q_gitkeeptask1.md
+│   ├── Q_L_D_C_gitresponsetask1.md
+│   └── gitwey_solarerp.md
+├── knowledge
+│   ├── README.md
+│   ├── accounting-engine.md
+│   ├── api-patterns.md
+│   ├── architecture.md
+│   ├── code-map.md
+│   ├── context
+│   │   └── project-context.md
+│   ├── cursor-no-file-access.md
+│   ├── data-flow.md
+│   ├── document-actions.md
+│   ├── document-flow.md
+│   ├── document-model.md
+│   ├── domain-map.md
+│   ├── erp-invariants.md
+│   ├── erp-philosophy.md
+│   ├── event-model.md
+│   ├── financial-model.md
+│   ├── module-map.md
+│   ├── ollama-qwen-integration.md
+│   ├── state-machine.md
+│   ├── task58.md
+│   └── warehouse.md
+├── knowledge_solarerp.txt
+├── lib
+│   ├── accounting
+│   │   ├── __tests__
+│   │   │   └── fifoService.test.ts
+│   │   ├── accountMapping.ts
+│   │   ├── data
+│   │   │   └── skr03.csv
+│   │   ├── fifoService.ts
+│   │   ├── journalService.ts
+│   │   ├── periodLock.ts
+│   │   ├── protectedAccounts.ts
+│   │   ├── repostingService.ts
+│   │   ├── stockService.ts
+│   │   └── totalsHelper.ts
+│   ├── api
+│   │   └── apiClient.ts
+│   ├── auth
+│   │   ├── getCurrentUser.ts
+│   │   ├── googleAuthService.ts
+│   │   ├── password.ts
+│   │   ├── requireCompanyContext.ts
+│   │   ├── requireTenant.ts
+│   │   └── session.ts
+│   ├── company
+│   │   └── companyAccessService.ts
+│   ├── onboarding
+│   │   ├── companyBootstrapService.ts
+│   │   ├── templateResolver.ts
+│   │   └── templates
+│   │       ├── chart_of_accounts
+│   │       │   ├── de_gmbh.ts
+│   │       │   ├── global_default.ts
+│   │       │   └── lt_uab.ts
+│   │       ├── global_default.ts
+│   │       ├── lt_uab_vat.ts
+│   │       └── types.ts
+│   ├── prisma.ts
+│   └── services
+│       ├── documentEngine.ts
+│       └── documentNumberService.ts
+├── middleware.ts
+├── next-env.d.ts
+├── next.config.js
+├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
+├── postcss.config.js
+├── prisma
+│   ├── migrations
+│   │   ├── 20260312121341_task58_google_auth
+│   │   │   └── migration.sql
+│   │   └── migration_lock.toml
+│   ├── schema.prisma
+│   └── seed.ts
+├── scripts
+│   └── dev.env
+├── solar-apply.js
+├── tailwind.config.js
+├── task59_clean.tar.gz
+├── task60_clean.tar.gz
+├── tmp
+├── tree_solarerp.txt
+├── tsconfig.json
+├── tsconfig.tsbuildinfo
+└── verification.json
+
+125 directories, 202 files

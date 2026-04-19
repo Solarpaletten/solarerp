@@ -107,9 +107,9 @@ export default function CompaniesPage() {
       if (response.ok) {
         const data = await response.json();
 
-        if (data.data && Array.isArray(data.data)) {
+        if (data.success && data.companies) {
           // Companies already sorted by priority from DB
-          const enhancedCompanies = data.data.map((company: Company, index: number) => ({
+          const enhancedCompanies = data.companies.map((company: Company, index: number) => ({
             ...company,
             priority: company.priority ? company.priority : (index + 1),
             avatar: company.name.charAt(0).toUpperCase(),

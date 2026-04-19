@@ -448,24 +448,26 @@ async function runGitCommit(taskName, report) {
 
   console.log(c(C.bold,  '\n   Auto commit message:'));
   console.log(c(C.cyan,  '   "' + autoMsg + '"'));
-  console.log(c(C.dim,   '   (Press Enter to use, or type new message)\n'));
 
-  // Ask: commit or skip
-  const skipAns = (await ask(
-    c(C.bold, '   Push to GitHub? [Y] yes  [N] skip  > ')
+
+  // [Y] = commit with auto message  [E] = edit  [N] = skip
+  const ans = (await ask(
+    c(C.bold, '   Push to GitHub? [Y] yes  [E] edit message  [N] skip  > ')
   )).toLowerCase().trim();
 
-  if (skipAns === 'n') {
+  if (ans === 'n') {
     console.log(c(C.dim, '\n   Skipped. Run manually:'));
     console.log(c(C.cyan, '   git add . && git commit -m "' + autoMsg + '" && git push origin main\n'));
     return;
   }
 
-  // Optional: edit message
-  const customMsg = (await ask(
-    c(C.dim, '   Edit message (Enter = keep auto): ')
-  )).trim();
-  const commitMsg = customMsg.length > 0 ? customMsg : autoMsg;
+  // Edit only when [E] explicitly requested
+  let commitMsg = autoMsg;
+  if (ans === 'e') {
+    const edited = (await ask(c(C.bold, '   New message: '))).trim();
+    if (edited) commitMsg = edited;
+    console.log(c(C.dim, '   Message: "' + commitMsg + '"\n'));
+  }
 
   // git add .
   sp('git', ['add', '.'], { cwd: ROOT, stdio: 'inherit' });

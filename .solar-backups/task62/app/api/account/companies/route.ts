@@ -1,9 +1,12 @@
 // app/api/account/companies/route.ts
 // ═══════════════════════════════════════════════════════════════
-// TASK 62 — Companies API with validation + duplicate prevention
+// TASK 60 — Companies API
 //
-// GET  — list via CompanyUser membership
-// POST — create with validation (min 3 chars, no duplicates)
+// GET  /api/account/companies  — list via CompanyUser membership
+// POST /api/account/companies  — create new company for tenant
+//
+// NOTE: POST does NOT use requireCompanyContext (no companyId yet)
+// POST uses requireTenant only — creates company + grants OWNER access
 // ═══════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,6 +14,7 @@ import prisma from '@/lib/prisma';
 import { requireTenant } from '@/lib/auth/requireTenant';
 
 // ─── GET /api/account/companies ───────────────────────────────
+// Returns companies where user has CompanyUser membership
 export async function GET(request: NextRequest) {
   try {
     const { userId, tenantId } = await requireTenant(request);
@@ -65,64 +69,33 @@ export async function GET(request: NextRequest) {
 }
 
 // ─── POST /api/account/companies ──────────────────────────────
-// Validates + creates company + grants OWNER access
+// Creates a new company for the current tenant
+// Automatically grants OWNER access to the creating user
 export async function POST(request: NextRequest) {
   try {
     const { userId, tenantId } = await requireTenant(request);
 
     const body = await request.json();
-    const { name, country, legalType, vatPayer, code } = body;
+    const { name, country, legalType, vatPayer, regNumber, code } = body;
 
-    // ── Validation ────────────────────────────────────────────
-    const trimmedName = name?.trim() || '';
-
-    if (!trimmedName) {
+    if (!name?.trim()) {
       return NextResponse.json(
-        { error: 'VALIDATION_ERROR', message: 'Company name is required' },
+        { error: 'name is required' },
         { status: 400 }
       );
     }
 
-    if (trimmedName.length < 3) {
-      return NextResponse.json(
-        { error: 'VALIDATION_ERROR', message: 'Company name must be at least 3 characters' },
-        { status: 400 }
-      );
-    }
-
-    if (trimmedName.length > 100) {
-      return NextResponse.json(
-        { error: 'VALIDATION_ERROR', message: 'Company name must be 100 characters or less' },
-        { status: 400 }
-      );
-    }
-
-    // ── Duplicate check ───────────────────────────────────────
-    const existing = await prisma.company.findFirst({
-      where: {
-        tenantId,
-        name: { equals: trimmedName, mode: 'insensitive' },
-      },
-      select: { id: true },
-    });
-
-    if (existing) {
-      return NextResponse.json(
-        { error: 'DUPLICATE_ERROR', message: `Company "${trimmedName}" already exists` },
-        { status: 409 }
-      );
-    }
-
-    // ── Create ────────────────────────────────────────────────
+    // Get max priority for auto-increment within tenant
     const maxPriority = await prisma.company.aggregate({
       where: { tenantId },
       _max: { priority: true },
     });
 
+    // Create company
     const company = await prisma.company.create({
       data: {
         tenantId,
-        name:         trimmedName,
+        name:         name.trim(),
         country:      country?.trim().toUpperCase() || 'DE',
         legalType:    legalType?.trim()             || 'GmbH',
         vatPayer:     vatPayer !== false,
@@ -134,12 +107,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Grant OWNER access
+    // Grant OWNER access via CompanyUser
     await (prisma as any).companyUser.upsert({
-      where: { companyId_userId: { companyId: company.id, userId } },
+      where: {
+        companyId_userId: { companyId: company.id, userId },
+      },
       update: { role: 'OWNER', isOwner: true },
-      create: { companyId: company.id, userId, role: 'OWNER', isOwner: true },
+      create: {
+        companyId: company.id,
+        userId,
+        role:      'OWNER',
+        isOwner:   true,
+      },
     });
+
+    console.log(`[Companies] Created: ${company.id} "${company.name}" userId=${userId}`);
 
     return NextResponse.json({ data: company }, { status: 201 });
   } catch (err) {

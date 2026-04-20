@@ -1,0 +1,24 @@
+{
+  "task": "task60",
+  "title": "Fix Company Creation POST API",
+  "checks": [
+    {
+      "name": "POST company → 201 Created",
+      "url": "curl -X POST http://localhost:3000/api/account/companies -H 'Content-Type: application/json' -H 'Cookie: solar_session=$COOKIE' -d '{\"name\":\"Test GmbH\",\"country\":\"DE\"}'",
+      "what": "{\"data\":{\"id\":\"...\",\"name\":\"Test GmbH\"}}",
+      "file": "app/api/account/companies/route.ts"
+    },
+    {
+      "name": "GET companies → 200 with list",
+      "url": "http://localhost:3000/api/account/companies",
+      "what": "{\"data\":[{\"id\":\"...\",\"name\":\"...\",\"role\":\"OWNER\"}]}",
+      "file": "app/api/account/companies/route.ts"
+    },
+    {
+      "name": "UI — Create company dialog works",
+      "url": "http://localhost:3000/account/companies",
+      "what": "Нажать + New Company → заполнить форму → Create → компания появляется в списке",
+      "file": "app/api/account/companies/route.ts"
+    }
+  ]
+}

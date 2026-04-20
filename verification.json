@@ -1,24 +1,36 @@
 {
-  "task": "task60",
-  "title": "Fix Company Creation POST API",
+  "task": "task62",
+  "title": "Company Data Integrity + Validation",
   "checks": [
     {
-      "name": "POST company → 201 Created",
-      "url": "curl -X POST http://localhost:3000/api/account/companies -H 'Content-Type: application/json' -H 'Cookie: solar_session=$COOKIE' -d '{\"name\":\"Test GmbH\",\"country\":\"DE\"}'",
-      "what": "{\"data\":{\"id\":\"...\",\"name\":\"Test GmbH\"}}",
+      "name": "Validation — name < 3 chars → 400",
+      "url": "curl -X POST http://localhost:3000/api/account/companies -H 'Content-Type: application/json' -b /tmp/solar_cookies.txt -d '{\"name\":\"DE\"}'",
+      "what": "{\"error\":\"VALIDATION_ERROR\",\"message\":\"Company name must be at least 3 characters\"}",
       "file": "app/api/account/companies/route.ts"
     },
     {
-      "name": "GET companies → 200 with list",
-      "url": "http://localhost:3000/api/account/companies",
-      "what": "{\"data\":[{\"id\":\"...\",\"name\":\"...\",\"role\":\"OWNER\"}]}",
+      "name": "Duplicate check → 409",
+      "url": "curl -X POST http://localhost:3000/api/account/companies -H 'Content-Type: application/json' -b /tmp/solar_cookies.txt -d '{\"name\":\"SOLARPALETTEN GMBH\"}'",
+      "what": "{\"error\":\"DUPLICATE_ERROR\",\"message\":\"Company already exists\"}",
       "file": "app/api/account/companies/route.ts"
     },
     {
-      "name": "UI — Create company dialog works",
+      "name": "Valid company → 201",
+      "url": "curl -X POST http://localhost:3000/api/account/companies -H 'Content-Type: application/json' -b /tmp/solar_cookies.txt -d '{\"name\":\"Test Solar GmbH\",\"country\":\"DE\"}'",
+      "what": "{\"data\":{\"id\":\"...\",\"name\":\"Test Solar GmbH\"}}",
+      "file": "app/api/account/companies/route.ts"
+    },
+    {
+      "name": "Cleanup junk companies",
+      "url": "curl -X DELETE http://localhost:3000/api/account/companies/cleanup -b /tmp/solar_cookies.txt",
+      "what": "{\"data\":{\"deleted\":15,\"message\":\"Deleted 15 junk companies\"}}",
+      "file": "app/api/account/companies/cleanup/route.ts"
+    },
+    {
+      "name": "UI — Create button disabled when name < 3 chars",
       "url": "http://localhost:3000/account/companies",
-      "what": "Нажать + New Company → заполнить форму → Create → компания появляется в списке",
-      "file": "app/api/account/companies/route.ts"
+      "what": "Кнопка Create серая пока имя меньше 3 символов",
+      "file": "app/(dashboard)/account/companies/page.tsx"
     }
   ]
 }

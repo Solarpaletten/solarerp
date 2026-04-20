@@ -107,9 +107,9 @@ export default function CompaniesPage() {
       if (response.ok) {
         const data = await response.json();
 
-        if (data.success && data.companies) {
+        if (data.data && Array.isArray(data.data)) {
           // Companies already sorted by priority from DB
-          const enhancedCompanies = data.companies.map((company: Company, index: number) => ({
+          const enhancedCompanies = data.data.map((company: Company, index: number) => ({
             ...company,
             priority: company.priority ? company.priority : (index + 1),
             avatar: company.name.charAt(0).toUpperCase(),
@@ -190,32 +190,26 @@ export default function CompaniesPage() {
 
   const handleDragEnd = () => { setDraggedItem(null); setDragOverItem(null); };
 
-  // Create company — with frontend validation + API error handling
+  // Create company
   const handleCreateCompany = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Frontend validation
     const trimmedName = createFormData.name.trim();
     if (trimmedName.length < 3) {
       setError('Company name must be at least 3 characters');
       return;
     }
-
     try {
       const response = await fetch('/api/account/companies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...createFormData, name: trimmedName }),
       });
-
       const result = await response.json();
-
       if (response.ok) {
         await fetchCompanies();
         setShowCreateForm(false);
         setCreateFormData({ name: '', code: '', description: '', industry: 'RENEWABLE_ENERGY', country: 'DE' });
       } else {
-        // Show API error message (VALIDATION_ERROR, DUPLICATE_ERROR etc.)
         throw new Error(result.message || 'Failed to create company');
       }
     } catch (error: unknown) {

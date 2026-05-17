@@ -1,6 +1,7 @@
 // app/api/company/[companyId]/purchases/route.ts
+// S
 // ═══════════════════════════════════════════════════
-// TASK 63 — migrated to requireCompanyContext
+// Task 45 v2: Purchases API — GET with search/sort/pagination
 // ═══════════════════════════════════════════════════
 // Fix: removed include:{items:true} — ERPGrid doesn't need line items
 // Note: supplierName/warehouseName are FLAT STRING FIELDS on PurchaseDocument
@@ -8,10 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import {
-  requireCompanyContext,
-  companyContextErrorResponse,
-} from '@/lib/auth/requireCompanyContext';
+import { requireTenant } from '@/lib/auth/requireTenant';
 
 type RouteParams = {
   params: Promise<{ companyId: string }>;
@@ -21,8 +19,16 @@ const SORTABLE_FIELDS = ['purchaseDate', 'number', 'supplierName', 'status', 'wa
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { tenantId } = await requireTenant(request);
+    const { companyId } = await params;
 
+    const company = await prisma.company.findFirst({
+      where: { id: companyId, tenantId },
+      select: { id: true },
+    });
+    if (!company) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
 
     const url = new URL(request.url);
     const search = url.searchParams.get('search') || '';
@@ -71,7 +77,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       totalPages: Math.ceil(total / pageSize),
     });
   } catch (error: unknown) {
-    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
+    if (error instanceof Response) return error;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('List purchases error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });

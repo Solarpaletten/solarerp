@@ -1,14 +1,12 @@
 // app/api/company/[companyId]/products/route.ts
+// S
 // ═══════════════════════════════════════════════════
-// TASK 63 — migrated to requireCompanyContext
+// Task 47: Products API — GET list + POST create
 // ═══════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import {
-  requireCompanyContext,
-  companyContextErrorResponse,
-} from '@/lib/auth/requireCompanyContext';
+import { requireTenant } from '@/lib/auth/requireTenant';
 
 type RouteParams = {
   params: Promise<{ companyId: string }>;
@@ -20,8 +18,16 @@ const SORTABLE_FIELDS = ['name', 'code', 'groupName', 'priceWithoutVat', 'create
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { tenantId } = await requireTenant(request);
+    const { companyId } = await params;
 
+    const company = await prisma.company.findFirst({
+      where: { id: companyId, tenantId },
+      select: { id: true },
+    });
+    if (!company) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
 
     const url = new URL(request.url);
     const search = url.searchParams.get('search') || '';
@@ -69,7 +75,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       totalPages: Math.ceil(total / pageSize),
     });
   } catch (error: unknown) {
-    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
+    if (error instanceof Response) return error;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('List products error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -80,8 +86,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { tenantId } = await requireTenant(request);
+    const { companyId } = await params;
 
+    const company = await prisma.company.findFirst({
+      where: { id: companyId, tenantId },
+      select: { id: true },
+    });
+    if (!company) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
 
     const body = await request.json();
 
@@ -138,7 +152,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data: product }, { status: 201 });
   } catch (error: unknown) {
-    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
+    if (error instanceof Response) return error;
 
     if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2002') {
       return NextResponse.json({ error: 'Product with this code already exists' }, { status: 409 });

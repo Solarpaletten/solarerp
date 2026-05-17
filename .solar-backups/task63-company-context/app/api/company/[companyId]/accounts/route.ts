@@ -1,4 +1,5 @@
 // app/api/company/[companyId]/accounts/route.ts
+// S
 // ═══════════════════════════════════════════════════
 // TENANT-SAFE Chart of Accounts API
 // ═══════════════════════════════════════════════════
@@ -12,10 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import {
-  requireCompanyContext,
-  companyContextErrorResponse,
-} from '@/lib/auth/requireCompanyContext';
+import { requireTenant } from '@/lib/auth/requireTenant';
 
 type RouteParams = {
   params: Promise<{ companyId: string }>;
@@ -25,15 +23,27 @@ type RouteParams = {
 const VALID_TYPES = ['ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE'];
 
 // ─── HELPER: Verify company belongs to tenant ────
+async function verifyCompanyOwnership(companyId: string, tenantId: string) {
+  const company = await prisma.company.findFirst({
+    where: { id: companyId, tenantId },
+    select: { id: true },
+  });
+  return company !== null;
+}
 
 // ─── GET /api/company/[companyId]/accounts ───────
 // List all accounts for this company
 // Tenant-safe: only accounts of companies owned by current tenant
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { tenantId } = await requireTenant(request);
+    const { companyId } = await params;
 
     // Verify company belongs to tenant
+    const isOwner = await verifyCompanyOwnership(companyId, tenantId);
+    if (!isOwner) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
 
     const accounts = await prisma.account.findMany({
       where: {
@@ -58,9 +68,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // Body: { code: string, name: string, type: AccountType }
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { tenantId } = await requireTenant(request);
+    const { companyId } = await params;
 
     // Verify company belongs to tenant
+    const isOwner = await verifyCompanyOwnership(companyId, tenantId);
+    if (!isOwner) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
 
     const body = await request.json();
     const { code, nameDe, nameEn, type } = body;

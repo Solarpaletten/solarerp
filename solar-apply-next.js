@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// solar-apply.js v3 FINAL — Solar Dev Pipeline
+// solar-apply-next.js v3.6 — SolarBox Next.js Edition
 // ═══════════════════════════════════════════════════════════════
 //
 // PIPELINE:
@@ -36,6 +36,7 @@ const DRY_RUN    = process.argv.includes('--dry');
 const NO_BUILD   = process.argv.includes('--no-build');
 const NO_BUNDLE  = process.argv.includes('--no-bundle');
 const ROLLBACK   = process.argv.includes('--rollback');
+const STRICT     = process.argv.includes('--strict'); // force per-file on NEW files
 const HISTORY    = process.argv.includes('--history');
 const PORT       = process.env.PORT || '3000';
 
@@ -407,11 +408,11 @@ function printVerification(taskName) {
 
 // ─── Git Commit ─────────────────────────────────────────────────
 // Auto-generates commit message from actually changed files
-async function runGitCommit(taskName, report) {
+async function runGitCommit(taskName, report, proposedBranch) {
   const { spawnSync: sp, execSync: ex } = require('child_process');
 
   console.log('\n' + sep('━'));
-  console.log(c(C.bold, '📝 GIT — Push to GitHub?'));
+  console.log(c(C.bold, '📝 GIT — Branch + Commit + PR'));
   console.log(sep('━'));
 
   // Check changes
@@ -428,11 +429,11 @@ async function runGitCommit(taskName, report) {
     return;
   }
 
-  // Show what changed
+  // Show changed files
   console.log(c(C.dim, '\n   Changed files:'));
   statusLines.forEach(l => console.log(c(C.dim, '   ' + l)));
 
-  // Auto-generate commit message from report
+  // Auto-generate commit message
   const parts = [];
   if (report.created.length > 0)  parts.push('+' + report.created.length + ' new');
   if (report.modified.length > 0) parts.push('~' + report.modified.length + ' patched');
@@ -441,55 +442,109 @@ async function runGitCommit(taskName, report) {
     .map(f => path.basename(f, path.extname(f)))
     .slice(0, 3).join(', ');
 
-  const autoMsg = 'task' + taskName + ': ' +
+  const autoMsg = taskName + ': ' +
     (parts.length > 0 ? parts.join(', ') : 'deploy') +
     (keyFiles ? ' — ' + keyFiles : '') +
-    ' [SDP v3]';
+    ' [SolarBox v3.6]';
 
-  console.log(c(C.bold,  '\n   Auto commit message:'));
-  console.log(c(C.cyan,  '   "' + autoMsg + '"'));
+  const branchName = proposedBranch || (taskName.replace(/_clean$/, '').replace(/_/g, '-').toLowerCase() + '-' + Date.now().toString(36).slice(-4));
 
+  console.log(c(C.bold,  '\n   Branch:  ') + c(C.cyan, branchName));
+  console.log(c(C.bold,  '   Commit:  ') + c(C.cyan, '"' + autoMsg + '"'));
 
-  // [Y] = commit with auto message  [E] = edit  [N] = skip
+  // Options
+  console.log('');
+  console.log(c(C.dim, '   [Y] branch + commit + push + PR link'));
+  console.log(c(C.dim, '   [M] commit directly to main (no branch)'));
+  console.log(c(C.dim, '   [E] edit commit message'));
+  console.log(c(C.dim, '   [N] skip\n'));
+
   const ans = (await ask(
-    c(C.bold, '   Push to GitHub? [Y] yes  [E] edit message  [N] skip  > ')
+    c(C.bold, '   Choice > ')
   )).toLowerCase().trim();
 
   if (ans === 'n') {
-    console.log(c(C.dim, '\n   Skipped. Run manually:'));
-    console.log(c(C.cyan, '   git add . && git commit -m "' + autoMsg + '" && git push origin main\n'));
+    console.log(c(C.dim, '\n   Skipped.\n'));
     return;
   }
 
-  // Edit only when [E] explicitly requested
+  // Edit message if [E]
   let commitMsg = autoMsg;
+  let finalMode = ans;  // BUG#2 fix: separate mutable mode variable
   if (ans === 'e') {
     const edited = (await ask(c(C.bold, '   New message: '))).trim();
     if (edited) commitMsg = edited;
-    console.log(c(C.dim, '   Message: "' + commitMsg + '"\n'));
+    // Ask again after edit
+    const ans2 = (await ask(c(C.bold, '   [Y] branch  [M] main  > '))).toLowerCase().trim();
+    if (ans2 === 'm') {
+      finalMode = 'm';  // ✅ assignment, not comparison
+    }
   }
 
-  // git add .
+  // Determine push mode
+  const useMain = (finalMode === 'm');
+
+  // git add (only changed files from this sprint)
   sp('git', ['add', '.'], { cwd: ROOT, stdio: 'inherit' });
   console.log(c(C.green, '\n   ✅ Staged'));
 
-  // git commit
-  const cr = sp('git', ['commit', '-m', commitMsg], { cwd: ROOT, stdio: 'inherit' });
-  if (cr.status !== 0) {
-    console.log(c(C.red, '\n❌ git commit failed\n'));
-    return;
-  }
+  if (useMain) {
+    // ── Direct to main ──────────────────────────────────
+    const cr = sp('git', ['commit', '-m', commitMsg], { cwd: ROOT, stdio: 'inherit' });
+    if (cr.status !== 0) { console.log(c(C.red, '\n❌ commit failed\n')); return; }
 
-  // git push origin main
-  console.log(c(C.dim, '\n   Pushing to origin/main...'));
-  const pr = sp('git', ['push', 'origin', 'main'], { cwd: ROOT, stdio: 'inherit' });
-  if (pr.status !== 0) {
-    console.log(c(C.red, '\n❌ git push failed — check remote/branch\n'));
-    return;
-  }
+    const pr = sp('git', ['push', 'origin', 'main'], { cwd: ROOT, stdio: 'inherit' });
+    if (pr.status !== 0) { console.log(c(C.red, '\n❌ push failed\n')); return; }
 
-  console.log(c(C.green, '\n✅ Committed & pushed → origin/main'));
-  console.log(c(C.dim,   '   "' + commitMsg + '"\n'));
+    console.log(c(C.green, '\n✅ Committed & pushed → main'));
+    console.log(c(C.dim,   '   "' + commitMsg + '"\n'));
+  } else {
+    // ── Branch + PR flow ────────────────────────────────
+    // Create & checkout branch
+    sp('git', ['checkout', '-b', branchName], { cwd: ROOT, stdio: 'inherit' });
+
+    // Commit
+    const cr = sp('git', ['commit', '-m', commitMsg], { cwd: ROOT, stdio: 'inherit' });
+    if (cr.status !== 0) { console.log(c(C.red, '\n❌ commit failed\n')); return; }
+
+    // Push branch
+    const pushR = sp('git', ['push', 'origin', branchName], { cwd: ROOT, stdio: 'inherit' });
+    if (pushR.status !== 0) { console.log(c(C.red, '\n❌ push branch failed\n')); return; }
+
+    // Get remote URL for PR link
+    let prUrl = '';
+    try {
+      const remote = ex('git remote get-url origin', { cwd: ROOT, encoding: 'utf-8', stdio: 'pipe' }).trim();
+      const repoPath = remote.replace('https://github.com/', '').replace('.git', '');
+      prUrl = `https://github.com/${repoPath}/compare/${branchName}?expand=1`;
+    } catch {}
+
+    console.log(c(C.green, '\n✅ Branch pushed → ' + branchName));
+    console.log(c(C.dim,   '   "' + commitMsg + '"'));
+
+    if (prUrl) {
+      console.log('');
+      console.log(sep('━'));
+      console.log(c(C.bold, '🔗 OPEN PR:'));
+      console.log(c(C.blue, '   ' + prUrl));
+      console.log(sep('━'));
+    }
+
+    // Ask: auto-merge to main?
+    const merge = (await ask(
+      c(C.bold, '\n   Merge to main now? [Y] yes  [N] keep as PR  > ')
+    )).toLowerCase().trim();
+
+    if (merge === 'y') {
+      sp('git', ['checkout', 'main'], { cwd: ROOT, stdio: 'inherit' });
+      sp('git', ['merge', branchName, '--no-ff', '-m', 'merge: ' + commitMsg], { cwd: ROOT, stdio: 'inherit' });
+      const mainPush = sp('git', ['push', 'origin', 'main'], { cwd: ROOT, stdio: 'inherit' });
+      if (mainPush.status !== 0) { console.log(c(C.red, '\n❌ push main failed\n')); return; }
+      console.log(c(C.green, '\n✅ Merged to main & pushed'));
+    } else {
+      console.log(c(C.dim, '\n   Branch kept. Open PR link above to merge.\n'));
+    }
+  }
 }
 // ═══════════════════════════════════════════════════════════════
 // MAIN
@@ -535,10 +590,15 @@ async function main() {
     .replace(/_clean$/, '').replace(/_v\d+$/, '');
 
   // ── Header ───────────────────────────────────────────────────
-  console.log(c(C.bold, '\n🚀 Solar Dev Pipeline v3'));
+  const branchSlug = taskName.replace(/_clean$/, '').replace(/_/g, '-').toLowerCase();
+  const proposedBranch = branchSlug + '-' + Date.now().toString(36).slice(-4);
+
+  console.log(c(C.bold, '\n🚀 SolarBox Next.js v3.6'));
+  console.log(c(C.dim,  '   NEW=auto-apply · PATCH=review · Branch/PR flow'));
   console.log(sep('═'));
   console.log(`   Task:    ${c(C.bold, taskName)}`);
   console.log(`   Archive: ${ARCHIVE}`);
+  console.log(`   Branch:  ${c(C.cyan, proposedBranch)}`);
   if (DRY_RUN) console.log(c(C.yellow, '   Mode:    DRY RUN'));
   if (AUTO)    console.log(c(C.yellow, '   Mode:    AUTO'));
   console.log(sep('═'));
@@ -632,6 +692,10 @@ async function main() {
 
     let ans = 'y';
     if (!AUTO) {
+      if (!exists && !STRICT) {
+        // NEW file — auto apply (archive already audited by team)
+        console.log(c(C.dim, '   ✅ auto-applied (NEW)'));
+      } else {
       ans = (await ask(c(C.bold, '   [Y] apply  [S] skip  [D] diff  [Q] quit  > '))).toLowerCase().trim() || 'y';
       if (ans === 'd') {
         exists ? showColorDiff(oldTxt, newTxt) : console.log(c(C.green, '   (new file)'));
@@ -642,6 +706,7 @@ async function main() {
         closeRL();
         process.exit(0);
       }
+      } // end else (PATCH)
     }
 
     if (ans !== 's') {
@@ -754,7 +819,7 @@ async function main() {
 
   // ── Git Commit (Solar Rule #1) ─────────────────────────────────
   if (buildResult === true) {
-    await runGitCommit(taskName, report);
+    await runGitCommit(taskName, report, proposedBranch);
   }
 
   // ── CLOSE readline ONCE here at the very end ──────────────────

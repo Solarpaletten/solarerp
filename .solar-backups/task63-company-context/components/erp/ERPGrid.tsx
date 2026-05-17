@@ -1,6 +1,7 @@
 // components/erp/ERPGrid.tsx
+// S
 // ═══════════════════════════════════════════════════
-// TASK 63: ERP Grid Engine — X-Company-Id header added
+// Task 44 v3: ERP Grid Engine (FINAL)
 // ═══════════════════════════════════════════════════
 // All Daria audit fixes applied:
 //   #1 T extends { id: string }
@@ -120,10 +121,7 @@ export function ERPGrid<T extends { id: string } & Record<string, unknown>>({
       qp.set('page', String(page));
       qp.set('pageSize', String(pageSize));
 
-      const res = await fetch(`${basePath}?${qp}`, {
-        cache: 'no-store',
-        headers: companyId ? { 'X-Company-Id': companyId } : {},
-      });
+      const res = await fetch(`${basePath}?${qp}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const json = await res.json();
 

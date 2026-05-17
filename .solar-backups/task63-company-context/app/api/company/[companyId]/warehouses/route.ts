@@ -1,23 +1,30 @@
 // app/api/company/[companyId]/warehouses/route.ts
+// S
 // ═══════════════════════════════════════════════════
-// TASK 63 — migrated to requireCompanyContext
+// Task 57_1: Warehouses CRUD API
 // ═══════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import {
-  requireCompanyContext,
-  companyContextErrorResponse,
-} from '@/lib/auth/requireCompanyContext';
+import { requireTenant } from '@/lib/auth/requireTenant';
 
 type RouteParams = { params: Promise<{ companyId: string }> };
 
+async function verifyCompany(companyId: string, tenantId: string) {
+  return prisma.company.findFirst({
+    where: { id: companyId, tenantId },
+    select: { id: true },
+  });
+}
 
 // ─── GET: List warehouses ──────────────────────────
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { tenantId } = await requireTenant(request);
+    const { companyId } = await params;
 
+    const company = await verifyCompany(companyId, tenantId);
+    if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 });
 
     const url = new URL(request.url);
     const isActive = url.searchParams.get('isActive');
@@ -35,7 +42,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data });
   } catch (error) {
-    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
+    if (error instanceof Response) return error;
     console.error('Warehouses GET error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -44,8 +51,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // ─── POST: Create warehouse ───────────────────────
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { tenantId } = await requireTenant(request);
+    const { companyId } = await params;
 
+    const company = await verifyCompany(companyId, tenantId);
+    if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 });
 
     const body = await request.json();
     if (!body.name?.trim()) {
@@ -66,7 +76,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data }, { status: 201 });
   } catch (error: unknown) {
-    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
+    if (error instanceof Response) return error;
     if ((error as { code?: string }).code === 'P2002') {
       return NextResponse.json({ error: 'Warehouse with this name already exists' }, { status: 409 });
     }

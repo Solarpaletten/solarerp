@@ -1,13 +1,16 @@
 // app/api/company/[companyId]/purchases/draft/route.ts
 // ═══════════════════════════════════════════════════
-// Task 49: Create DRAFT Purchase — collision-safe
+// TASK 67 — migrated to requireCompanyContext
 // ═══════════════════════════════════════════════════
 // Retry loop: if unique constraint hit, increment and retry
 // Acceptance: 50 fast clicks must not cause 409
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = {
   params: Promise<{ companyId: string }>;
@@ -17,16 +20,8 @@ const MAX_RETRIES = 5;
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
 
-    const company = await prisma.company.findFirst({
-      where: { id: companyId, tenantId },
-      select: { id: true },
-    });
-    if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     // Parse optional body (may be empty)
     let body: Record<string, unknown> = {};
@@ -73,7 +68,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ error: 'Unexpected error in draft creation' }, { status: 500 });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Create draft error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });

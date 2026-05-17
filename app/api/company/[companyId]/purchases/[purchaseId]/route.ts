@@ -1,10 +1,13 @@
 // app/api/company/[companyId]/purchases/[purchaseId]/route.ts
-// Task 37A: GET | Task 38B + 43A: PUT
+// TASK 67 — migrated to requireCompanyContext
 // Daria audit: 3-state FK clearing + company check before tx
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = {
   params: Promise<{ companyId: string; purchaseId: string }>;
@@ -13,16 +16,9 @@ type RouteParams = {
 // GET - Read single document
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, purchaseId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { purchaseId } = await params;
 
-    const company = await prisma.company.findFirst({
-      where: { id: companyId, tenantId },
-      select: { id: true },
-    });
-    if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     const purchase = await prisma.purchaseDocument.findFirst({
       where: { id: purchaseId, companyId, company: { tenantId } },
@@ -35,7 +31,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data: purchase });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Get purchase error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -45,17 +41,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PUT - Update DRAFT document
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, purchaseId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { purchaseId } = await params;
 
     // Company ownership BEFORE transaction (Daria audit #2)
-    const company = await prisma.company.findFirst({
-      where: { id: companyId, tenantId },
-      select: { id: true },
-    });
-    if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     const body = await request.json();
 
@@ -189,7 +178,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data: result });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     const msg = error instanceof Error ? error.message : 'Unknown error';
 
     if (msg === 'PURCHASE_NOT_FOUND') return NextResponse.json({ error: 'Purchase not found' }, { status: 404 });

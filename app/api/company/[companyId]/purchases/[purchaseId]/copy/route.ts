@@ -1,11 +1,14 @@
 // app/api/company/[companyId]/purchases/[purchaseId]/copy/route.ts
 // ═══════════════════════════════════════════════════
-// Task 36A: Copy Purchase Document
+// TASK 67 — migrated to requireCompanyContext
 // ═══════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = {
   params: Promise<{ companyId: string; purchaseId: string }>;
@@ -13,16 +16,9 @@ type RouteParams = {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, purchaseId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { purchaseId } = await params;
 
-    const company = await prisma.company.findFirst({
-      where: { id: companyId, tenantId },
-      select: { id: true },
-    });
-    if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     const original = await prisma.purchaseDocument.findFirst({
       where: {
@@ -86,7 +82,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data: copy }, { status: 201 });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
 
     if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2002') {
       return NextResponse.json({ error: 'Document with this series/number already exists' }, { status: 409 });

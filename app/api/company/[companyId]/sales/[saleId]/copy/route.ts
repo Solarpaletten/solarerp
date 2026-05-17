@@ -1,17 +1,20 @@
 // app/api/company/[companyId]/sales/[saleId]/copy/route.ts
-// Task 50: Copy sale document → new draft
+// TASK 67 — migrated to requireCompanyContext
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = { params: Promise<{ companyId: string; saleId: string }> };
 const MAX_RETRIES = 5;
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, saleId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { saleId } = await params;
 
     const source = await prisma.saleDocument.findFirst({
       where: { id: saleId, companyId, company: { tenantId } },
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
     return NextResponse.json({ error: 'Unexpected' }, { status: 500 });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Copy sale error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });

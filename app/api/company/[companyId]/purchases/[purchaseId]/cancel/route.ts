@@ -3,7 +3,7 @@
 // STORNO: Cancel Purchase Document
 // ═══════════════════════════════════════════════════
 //
-// Task 23: Immutable ledger — no deletes.
+// TASK 67 — migrated to requireCompanyContext
 // Task 24: Period locking — cannot cancel in closed period.
 // Task 34: Reverse stock movements.
 // Task 35: Block cancel if FIFO lots are consumed.
@@ -18,7 +18,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 import { createJournalEntry } from '@/lib/accounting/journalService';
 import { assertPeriodOpen } from '@/lib/accounting/periodLock';
 import { createReverseMovements } from '@/lib/accounting/stockService';
@@ -30,16 +33,9 @@ type RouteParams = {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, purchaseId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { purchaseId } = await params;
 
-    const company = await prisma.company.findFirst({
-      where: { id: companyId, tenantId },
-      select: { id: true },
-    });
-    if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     // ═══════════════════════════════════════════════
     // TRANSACTION: Guards + Reversal + Status
@@ -126,7 +122,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       { status: 200 }
     );
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
 
     const msg = error instanceof Error ? error.message : 'Unknown error';
 

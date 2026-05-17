@@ -3,6 +3,8 @@
 
 'use client';
 
+import { apiClient } from '@/lib/api/apiClient';
+
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 
@@ -19,11 +21,11 @@ export default function NewProductPage() {
 
     (async () => {
       try {
-        const res = await fetch(`/api/company/${companyId}/products`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: 'New Product', unitName: 'pcs' }),
-        });
+        const res = await apiClient.post(
+          `/api/company/${companyId}/products`,
+          { name: 'New Product', unitName: 'pcs' },
+          { companyId }
+        );
         if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Failed'); }
         const json = await res.json();
         router.replace(`/company/${companyId}/products/${json.data.id}`);

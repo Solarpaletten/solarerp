@@ -1,6 +1,6 @@
 // app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts
 // ═══════════════════════════════════════════════════════════════════════════
-// Task 56_9 — Purchase Posting Engine (Production)
+// TASK 66 — migrated to requireCompanyContext
 // ═══════════════════════════════════════════════════════════════════════════
 // Single transaction creates:
 //   1. JournalEntry (DR Inventory / CR Accounts Payable)
@@ -12,7 +12,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 import { createJournalEntry } from '@/lib/accounting/journalService';
 import { assertPeriodOpen } from '@/lib/accounting/periodLock';
 import { createStockMovement } from '@/lib/accounting/stockService';
@@ -77,8 +80,8 @@ async function resolvePostingAccounts(
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, purchaseId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { purchaseId } = await params;
 
     // ─── Verify company ownership ──────────────────
     const company = await prisma.company.findFirst({
@@ -279,7 +282,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       { status: 200 }
     );
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
 
     const msg = error instanceof Error ? error.message : 'Unknown error';
 

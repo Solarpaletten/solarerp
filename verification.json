@@ -1,18 +1,30 @@
 {
-  "task": "task64",
-  "title": "Repo Cleanup + SolarBox v3.10",
+  "task": "task66",
+  "title": "Accounting Context Propagation — Posting Engine",
   "checks": [
     {
-      "name": "gitignore — .solar-* excluded from tracking",
-      "url": "git check-ignore -v .solar-backups .solar-bundles .solar-history 2>&1 | head -3",
-      "what": ".gitignore:XX:.solar-*  — confirmed excluded",
-      "file": ".gitignore"
+      "name": "purchases/post — 400 without X-Company-Id (was silent fail)",
+      "url": "curl -s -X POST http://localhost:3000/api/company/seed-company-solar-erp-demo/purchases/test-id/post -b /tmp/solar_cookies.txt -H 'Content-Type: application/json'",
+      "what": "{\"error\":\"COMPANY_CONTEXT_MISSING\"} — context enforced",
+      "file": "app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts"
     },
     {
-      "name": "sprint/3.10 in repo",
-      "url": "ls sprint/3.10/solar-apply-next.js",
-      "what": "sprint/3.10/solar-apply-next.js",
-      "file": "sprint/3.10/solar-apply-next.js"
+      "name": "journal/manual — 400 without X-Company-Id",
+      "url": "curl -s -X POST http://localhost:3000/api/company/seed-company-solar-erp-demo/journal/manual -b /tmp/solar_cookies.txt -H 'Content-Type: application/json' -d '{}'",
+      "what": "{\"error\":\"COMPANY_CONTEXT_MISSING\"} — context enforced",
+      "file": "app/api/company/[companyId]/journal/manual/route.ts"
+    },
+    {
+      "name": "repost — 400 without X-Company-Id",
+      "url": "curl -s -X POST http://localhost:3000/api/company/seed-company-solar-erp-demo/repost -b /tmp/solar_cookies.txt -H 'Content-Type: application/json' -d '{}'",
+      "what": "{\"error\":\"COMPANY_CONTEXT_MISSING\"} — context enforced",
+      "file": "app/api/company/[companyId]/repost/route.ts"
+    },
+    {
+      "name": "GET sale — 200 with X-Company-Id",
+      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/sales -b /tmp/solar_cookies.txt -H 'X-Company-Id: seed-company-solar-erp-demo'",
+      "what": "{\"data\":[...],\"count\":N} — sales list loads",
+      "file": "app/api/company/[companyId]/sales/[saleId]/route.ts"
     }
   ]
 }

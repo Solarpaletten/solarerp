@@ -3,14 +3,17 @@
 // Manual Journal Entries
 // ═══════════════════════════════════════════════════
 //
-// Task 28: Create journal entries without a source document.
+// TASK 66 — migrated to requireCompanyContext
 //
 // source = MANUAL, documentType = 'MANUAL', documentId = null
 // Period lock enforced. Repost engine ignores MANUAL entries.
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 import { createJournalEntry } from '@/lib/accounting/journalService';
 import { assertPeriodOpen } from '@/lib/accounting/periodLock';
 
@@ -18,23 +21,12 @@ type RouteParams = {
   params: Promise<{ companyId: string }>;
 };
 
-async function verifyCompanyOwnership(companyId: string, tenantId: string) {
-  const company = await prisma.company.findFirst({
-    where: { id: companyId, tenantId },
-    select: { id: true },
-  });
-  return company !== null;
-}
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    
 
-    const isOwner = await verifyCompanyOwnership(companyId, tenantId);
-    if (!isOwner) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     const body = await request.json();
     const { date: dateParam, description, lines } = body;
@@ -141,7 +133,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
 
     const message =
       error instanceof Error ? error.message : 'Internal server error';

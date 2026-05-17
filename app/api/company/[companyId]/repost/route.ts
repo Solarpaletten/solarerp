@@ -3,7 +3,7 @@
 // Reposting Engine Endpoint
 // ═══════════════════════════════════════════════════
 //
-// Task 27: POST /api/company/:id/repost
+// TASK 66 — migrated to requireCompanyContext
 //
 // Aggressive rebuild: delete all SYSTEM journal entries
 // in date range, recreate from source documents.
@@ -11,31 +11,23 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 import { repostRange } from '@/lib/accounting/repostingService';
 
 type RouteParams = {
   params: Promise<{ companyId: string }>;
 };
 
-async function verifyCompanyOwnership(companyId: string, tenantId: string) {
-  const company = await prisma.company.findFirst({
-    where: { id: companyId, tenantId },
-    select: { id: true },
-  });
-  return company !== null;
-}
 
 // ─── POST /api/company/[companyId]/repost ────────
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    
 
-    const isOwner = await verifyCompanyOwnership(companyId, tenantId);
-    if (!isOwner) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     const body = await request.json();
     const { from: fromParam, to: toParam } = body;

@@ -1,4 +1,5 @@
 // app/(dashboard)/company/[companyId]/products/[productId]/page.tsx
+// S
 // ═══════════════════════════════════════════════════
 // Task 51: Product Editor (production quality)
 // ═══════════════════════════════════════════════════

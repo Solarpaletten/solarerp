@@ -1,13 +1,11 @@
 // app/api/company/[companyId]/sales/route.ts
-// TASK 63 — migrated to requireCompanyContext
+// S
+// Task 22 + 34 + 35 + 43: Sales API
 // Task 43: clientId FK + snapshot fields
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import {
-  requireCompanyContext,
-  companyContextErrorResponse,
-} from '@/lib/auth/requireCompanyContext';
+import { requireTenant } from '@/lib/auth/requireTenant';
 import { createJournalEntry } from '@/lib/accounting/journalService';
 import { assertPeriodOpen } from '@/lib/accounting/periodLock';
 import { createStockMovement } from '@/lib/accounting/stockService';
@@ -19,12 +17,24 @@ type RouteParams = {
   params: Promise<{ companyId: string }>;
 };
 
+async function verifyCompanyOwnership(companyId: string, tenantId: string) {
+  const company = await prisma.company.findFirst({
+    where: { id: companyId, tenantId },
+    select: { id: true },
+  });
+  return company !== null;
+}
 
 // GET /api/company/[companyId]/sales
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { tenantId } = await requireTenant(request);
+    const { companyId } = await params;
 
+    const isOwner = await verifyCompanyOwnership(companyId, tenantId);
+    if (!isOwner) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
 
     const sales = await prisma.saleDocument.findMany({
       where: { companyId, company: { tenantId } },
@@ -34,7 +44,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data: sales, count: sales.length });
   } catch (error) {
-    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
+    if (error instanceof Response) return error;
     console.error('List sales error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -43,8 +53,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // POST /api/company/[companyId]/sales
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { tenantId } = await requireTenant(request);
+    const { companyId } = await params;
 
+    const isOwner = await verifyCompanyOwnership(companyId, tenantId);
+    if (!isOwner) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
 
     const body = await request.json();
 
@@ -187,7 +202,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       cogs: result.totalCogs,
     }, { status: 201 });
   } catch (error: unknown) {
-    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
+    if (error instanceof Response) return error;
 
     if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2002') {
       return NextResponse.json({ error: 'Sale with this series/number already exists' }, { status: 409 });

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// solar-apply-next.js v3.10 — SolarBox Next.js Edition
+// solar-apply-next.js v3.9 — SolarBox Next.js Edition
 // ═══════════════════════════════════════════════════════════════
 //
 // PIPELINE:
@@ -268,35 +268,9 @@ function showHistory() {
 // ─── Save history ─────────────────────────────────────────────
 function saveHistory(taskName, data) {
   fs.mkdirSync(HISTORY_DIR, { recursive: true });
-
-  // Deploy fingerprint (v3.10)
-  let gitCommit = '';
-  let gitBranch = '';
-  try {
-    const { execSync: ex } = require('child_process');
-    gitCommit = ex('git rev-parse --short HEAD', { cwd: ROOT, encoding: 'utf-8', stdio: 'pipe' }).trim();
-    gitBranch = ex('git branch --show-current', { cwd: ROOT, encoding: 'utf-8', stdio: 'pipe' }).trim();
-  } catch {}
-
-  const bundlePath = data.bundle || '';
-  let bundleKb = 0;
-  try { bundleKb = bundlePath ? Math.round(require('fs').statSync(bundlePath).size / 1024) : 0; } catch {}
-
-  const fingerprint = {
-    branch:     gitBranch,
-    commit:     gitCommit,
-    bundleKb,
-    solarbox:   'v3.10',
-  };
-
   fs.writeFileSync(
     path.join(HISTORY_DIR, `${taskName}.json`),
-    JSON.stringify({
-      task: taskName,
-      timestamp: new Date().toISOString(),
-      fingerprint,
-      ...data
-    }, null, 2)
+    JSON.stringify({ task: taskName, timestamp: new Date().toISOString(), ...data }, null, 2)
   );
 }
 
@@ -402,18 +376,6 @@ function printReport(taskName, report, buildResult, tsResult, bundleInfo) {
     console.log(c(C.bold + C.yellow,'   ○  BUILD SKIPPED — run pnpm build when ready'));
   }
   console.log(sep('━') + '\n');
-}
-
-// ─── Print Fingerprint ────────────────────────────────────────
-function printFingerprint(taskName) {
-  const hPath = path.join(HISTORY_DIR, `${taskName}.json`);
-  if (!fs.existsSync(hPath)) return;
-  try {
-    const h = JSON.parse(fs.readFileSync(hPath, 'utf-8'));
-    const fp = h.fingerprint;
-    if (!fp) return;
-    console.log(c(C.dim, `   🔑 ${fp.branch}@${fp.commit} · ${fp.bundleKb}KB · SolarBox ${fp.solarbox}`));
-  } catch {}
 }
 
 // ─── Verification checkpoints ─────────────────────────────────
@@ -540,7 +502,7 @@ async function runGitCommit(taskName, report, proposedBranch) {
   const autoMsg = taskName + ': ' +
     (parts.length > 0 ? parts.join(', ') : 'deploy') +
     (keyFiles ? ' — ' + keyFiles : '') +
-    ' [SolarBox v3.10]';
+    ' [SolarBox v3.9]';
 
   const branchName = proposedBranch || (taskName.replace(/_clean$/, '').replace(/_/g, '-').toLowerCase() + '-' + Date.now().toString(36).slice(-4));
 
@@ -701,8 +663,8 @@ async function main() {
   const branchSlug = taskName.replace(/_clean$/, '').replace(/_/g, '-').toLowerCase();
   const proposedBranch = branchSlug + '-' + Date.now().toString(36).slice(-4);
 
-  console.log(c(C.bold, '\n🚀 SolarBox Next.js v3.10'));
-  console.log(c(C.dim,  '   auto-apply · branch/PR · verify-executor · deploy-fingerprint'));
+  console.log(c(C.bold, '\n🚀 SolarBox Next.js v3.9'));
+  console.log(c(C.dim,  '   auto-apply · critical-review · branch/PR · verification executor'));
   console.log(sep('═'));
   console.log(`   Task:    ${c(C.bold, taskName)}`);
   console.log(`   Archive: ${ARCHIVE}`);
@@ -942,7 +904,6 @@ async function main() {
 
   // ── Step 7: Deploy Report ─────────────────────────────────────
   printReport(taskName, report, buildResult, tsResult, bundleInfo);
-  printFingerprint(taskName);
 
   // ── Verification Checkpoints ──────────────────────────────────
   if (buildResult === true) {

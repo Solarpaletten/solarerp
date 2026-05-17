@@ -1,36 +1,18 @@
 {
-  "task": "task63",
-  "title": "Company Context — ERPGrid + API Routes",
+  "task": "task64",
+  "title": "Repo Cleanup + SolarBox v3.10",
   "checks": [
     {
-      "name": "Clients list — 200 (was 400)",
-      "url": "curl http://localhost:3000/api/company/COMPANY_ID/clients -b /tmp/solar_cookies.txt -H 'X-Company-Id: COMPANY_ID'",
-      "what": "{\"data\":[...], \"total\": N}",
-      "file": "components/erp/ERPGrid.tsx"
+      "name": "gitignore — .solar-* excluded from tracking",
+      "url": "git check-ignore -v .solar-backups .solar-bundles .solar-history 2>&1 | head -3",
+      "what": ".gitignore:XX:.solar-*  — confirmed excluded",
+      "file": ".gitignore"
     },
     {
-      "name": "Products list — 200",
-      "url": "curl http://localhost:3000/api/company/COMPANY_ID/products -b /tmp/solar_cookies.txt -H 'X-Company-Id: COMPANY_ID'",
-      "what": "{\"data\":[...]}",
-      "file": "app/api/company/[companyId]/products/route.ts"
-    },
-    {
-      "name": "Sales list — 200",
-      "url": "curl http://localhost:3000/api/company/COMPANY_ID/sales -b /tmp/solar_cookies.txt -H 'X-Company-Id: COMPANY_ID'",
-      "what": "{\"data\":[...]}",
-      "file": "app/api/company/[companyId]/sales/route.ts"
-    },
-    {
-      "name": "Purchases list — 200",
-      "url": "curl http://localhost:3000/api/company/COMPANY_ID/purchases -b /tmp/solar_cookies.txt -H 'X-Company-Id: COMPANY_ID'",
-      "what": "{\"data\":[...]}",
-      "file": "app/api/company/[companyId]/purchases/route.ts"
-    },
-    {
-      "name": "UI — Enter SOLARPALETTEN GMBH → Clients loads",
-      "url": "http://localhost:3000/company/COMPANY_ID/clients",
-      "what": "Таблица клиентов загружается без COMPANY_CONTEXT_MISSING",
-      "file": "components/erp/ERPGrid.tsx"
+      "name": "sprint/3.10 in repo",
+      "url": "ls sprint/3.10/solar-apply-next.js",
+      "what": "sprint/3.10/solar-apply-next.js",
+      "file": "sprint/3.10/solar-apply-next.js"
     }
   ]
 }

@@ -53,3 +53,14 @@ __pycache__/
 .DS_Store
 .env
 .env.*
+
+# SolarBox runtime
+.solar-backups/
+.solar-bundles/
+.solar-history/
+
+# Sprint archives
+*.tar.gz
+
+# Temp trees
+tree_*.txt

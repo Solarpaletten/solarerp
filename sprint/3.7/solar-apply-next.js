@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// solar-apply-next.js v3.10 — SolarBox Next.js Edition
+// solar-apply-next.js v3.7 — SolarBox Next.js Edition
 // ═══════════════════════════════════════════════════════════════
 //
 // PIPELINE:
@@ -268,35 +268,9 @@ function showHistory() {
 // ─── Save history ─────────────────────────────────────────────
 function saveHistory(taskName, data) {
   fs.mkdirSync(HISTORY_DIR, { recursive: true });
-
-  // Deploy fingerprint (v3.10)
-  let gitCommit = '';
-  let gitBranch = '';
-  try {
-    const { execSync: ex } = require('child_process');
-    gitCommit = ex('git rev-parse --short HEAD', { cwd: ROOT, encoding: 'utf-8', stdio: 'pipe' }).trim();
-    gitBranch = ex('git branch --show-current', { cwd: ROOT, encoding: 'utf-8', stdio: 'pipe' }).trim();
-  } catch {}
-
-  const bundlePath = data.bundle || '';
-  let bundleKb = 0;
-  try { bundleKb = bundlePath ? Math.round(require('fs').statSync(bundlePath).size / 1024) : 0; } catch {}
-
-  const fingerprint = {
-    branch:     gitBranch,
-    commit:     gitCommit,
-    bundleKb,
-    solarbox:   'v3.10',
-  };
-
   fs.writeFileSync(
     path.join(HISTORY_DIR, `${taskName}.json`),
-    JSON.stringify({
-      task: taskName,
-      timestamp: new Date().toISOString(),
-      fingerprint,
-      ...data
-    }, null, 2)
+    JSON.stringify({ task: taskName, timestamp: new Date().toISOString(), ...data }, null, 2)
   );
 }
 
@@ -404,86 +378,30 @@ function printReport(taskName, report, buildResult, tsResult, bundleInfo) {
   console.log(sep('━') + '\n');
 }
 
-// ─── Print Fingerprint ────────────────────────────────────────
-function printFingerprint(taskName) {
-  const hPath = path.join(HISTORY_DIR, `${taskName}.json`);
-  if (!fs.existsSync(hPath)) return;
-  try {
-    const h = JSON.parse(fs.readFileSync(hPath, 'utf-8'));
-    const fp = h.fingerprint;
-    if (!fp) return;
-    console.log(c(C.dim, `   🔑 ${fp.branch}@${fp.commit} · ${fp.bundleKb}KB · SolarBox ${fp.solarbox}`));
-  } catch {}
-}
-
 // ─── Verification checkpoints ─────────────────────────────────
-async function runVerification(taskName) {
+function printVerification(taskName) {
   const vPath = path.join(ROOT, 'verification.json');
   if (!fs.existsSync(vPath)) return;
 
   let verData;
   try { verData = JSON.parse(fs.readFileSync(vPath, 'utf-8')); } catch { return; }
 
-  const checks = verData.checks || [];
-  if (checks.length === 0) return;
-
-  console.log('\n' + sep('━'));
+  console.log('\\n' + sep('━'));
   console.log(c(C.bold, `🌐 POST-DEPLOY CHECKPOINTS — ${verData.title || taskName.toUpperCase()}`));
   console.log(sep('━'));
 
-  const exAns = (await ask(
-    c(C.bold, '\n   Run curl checks now? [Y] auto-execute  [N] display only  > ')
-  )).toLowerCase().trim();
-  const autoExec = (exAns === '' || exAns === 'y');
-
-  let passed = 0, failed = 0, displayed = 0;
-
-  for (let i = 0; i < checks.length; i++) {
-    const check = checks[i];
+  (verData.checks || []).forEach((check, i) => {
+    console.log(c(C.bold, `\n[${i + 1}] ${check.name}`));
+    if (check.file) console.log(c(C.dim,  `    From: ${check.file}`));
     const isCurl = (check.url || '').startsWith('curl');
+    console.log(isCurl
+      ? c(C.cyan, `    CMD:  ${check.url}`)
+      : c(C.blue, `    URL:  ${check.url}`));
+    console.log(c(C.green, `    ✔     ${check.what}`));
+  });
 
-    console.log(c(C.bold, `\n[${i + 1}/${checks.length}] ${check.name}`));
-    if (check.file) console.log(c(C.dim, `    From: ${check.file}`));
-
-    if (isCurl && autoExec) {
-      console.log(c(C.dim, `    ▶ ${check.url.slice(0, 90)}`));
-      try {
-        const result = require('child_process').spawnSync('bash', ['-c', check.url], {
-          cwd: ROOT, encoding: 'utf-8', timeout: 8000, stdio: 'pipe',
-        });
-        const out = (result.stdout || '').trim();
-        if (result.status === 0 && out.length > 0) {
-          console.log(c(C.green, `    ✅ PASS  ${out.slice(0, 120)}`));
-          passed++;
-        } else {
-          console.log(c(C.red, `    ❌ FAIL  ${(result.stderr || 'empty response').slice(0, 120)}`));
-          failed++;
-        }
-      } catch {
-        console.log(c(C.yellow, '    ⚠️  TIMEOUT'));
-        failed++;
-      }
-    } else {
-      const isCurlUrl = (check.url || '').startsWith('curl');
-      console.log(isCurlUrl
-        ? c(C.cyan, `    CMD: ${check.url.slice(0, 90)}`)
-        : c(C.blue, `    URL: ${check.url}`));
-      console.log(c(C.green, `    ✔   ${check.what}`));
-      displayed++;
-    }
-  }
-
-  console.log('\n' + sep('━'));
-  if (autoExec && (passed + failed) > 0) {
-    const ok = failed === 0;
-    console.log(c(ok ? C.green : C.red,
-      `   ${passed} PASS · ${failed} FAIL · ${displayed} DISPLAY`));
-    console.log(c(C.bold, ok
-      ? '   ✅ ALL CHECKS PASSED — READY FOR NEXT TASK'
-      : '   ⚠️  SOME CHECKS FAILED — review before next task'));
-  } else {
-    console.log(c(C.bold, '   ✅ VALIDATE THESE BEFORE NEXT TASK'));
-  }
+  console.log('\\n' + sep('━'));
+  console.log(c(C.bold, '   ✅ VALIDATE THESE BEFORE NEXT TASK'));
   console.log(sep('━') + '\n');
 }
 
@@ -498,8 +416,7 @@ const CRITICAL_FILES = [
 ];
 
 function isCritical(rel) {
-  const n = rel.replace(/\\/g, '/');
-  return CRITICAL_FILES.some(f => n === f || n.endsWith('/' + f));
+  return CRITICAL_FILES.some(f => rel.endsWith(f));
 }
 // ─── Git Commit ─────────────────────────────────────────────────
 // Auto-generates commit message from actually changed files
@@ -540,7 +457,7 @@ async function runGitCommit(taskName, report, proposedBranch) {
   const autoMsg = taskName + ': ' +
     (parts.length > 0 ? parts.join(', ') : 'deploy') +
     (keyFiles ? ' — ' + keyFiles : '') +
-    ' [SolarBox v3.10]';
+    ' [SolarBox v3.7]';
 
   const branchName = proposedBranch || (taskName.replace(/_clean$/, '').replace(/_/g, '-').toLowerCase() + '-' + Date.now().toString(36).slice(-4));
 
@@ -579,22 +496,9 @@ async function runGitCommit(taskName, report, proposedBranch) {
   // Determine push mode
   const useMain = (finalMode === 'm');
 
-  // git add — scoped to sprint files only (Auditor fix v3.9)
-  const filesToStage = [
-    ...report.created,
-    ...report.modified,
-    // Always include SolarBox artifacts
-    '.solar-history',
-    '.solar-bundles',
-    'verification.json',
-  ].filter(Boolean);
-
-  if (filesToStage.length > 0) {
-    sp('git', ['add', '--', ...filesToStage], { cwd: ROOT, stdio: 'pipe' });
-  }
-  // Also stage SolarBox system files if present
-  sp('git', ['add', '-u'], { cwd: ROOT, stdio: 'pipe' }); // track deletions
-  console.log(c(C.green, '\n   ✅ Staged (' + filesToStage.length + ' sprint files)'));
+  // git add (only changed files from this sprint)
+  sp('git', ['add', '.'], { cwd: ROOT, stdio: 'inherit' });
+  console.log(c(C.green, '\n   ✅ Staged'));
 
   if (useMain) {
     // ── Direct to main ──────────────────────────────────
@@ -701,8 +605,8 @@ async function main() {
   const branchSlug = taskName.replace(/_clean$/, '').replace(/_/g, '-').toLowerCase();
   const proposedBranch = branchSlug + '-' + Date.now().toString(36).slice(-4);
 
-  console.log(c(C.bold, '\n🚀 SolarBox Next.js v3.10'));
-  console.log(c(C.dim,  '   auto-apply · branch/PR · verify-executor · deploy-fingerprint'));
+  console.log(c(C.bold, '\n🚀 SolarBox Next.js v3.7'));
+  console.log(c(C.dim,  '   NEW+PATCH=auto-apply · --strict=review mode · Branch/PR flow'));
   console.log(sep('═'));
   console.log(`   Task:    ${c(C.bold, taskName)}`);
   console.log(`   Archive: ${ARCHIVE}`);
@@ -898,24 +802,6 @@ async function main() {
     // ── Step 6: Build ─────────────────────────────────────────
     if (doRunBuild) {
       buildResult = runBuildSync(taskName);
-
-      // v3.8: auto rollback on build fail
-      if (buildResult === false) {
-        console.log('\n' + sep('━'));
-        console.log(c(C.red, '⚠️  BUILD FAILED'));
-        console.log(sep('━'));
-        const rbAns = (await ask(
-          c(C.bold, '   Auto-rollback now? [Y] yes  [N] keep failed state  > ')
-        )).toLowerCase().trim();
-        if (rbAns === '' || rbAns === 'y') {
-          doRollback(taskName);
-          console.log(c(C.green, '\n✅ Rolled back to previous state.'));
-          console.log(c(C.dim,   '   Fix the issue and re-deploy.\n'));
-        } else {
-          console.log(c(C.dim, '\n   Keeping failed state. To rollback manually:'));
-          console.log(c(C.cyan, `   node solar-apply-next.js ${taskName} --rollback\n`));
-        }
-      }
     }
   }
 
@@ -942,11 +828,10 @@ async function main() {
 
   // ── Step 7: Deploy Report ─────────────────────────────────────
   printReport(taskName, report, buildResult, tsResult, bundleInfo);
-  printFingerprint(taskName);
 
   // ── Verification Checkpoints ──────────────────────────────────
   if (buildResult === true) {
-    await runVerification(taskName);
+    printVerification(taskName);
   }
 
   // ── Git Commit (Solar Rule #1) ─────────────────────────────────

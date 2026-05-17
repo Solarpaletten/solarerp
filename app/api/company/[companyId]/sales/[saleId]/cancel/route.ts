@@ -3,7 +3,7 @@
 // STORNO: Sale Document Cancellation
 // ═══════════════════════════════════════════════════
 //
-// Task 23: Document Cancellation via Reversal Pattern
+// TASK 67 — migrated to requireCompanyContext
 // Task 34: Reverse Stock Movements
 // Task 35: Restore FIFO lots + 4-line reversal journal
 //
@@ -17,7 +17,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 import { createJournalEntry } from '@/lib/accounting/journalService';
 import { assertPeriodOpen } from '@/lib/accounting/periodLock';
 import { createReverseMovements } from '@/lib/accounting/stockService';
@@ -29,16 +32,9 @@ type RouteParams = {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, saleId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { saleId } = await params;
 
-    const company = await prisma.company.findFirst({
-      where: { id: companyId, tenantId },
-      select: { id: true },
-    });
-    if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     // ═══════════════════════════════════════════════
     // TRANSACTION: FIFO restore + Reversal Journal + Status
@@ -110,7 +106,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
 
     const msg = error instanceof Error ? error.message : 'Internal server error';
 

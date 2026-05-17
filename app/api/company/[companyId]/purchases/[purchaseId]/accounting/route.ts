@@ -1,13 +1,16 @@
 // app/api/company/[companyId]/purchases/[purchaseId]/accounting/route.ts
 // ═══════════════════════════════════════════════════
-// Task 41: Accounting Data for Posted Purchase
+// TASK 67 — migrated to requireCompanyContext
 // ═══════════════════════════════════════════════════
 // Returns: journal entry + lines (with account codes/names),
 //          stock movements, FIFO lots
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = {
   params: Promise<{ companyId: string; purchaseId: string }>;
@@ -15,16 +18,9 @@ type RouteParams = {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, purchaseId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { purchaseId } = await params;
 
-    const company = await prisma.company.findFirst({
-      where: { id: companyId, tenantId },
-      select: { id: true },
-    });
-    if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     // ── Journal Entry + Lines ───────────────────
     const journalEntries = await prisma.journalEntry.findMany({
@@ -121,7 +117,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       })),
     });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Get accounting data error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });

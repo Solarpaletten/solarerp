@@ -1,12 +1,15 @@
 // app/api/company/[companyId]/purchases/[purchaseId]/receipt/route.ts
 // ═══════════════════════════════════════════════════
-// Task 41.7: Purchase Receipt (Goods Received)
+// TASK 67 — migrated to requireCompanyContext
 // ═══════════════════════════════════════════════════
 // Returns structured data for warehouse receipt view/print
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = {
   params: Promise<{ companyId: string; purchaseId: string }>;
@@ -14,8 +17,8 @@ type RouteParams = {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, purchaseId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { purchaseId } = await params;
 
     const company = await prisma.company.findFirst({
       where: { id: companyId, tenantId },
@@ -77,7 +80,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Get receipt error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });

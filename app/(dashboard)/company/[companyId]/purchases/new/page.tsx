@@ -1,5 +1,6 @@
 // app/(dashboard)/company/[companyId]/purchases/new/page.tsx
 // Task 49 FIX: useRef guard against React StrictMode double useEffect
+// TASK 68B.2-FU: add X-Company-Id header (requireCompanyContext requires it)
 
 'use client';
 
@@ -20,7 +21,12 @@ export default function NewPurchasePage() {
     (async () => {
       try {
         const res = await fetch(`/api/company/${companyId}/purchases/draft`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Company-Id': companyId,
+          },
+          body: JSON.stringify({}),
         });
         if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Failed to create draft'); }
         const json = await res.json();

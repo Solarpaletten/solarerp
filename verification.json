@@ -1,67 +1,60 @@
 {
-  "task": "task68b2-vat-snapshot",
-  "title": "Financial Snapshot Persistence — purchases posting freeze",
-  "scope": "Option A — Prisma fields (PurchaseDocument + SaleDocument) + purchases/post snapshot freeze. Sales posting deferred → Task 68B.3.",
+  "task": "task68b2-frontend-unlock",
+  "title": "Frontend Context Wiring Unlock — X-Company-Id on purchase pages",
+  "scope": "Path A (narrow): X-Company-Id header on 6 fetch calls across 2 files. Unlocks Task 68B.2 runtime test. Other 17 frontend files deferred to Task 68B.4.",
   "checks": [
     {
-      "name": "schema — PurchaseDocument has 5 snapshot fields",
-      "what": "totalNetAmount + totalVatAmount + totalGrossAmount + journalEntryId + postedAt present in PurchaseDocument model",
-      "url": "bash -c 'awk \"/^model PurchaseDocument/,/^}/\" prisma/schema.prisma | grep -cE \"totalNetAmount|totalVatAmount|totalGrossAmount|journalEntryId|postedAt\"'",
-      "file": "prisma/schema.prisma"
+      "name": "new/page.tsx — X-Company-Id in draft POST",
+      "what": "1 fetch call to purchases/draft now sends X-Company-Id header",
+      "url": "bash -c 'grep -c \"X-Company-Id\" app/\\(dashboard\\)/company/\\[companyId\\]/purchases/new/page.tsx'",
+      "file": "app/(dashboard)/company/[companyId]/purchases/new/page.tsx"
     },
     {
-      "name": "schema — SaleDocument has 5 snapshot fields (prepared for 68B.3)",
-      "what": "same 5 fields on SaleDocument — reserved for next task, no migration needed later",
-      "url": "bash -c 'awk \"/^model SaleDocument/,/^}/\" prisma/schema.prisma | grep -cE \"totalNetAmount|totalVatAmount|totalGrossAmount|journalEntryId|postedAt\"'",
-      "file": "prisma/schema.prisma"
+      "name": "[purchaseId]/page.tsx — all 5 fetch calls have X-Company-Id",
+      "what": "GET, PUT, PUT-before-post, POST /post, POST /copy, POST /cancel — all send header",
+      "url": "bash -c 'grep -c \"X-Company-Id\" app/\\(dashboard\\)/company/\\[companyId\\]/purchases/\\[purchaseId\\]/page.tsx'",
+      "file": "app/(dashboard)/company/[companyId]/purchases/[purchaseId]/page.tsx"
     },
     {
-      "name": "purchases/post — writes financial snapshot",
-      "what": "step 11 includes the 5 snapshot fields in tx.purchaseDocument.update",
-      "url": "bash -c 'grep -cE \"totalNetAmount: new Decimal|totalVatAmount: new Decimal|totalGrossAmount: new Decimal|journalEntryId: journalEntry.id|postedAt: new Date\" app/api/company/\\[companyId\\]/purchases/\\[purchaseId\\]/post/route.ts'",
+      "name": "runtime — New Purchase creates DRAFT",
+      "what": "Click 'New Purchase' in UI → draft created → redirect to /purchases/{id} → no COMPANY_CONTEXT_MISSING",
+      "url": "echo 'manual: UI → Purchases → New Purchase — expect editor page, not error banner'",
+      "file": "app/(dashboard)/company/[companyId]/purchases/new/page.tsx"
+    },
+    {
+      "name": "runtime — Purchase editor loads",
+      "what": "GET /purchases/{id} loads document — header + items visible",
+      "url": "echo 'manual: page should render PurchaseHeaderEdit + PurchaseItemsEdit, NOT loading spinner forever'",
+      "file": "app/(dashboard)/company/[companyId]/purchases/[purchaseId]/page.tsx"
+    },
+    {
+      "name": "runtime — Save DRAFT works",
+      "what": "Edit supplier/items → Save → 200 + 'Saved ✓' toast",
+      "url": "echo 'manual: edit fields → Save button — expect Saved ✓ banner'",
+      "file": "app/(dashboard)/company/[companyId]/purchases/[purchaseId]/page.tsx"
+    },
+    {
+      "name": "runtime — POST purchase succeeds (this unlocks 68B.2)",
+      "what": "Click Post → confirm → status flips to POSTED + snapshot fields populated in DB",
+      "url": "echo 'manual: Post button → Yes → check DB: SELECT totalNetAmount, totalVatAmount, totalGrossAmount, journalEntryId, postedAt FROM purchase_documents WHERE id=...'",
       "file": "app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts"
     },
     {
-      "name": "prisma — schema valid",
-      "what": "schema parses without errors",
-      "url": "npx prisma validate",
-      "file": "prisma/schema.prisma"
-    },
-    {
-      "name": "migration — SQL file present",
-      "what": "Prisma-convention migration directory exists with migration.sql",
-      "url": "bash -c 'test -f prisma/migrations/20260519_task68b2_financial_snapshot/migration.sql && echo OK'",
-      "file": "prisma/migrations/20260519_task68b2_financial_snapshot/migration.sql"
-    },
-    {
-      "name": "runtime — post DRAFT purchase returns 200 with accounting block",
-      "what": "POST /purchases/{id}/post returns 200 + journalEntryId + populated totals on the document row",
-      "url": "echo 'manual: post a DRAFT purchase via UI or curl, then verify SELECT id, status, totalNetAmount, totalVatAmount, totalGrossAmount, journalEntryId, postedAt FROM purchase_documents WHERE id=...'",
-      "file": "app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts"
-    },
-    {
-      "name": "runtime — double-post still blocked (409)",
-      "what": "second POST on same purchaseId returns 409 ALREADY_POSTED",
-      "url": "echo 'manual: repeat the POST above — expect HTTP 409 + {\"error\":\"Purchase already posted\"}'",
-      "file": "app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts"
-    },
-    {
-      "name": "invariant — DRAFT rows still NULL on snapshot fields",
-      "what": "existing DRAFT rows untouched — snapshot fields remain NULL",
-      "url": "echo 'manual: SELECT id, status, totalNetAmount, journalEntryId, postedAt FROM purchase_documents WHERE status=DRAFT LIMIT 5; — expect all NULL'",
-      "file": "purchase_documents table"
-    },
-    {
-      "name": "invariant — POSTED totalGrossAmount equals journal debit sum",
-      "what": "totalGrossAmount on document equals SUM(journal_lines.debit) for its journalEntryId — proves snapshot integrity",
-      "url": "echo 'manual: SELECT p.totalGrossAmount, (SELECT SUM(jl.debit) FROM journal_lines jl WHERE jl.journalEntryId=p.journalEntryId) FROM purchase_documents p WHERE p.status=POSTED LIMIT 5;'",
+      "name": "invariant — golden snapshot match",
+      "what": "totalGrossAmount === SUM(journal_lines.debit) for the just-posted purchase",
+      "url": "echo 'manual: psql SELECT p.totalGrossAmount, (SELECT SUM(jl.debit) FROM journal_lines jl WHERE jl.journalEntryId=p.journalEntryId) FROM purchase_documents p WHERE p.id=...'",
       "file": "purchase_documents + journal_lines"
     }
   ],
   "not_included": [
-    "sales/[saleId]/post route — deferred to Task 68B.3",
-    "FIFO reverse on sales — Task 68B.3",
-    "VAT output on sales — Task 68B.3",
-    "invoice numbering governance — Task 69"
+    "Sales pages (sales/new, sales/[saleId]) — Task 68B.4",
+    "Warehouse pages — Task 68B.4",
+    "Products pages — Task 68B.4",
+    "Chart of Accounts page — Task 68B.4",
+    "All SelectDialogs (Client, Warehouse, Product, etc.) — Task 68B.4",
+    "Form components (ClientForm, ClientSelector, ProductSelector) — Task 68B.4",
+    "PostedAccountingView — Task 68B.4",
+    "Migration to apiClient — Task 68B.4 (currently inline header injection only)",
+    "ESLint rule 'no naked fetch to /api/company/' — Task 68B.4"
   ]
 }

@@ -1,12 +1,14 @@
 // app/(dashboard)/company/[companyId]/purchases/[purchaseId]/page.tsx
 // ═══════════════════════════════════════════════════════════════════════════
 // Task 41 + 49 + Task 56_6 FIX: Purchase Document Editor (FIXED)
+// TASK 68B.2-FU: add X-Company-Id header to all fetch() calls
 // ═══════════════════════════════════════════════════════════════════════════
 // FIXES APPLIED:
 // 1. PurchaseHeaderEdit: Add companyId prop
 // 2. PurchaseHeaderEdit: Extract series, number from props
 // 3. PurchaseItemsEdit: Add companyId prop
 // 4. handleHeaderChange: Fix type to include number | boolean
+// 5. TASK 68B.2-FU: X-Company-Id header on 5 fetch calls (requireCompanyContext)
 
 'use client';
 
@@ -120,6 +122,7 @@ export default function PurchaseDocumentPage() {
       setError(null);
       const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}`, {
         cache: 'no-store',
+        headers: { 'X-Company-Id': companyId },
       });
       if (res.status === 404) {
         setError('Purchase document not found');
@@ -153,7 +156,10 @@ export default function PurchaseDocumentPage() {
     try {
       const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        },
         body: JSON.stringify({
           ...headerForm,
           items: editItems.map((item) => ({
@@ -212,7 +218,10 @@ export default function PurchaseDocumentPage() {
       // Step 1: Save first (ensure latest data is persisted)
       const saveRes = await fetch(`/api/company/${companyId}/purchases/${purchaseId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        },
         body: JSON.stringify({
           ...headerForm,
           items: editItems.map((item) => ({
@@ -235,7 +244,10 @@ export default function PurchaseDocumentPage() {
         `/api/company/${companyId}/purchases/${purchaseId}/post`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Company-Id': companyId,
+          },
         }
       );
 
@@ -266,6 +278,7 @@ export default function PurchaseDocumentPage() {
     try {
       const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}/copy`, {
         method: 'POST',
+        headers: { 'X-Company-Id': companyId },
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -289,6 +302,7 @@ export default function PurchaseDocumentPage() {
     try {
       const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}/cancel`, {
         method: 'POST',
+        headers: { 'X-Company-Id': companyId },
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));

@@ -14,7 +14,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 import { isProtectedCode } from '@/lib/accounting/protectedAccounts';
 
 type RouteParams = {
@@ -26,8 +29,8 @@ const VALID_TYPES = ['ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE'];
 // ─── GET ─────────────────────────────────────────
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, accountId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { accountId } = await params;
 
     const account = await prisma.account.findFirst({
       where: {
@@ -55,8 +58,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // Body: { nameDe?, nameEn?, name?, code?, type?, isActive? }
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, accountId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { accountId } = await params;
 
     const body = await request.json();
     const { name, nameDe, nameEn, code, type, isActive } = body;
@@ -150,8 +153,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 // ─── DELETE ──────────────────────────────────────
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, accountId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { accountId } = await params;
 
     const account = await prisma.account.findFirst({
       where: {

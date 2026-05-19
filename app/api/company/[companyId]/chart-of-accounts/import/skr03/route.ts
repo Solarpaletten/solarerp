@@ -29,7 +29,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 import { AccountType } from '@prisma/client';
 import { PROTECTED_ACCOUNT_CODES } from '@/lib/accounting/protectedAccounts';
 
@@ -40,13 +43,6 @@ type RouteParams = {
 const VALID_TYPES = new Set<string>(['ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE']);
 
 // ─── §1.1 Tenant-scoped company ownership ───────
-async function verifyCompanyOwnership(companyId: string, tenantId: string) {
-  const company = await prisma.company.findFirst({
-    where: { id: companyId, tenantId },
-    select: { id: true },
-  });
-  return company !== null;
-}
 
 // ─── §5 CSV Parser with validation ──────────────
 type ParsedRow = {
@@ -121,13 +117,8 @@ function parseCSV(text: string): { rows: ParsedRow[]; errors: string[] } {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     // ═══ §1.1 SECURITY: Tenant isolation ═════════
-    const { tenantId } = await requireTenant(request);
-    const { companyId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
 
-    const isOwner = await verifyCompanyOwnership(companyId, tenantId);
-    if (!isOwner) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     // ═══ Read built-in SKR03 CSV ═════════════════
     let csvText: string;
@@ -263,7 +254,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     console.error('SKR03 import error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

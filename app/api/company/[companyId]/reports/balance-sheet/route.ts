@@ -3,7 +3,7 @@
 // Balance Sheet (Bilanz) — Ledger-based Aggregator
 // ═══════════════════════════════════════════════════
 //
-// Task 26 MVP + Task 26.1 fixes:
+// TASK 68A — migrated to requireCompanyContext
 //   - UTC-safe date boundary
 //   - Auth error: return original Response
 //
@@ -16,7 +16,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = {
   params: Promise<{ companyId: string }>;
@@ -30,24 +33,12 @@ type BalanceLine = {
 };
 
 // ─── HELPER: Verify company belongs to tenant ────
-async function verifyCompanyOwnership(companyId: string, tenantId: string) {
-  const company = await prisma.company.findFirst({
-    where: { id: companyId, tenantId },
-    select: { id: true },
-  });
-  return company !== null;
-}
 
 // ─── GET /api/company/[companyId]/reports/balance-sheet ───
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
 
-    const isOwner = await verifyCompanyOwnership(companyId, tenantId);
-    if (!isOwner) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     // ─── Validate asOf param ─────────────────────
     const url = new URL(request.url);

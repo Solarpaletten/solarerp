@@ -11,30 +11,21 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 import { PROTECTED_ACCOUNT_CODES } from '@/lib/accounting/protectedAccounts';
 
 type RouteParams = {
   params: Promise<{ companyId: string }>;
 };
 
-async function verifyCompanyOwnership(companyId: string, tenantId: string) {
-  const company = await prisma.company.findFirst({
-    where: { id: companyId, tenantId },
-    select: { id: true },
-  });
-  return company !== null;
-}
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
 
-    const isOwner = await verifyCompanyOwnership(companyId, tenantId);
-    if (!isOwner) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     const body = await request.json();
     const { action, ids } = body;
@@ -129,7 +120,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     console.error('Bulk accounts error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

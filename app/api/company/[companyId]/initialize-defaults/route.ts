@@ -1,6 +1,6 @@
 // app/api/company/[companyId]/initialize-defaults/route.ts
 // ═══════════════════════════════════════════════════
-// Task 57.5 — Company Reference Data Initialization
+// TASK 68A — migrated to requireCompanyContext
 // ═══════════════════════════════════════════════════
 // POST: Creates standard reference data for a company
 // Idempotent: skips records that already exist
@@ -15,14 +15,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = { params: Promise<{ companyId: string }> };
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
 
     const company = await prisma.company.findFirst({
       where: { id: companyId, tenantId },
@@ -260,7 +262,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }, { status: 200 });
 
   } catch (error) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     console.error('Initialize defaults error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

@@ -1,6 +1,6 @@
 // app/api/company/[companyId]/products/[productId]/route.ts
 // ═══════════════════════════════════════════════════
-// Task 47: Product CRUD — Single Record
+// TASK 68A — migrated to requireCompanyContext
 // ═══════════════════════════════════════════════════
 // GET — read single product
 // PATCH — update product
@@ -9,7 +9,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = {
   params: Promise<{ companyId: string; productId: string }>;
@@ -19,8 +22,8 @@ type RouteParams = {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, productId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { productId } = await params;
 
     const product = await prisma.item.findFirst({
       where: { id: productId, companyId, company: { tenantId } },
@@ -32,7 +35,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data: product });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Get product error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -43,8 +46,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, productId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { productId } = await params;
 
     const existing = await prisma.item.findFirst({
       where: { id: productId, companyId, company: { tenantId } },
@@ -94,7 +97,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data: product });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Update product error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -106,8 +109,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, productId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { productId } = await params;
 
     const product = await prisma.item.findFirst({
       where: { id: productId, companyId, company: { tenantId } },
@@ -142,7 +145,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Delete product error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -155,8 +158,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, productId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { productId } = await params;
 
     const source = await prisma.item.findFirst({
       where: { id: productId, companyId, company: { tenantId } },
@@ -212,7 +215,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data: copy }, { status: 201 });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Copy product error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });

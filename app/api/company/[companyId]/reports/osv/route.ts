@@ -3,7 +3,7 @@
 // ОСВ (Оборотно-сальдовая ведомость) — Trial Balance
 // ═══════════════════════════════════════════════════
 //
-// Task 22: Backend-only aggregator
+// TASK 68A — migrated to requireCompanyContext
 //
 // SQL logic: SUM(debit - credit) GROUP BY accountId
 // Returns balance per account from JournalLine.
@@ -12,20 +12,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = {
   params: Promise<{ companyId: string }>;
 };
 
 // ─── HELPER: Verify company belongs to tenant ────
-async function verifyCompanyOwnership(companyId: string, tenantId: string) {
-  const company = await prisma.company.findFirst({
-    where: { id: companyId, tenantId },
-    select: { id: true },
-  });
-  return company !== null;
-}
 
 // ─── GET /api/company/[companyId]/reports/osv ────
 // Trial Balance: balance per account
@@ -47,13 +43,8 @@ async function verifyCompanyOwnership(companyId: string, tenantId: string) {
 // ]
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
 
-    const isOwner = await verifyCompanyOwnership(companyId, tenantId);
-    if (!isOwner) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     // Optional date range filters
     const url = new URL(request.url);

@@ -1,29 +1,23 @@
 // app/api/company/[companyId]/operation-types/route.ts
 // ═══════════════════════════════════════════════════
-// Task 57_1: Operation Types CRUD API
+// TASK 68A — migrated to requireCompanyContext
 // ═══════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = { params: Promise<{ companyId: string }> };
 
-async function verifyCompany(companyId: string, tenantId: string) {
-  return prisma.company.findFirst({
-    where: { id: companyId, tenantId },
-    select: { id: true },
-  });
-}
 
 // ─── GET: List operation types ────────────────────
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
 
-    const company = await verifyCompany(companyId, tenantId);
-    if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 });
 
     const url = new URL(request.url);
     const module = url.searchParams.get('module'); // PURCHASE | SALE
@@ -38,7 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data });
   } catch (error) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     console.error('OperationTypes GET error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -47,11 +41,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // ─── POST: Create operation type ──────────────────
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
 
-    const company = await verifyCompany(companyId, tenantId);
-    if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 });
 
     const body = await request.json();
     if (!body.name?.trim()) {
@@ -88,7 +79,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data }, { status: 201 });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     if ((error as { code?: string }).code === 'P2002') {
       return NextResponse.json({ error: 'Operation type with this code already exists' }, { status: 409 });
     }

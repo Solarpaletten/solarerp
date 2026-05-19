@@ -1,6 +1,6 @@
 // app/api/company/[companyId]/clients/[clientId]/route.ts
 // ═══════════════════════════════════════════════════
-// Task 54 FINAL: Single client CRUD (all Dashka audit fixes)
+// TASK 68A — migrated to requireCompanyContext
 // - Decimal for creditLimit
 // - PATCH validation (name cannot be empty)
 // - DELETE: soft + hard with proper reference checks
@@ -9,7 +9,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = {
   params: Promise<{ companyId: string; clientId: string }>;
@@ -23,8 +26,8 @@ const EMAIL_REGEX = /^\S+@\S+\.\S+$/;
 // ─── GET — Single client ────────────────────────
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, clientId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { clientId } = await params;
 
     const client = await prisma.client.findFirst({
       where: {
@@ -40,7 +43,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data: client });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('[GET /clients/[id]] Error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -50,8 +53,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // ─── PATCH — Update client ──────────────────────
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, clientId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { clientId } = await params;
 
     // Verify client exists
     const client = await prisma.client.findFirst({
@@ -211,7 +214,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ data: updated });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
 
     if (
       error && typeof error === 'object' && 'code' in error &&
@@ -233,8 +236,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, clientId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { clientId } = await params;
 
     const client = await prisma.client.findFirst({
       where: {
@@ -298,7 +301,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: 'Client deactivated (soft delete)',
     });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('[DELETE /clients/[id]] Error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });

@@ -1,36 +1,36 @@
 {
-  "task": "task67",
-  "title": "Invoice Lifecycle Governance — requireCompanyContext migration",
+  "task": "task68a",
+  "title": "Final Context Migration — 16 routes unified",
   "checks": [
     {
-      "name": "purchases — 401 without session (auth first)",
-      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/purchases",
-      "what": "{\"error\":\"Unauthorized\"} OR redirect — auth chain works",
-      "file": "app/api/company/[companyId]/purchases/[purchaseId]/route.ts"
+      "name": "vat-rates — 401 without session",
+      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/vat-rates",
+      "what": "{\"error\":\"Unauthorized\"} — auth chain works",
+      "file": "app/api/company/[companyId]/vat-rates/route.ts"
     },
     {
-      "name": "purchases — 400 COMPANY_CONTEXT_MISSING with session but no header",
-      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/purchases -b /tmp/solar_cookies.txt",
-      "what": "{\"error\":\"COMPANY_CONTEXT_MISSING\"} — context enforced after auth",
-      "file": "app/api/company/[companyId]/purchases/[purchaseId]/route.ts"
-    },
-    {
-      "name": "purchases — 200 with full context",
-      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/purchases -b /tmp/solar_cookies.txt -H 'X-Company-Id: seed-company-solar-erp-demo'",
-      "what": "{\"data\":[...]} — purchases load correctly",
-      "file": "app/api/company/[companyId]/purchases/[purchaseId]/route.ts"
-    },
-    {
-      "name": "sales draft — 400 COMPANY_CONTEXT_MISSING with session but no header",
-      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/sales -b /tmp/solar_cookies.txt",
+      "name": "vat-rates — 400 COMPANY_CONTEXT_MISSING with session no header",
+      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/vat-rates -b /tmp/solar_cookies.txt",
       "what": "{\"error\":\"COMPANY_CONTEXT_MISSING\"} — context enforced",
-      "file": "app/api/company/[companyId]/sales/draft/route.ts"
+      "file": "app/api/company/[companyId]/vat-rates/route.ts"
     },
     {
-      "name": "purchases cancel — 400 COMPANY_CONTEXT_MISSING",
-      "url": "curl -s -X POST http://localhost:3000/api/company/seed-company-solar-erp-demo/purchases/test-id/cancel -b /tmp/solar_cookies.txt -H 'Content-Type: application/json'",
-      "what": "{\"error\":\"COMPANY_CONTEXT_MISSING\"} — lifecycle endpoint protected",
-      "file": "app/api/company/[companyId]/purchases/[purchaseId]/cancel/route.ts"
+      "name": "vat-rates — 200 with full context",
+      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/vat-rates -b /tmp/solar_cookies.txt -H 'X-Company-Id: seed-company-solar-erp-demo'",
+      "what": "{\"data\":[...]} — VAT rates load",
+      "file": "app/api/company/[companyId]/vat-rates/route.ts"
+    },
+    {
+      "name": "warehouses — 200 with full context",
+      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/warehouses -b /tmp/solar_cookies.txt -H 'X-Company-Id: seed-company-solar-erp-demo'",
+      "what": "{\"data\":[...]} — warehouses load",
+      "file": "app/api/company/[companyId]/warehouse/movements/route.ts"
+    },
+    {
+      "name": "operation-types — 200 with full context",
+      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/operation-types -b /tmp/solar_cookies.txt -H 'X-Company-Id: seed-company-solar-erp-demo'",
+      "what": "{\"data\":[...]} — operation types load",
+      "file": "app/api/company/[companyId]/operation-types/route.ts"
     }
   ]
 }

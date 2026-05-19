@@ -1,6 +1,6 @@
 // app/api/company/[companyId]/warehouse/movements/route.ts
 // ═══════════════════════════════════════════════════
-// Task 52: Warehouse Stock Movements Ledger
+// TASK 68A — migrated to requireCompanyContext
 // ═══════════════════════════════════════════════════
 // Returns detailed movement history with pagination
 // Filters: warehouse, itemCode, search
@@ -8,17 +8,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = { params: Promise<{ companyId: string }> };
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
 
-    const company = await prisma.company.findFirst({ where: { id: companyId, tenantId }, select: { id: true } });
-    if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 });
 
     const url = new URL(request.url);
     const warehouse = url.searchParams.get('warehouse') || '';
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       totalPages: Math.ceil(total / pageSize),
     });
   } catch (error: unknown) {
-    if (error instanceof Response) return error;
+    const errRes = companyContextErrorResponse(error); if (errRes) return errRes;
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Warehouse movements error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });

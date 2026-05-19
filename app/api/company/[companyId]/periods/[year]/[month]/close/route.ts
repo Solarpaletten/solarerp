@@ -3,7 +3,7 @@
 // TENANT-SAFE Period Close Endpoint
 // ═══════════════════════════════════════════════════
 //
-// Task 24 MVP: Period Locking
+// TASK 68A — migrated to requireCompanyContext
 //
 // POST /api/company/:id/periods/:year/:month/close
 //
@@ -12,24 +12,20 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireTenant } from '@/lib/auth/requireTenant';
+import {
+  requireCompanyContext,
+  companyContextErrorResponse,
+} from '@/lib/auth/requireCompanyContext';
 
 type RouteParams = {
   params: Promise<{ companyId: string; year: string; month: string }>;
 };
 
-async function verifyCompanyOwnership(companyId: string, tenantId: string) {
-  const company = await prisma.company.findFirst({
-    where: { id: companyId, tenantId },
-    select: { id: true },
-  });
-  return company !== null;
-}
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { tenantId } = await requireTenant(request);
-    const { companyId, year: yearStr, month: monthStr } = await params;
+    const { companyId, tenantId } = await requireCompanyContext(request);
+    const { year: yearStr, month: monthStr } = await params;
 
     const year = parseInt(yearStr, 10);
     const month = parseInt(monthStr, 10);
@@ -48,10 +44,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const isOwner = await verifyCompanyOwnership(companyId, tenantId);
-    if (!isOwner) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
 
     const result = await prisma.$transaction(async (tx) => {
       const existing = await tx.accountingPeriod.findUnique({

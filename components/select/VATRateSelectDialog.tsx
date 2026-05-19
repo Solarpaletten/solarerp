@@ -84,7 +84,10 @@ function QuickCreateVATRate({ companyId, onCreated, onCancel }: {
     try {
       const res = await fetch(`/api/company/${companyId}/vat-rates`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        },
         body: JSON.stringify({
           name: name.trim(), rate: Number(rate),
           code: code.trim() || undefined, category,
@@ -157,7 +160,7 @@ interface VATRateSelectDialogProps {
 
 export function VATRateSelectDialog({ companyId, open, onClose, onSelect }: VATRateSelectDialogProps) {
   const fetchRates = useCallback(async (): Promise<VATRateEntity[]> => {
-    const res = await fetch(`/api/company/${companyId}/vat-rates?isActive=true`, { cache: 'no-store' });
+    const res = await fetch(`/api/company/${companyId}/vat-rates?isActive=true`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } });
     if (!res.ok) return [];
     const json = await res.json();
     return (json.data || []).map((d: Record<string, unknown>) => ({

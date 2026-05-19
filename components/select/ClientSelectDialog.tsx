@@ -71,7 +71,10 @@ function QuickCreateClient({ companyId, onCreated, onCancel }: {
     try {
       const res = await fetch(`/api/company/${companyId}/clients`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        },
         body: JSON.stringify({
           name: name.trim(),
           code: code.trim() || undefined,
@@ -142,7 +145,7 @@ interface ClientSelectDialogProps {
 
 export function ClientSelectDialog({ companyId, open, onClose, onSelect }: ClientSelectDialogProps) {
   const fetchClients = useCallback(async (): Promise<ClientEntity[]> => {
-    const res = await fetch(`/api/company/${companyId}/clients?pageSize=200&isActive=true`, { cache: 'no-store' });
+    const res = await fetch(`/api/company/${companyId}/clients?pageSize=200&isActive=true`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } });
     if (!res.ok) return [];
     const json = await res.json();
     return (json.data || []).map((c: Record<string, unknown>) => ({

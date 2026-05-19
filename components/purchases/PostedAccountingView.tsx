@@ -100,7 +100,7 @@ export default function PostedAccountingView({ companyId, purchaseId }: { compan
     async function fetchAccounting() {
       try {
         setIsLoading(true);
-        const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}/accounting`);
+        const res = await fetch(`/api/company/${companyId}/purchases/${purchaseId}/accounting`, { headers: { 'X-Company-Id': companyId } });
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
           throw new Error(json.error || 'Failed to load accounting data');

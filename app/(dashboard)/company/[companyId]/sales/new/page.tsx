@@ -20,7 +20,10 @@ export default function NewSalePage() {
     (async () => {
       try {
         const res = await fetch(`/api/company/${companyId}/sales/draft`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+          method: 'POST', headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        }, body: JSON.stringify({}),
         });
         if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Failed'); }
         const json = await res.json();

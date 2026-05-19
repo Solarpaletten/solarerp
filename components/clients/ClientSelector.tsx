@@ -101,9 +101,7 @@ export function ClientSelector({
     if (value && !selectedClient) {
       const loadClient = async () => {
         try {
-          const res = await fetch(`/api/company/${companyId}/clients/${value}`, {
-            cache: 'no-store',
-          });
+          const res = await fetch(`/api/company/${companyId}/clients/${value}`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } });
           if (res.ok) {
             const json = await res.json();
             const c = json.data;

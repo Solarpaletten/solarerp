@@ -61,7 +61,10 @@ function QuickCreateEmployee({ companyId, onCreated, onCancel }: {
     try {
       const res = await fetch(`/api/company/${companyId}/employees`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        },
         body: JSON.stringify({
           name: name.trim(),
           code: code.trim() || undefined,
@@ -124,7 +127,7 @@ interface EmployeeSelectDialogProps {
 
 export function EmployeeSelectDialog({ companyId, open, onClose, onSelect }: EmployeeSelectDialogProps) {
   const fetchEmployees = useCallback(async (): Promise<EmployeeEntity[]> => {
-    const res = await fetch(`/api/company/${companyId}/employees?isActive=true`, { cache: 'no-store' });
+    const res = await fetch(`/api/company/${companyId}/employees?isActive=true`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } });
     if (!res.ok) return [];
     const json = await res.json();
     return (json.data || []).map((d: Record<string, unknown>) => ({

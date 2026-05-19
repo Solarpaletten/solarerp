@@ -1,13 +1,15 @@
 // app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts
 // ═══════════════════════════════════════════════════════════════════════════
 // TASK 66 — migrated to requireCompanyContext
+// TASK 68B.2 — financial snapshot freeze on posting
 // ═══════════════════════════════════════════════════════════════════════════
 // Single transaction creates:
 //   1. JournalEntry (DR Inventory / CR Accounts Payable)
 //   2. JournalLines (balanced)
 //   3. StockMovement IN (per item)
 //   4. StockLot (FIFO allocation)
-//   5. Updates status → POSTED
+//   5. Updates status → POSTED + freezes financial snapshot
+//      (totalNetAmount, totalVatAmount, totalGrossAmount, journalEntryId, postedAt)
 //   6. Double-post protection (409 Conflict)
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -241,13 +243,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           });
         }
 
-        // 11. Update purchase status → POSTED
+        // 11. Update purchase status → POSTED + freeze financial snapshot (TASK 68B.2)
         const postedDoc = await tx.purchaseDocument.update({
           where: { id: purchaseId },
           data: {
             status: 'POSTED',
             debitAccountId,
             creditAccountId,
+            // ─── Financial snapshot freeze ───
+            totalNetAmount: new Decimal(totals.subtotal),
+            totalVatAmount: new Decimal(totals.vatTotal),
+            totalGrossAmount: new Decimal(totals.grossTotal),
+            journalEntryId: journalEntry.id,
+            postedAt: new Date(),
           },
           include: {
             items: { orderBy: { id: 'asc' } },

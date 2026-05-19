@@ -589,6 +589,15 @@ model SaleDocument {
   debitAccountId  String?
   creditAccountId String?
 
+  // ─── TASK 68B.2 — Financial Snapshot Persistence ───
+  // Frozen at posting time. Null while DRAFT.
+  // Note: Sale posting endpoint comes in Task 68B.3; fields prepared in advance.
+  totalNetAmount   Decimal? @db.Decimal(18, 4)
+  totalVatAmount   Decimal? @db.Decimal(18, 4)
+  totalGrossAmount Decimal? @db.Decimal(18, 4)
+  journalEntryId   String?
+  postedAt         DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -600,6 +609,7 @@ model SaleDocument {
   @@index([companyId])
   @@index([saleDate])
   @@index([clientId])
+  @@index([journalEntryId])
   @@map("sale_documents")
 }
 
@@ -668,6 +678,14 @@ model PurchaseDocument {
   debitAccountId  String?
   creditAccountId String?
 
+  // ─── TASK 68B.2 — Financial Snapshot Persistence ───
+  // Frozen at posting time. Null while DRAFT.
+  totalNetAmount   Decimal? @db.Decimal(18, 4)
+  totalVatAmount   Decimal? @db.Decimal(18, 4)
+  totalGrossAmount Decimal? @db.Decimal(18, 4)
+  journalEntryId   String?
+  postedAt         DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -679,6 +697,7 @@ model PurchaseDocument {
   @@index([companyId])
   @@index([purchaseDate])
   @@index([supplierId])
+  @@index([journalEntryId])
   @@map("purchase_documents")
 }
 

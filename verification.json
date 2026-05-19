@@ -1,36 +1,67 @@
 {
-  "task": "task68a",
-  "title": "Final Context Migration — 16 routes unified",
+  "task": "task68b2-vat-snapshot",
+  "title": "Financial Snapshot Persistence — purchases posting freeze",
+  "scope": "Option A — Prisma fields (PurchaseDocument + SaleDocument) + purchases/post snapshot freeze. Sales posting deferred → Task 68B.3.",
   "checks": [
     {
-      "name": "vat-rates — 401 without session",
-      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/vat-rates",
-      "what": "{\"error\":\"Unauthorized\"} — auth chain works",
-      "file": "app/api/company/[companyId]/vat-rates/route.ts"
+      "name": "schema — PurchaseDocument has 5 snapshot fields",
+      "what": "totalNetAmount + totalVatAmount + totalGrossAmount + journalEntryId + postedAt present in PurchaseDocument model",
+      "url": "bash -c 'awk \"/^model PurchaseDocument/,/^}/\" prisma/schema.prisma | grep -cE \"totalNetAmount|totalVatAmount|totalGrossAmount|journalEntryId|postedAt\"'",
+      "file": "prisma/schema.prisma"
     },
     {
-      "name": "vat-rates — 400 COMPANY_CONTEXT_MISSING with session no header",
-      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/vat-rates -b /tmp/solar_cookies.txt",
-      "what": "{\"error\":\"COMPANY_CONTEXT_MISSING\"} — context enforced",
-      "file": "app/api/company/[companyId]/vat-rates/route.ts"
+      "name": "schema — SaleDocument has 5 snapshot fields (prepared for 68B.3)",
+      "what": "same 5 fields on SaleDocument — reserved for next task, no migration needed later",
+      "url": "bash -c 'awk \"/^model SaleDocument/,/^}/\" prisma/schema.prisma | grep -cE \"totalNetAmount|totalVatAmount|totalGrossAmount|journalEntryId|postedAt\"'",
+      "file": "prisma/schema.prisma"
     },
     {
-      "name": "vat-rates — 200 with full context",
-      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/vat-rates -b /tmp/solar_cookies.txt -H 'X-Company-Id: seed-company-solar-erp-demo'",
-      "what": "{\"data\":[...]} — VAT rates load",
-      "file": "app/api/company/[companyId]/vat-rates/route.ts"
+      "name": "purchases/post — writes financial snapshot",
+      "what": "step 11 includes the 5 snapshot fields in tx.purchaseDocument.update",
+      "url": "bash -c 'grep -cE \"totalNetAmount: new Decimal|totalVatAmount: new Decimal|totalGrossAmount: new Decimal|journalEntryId: journalEntry.id|postedAt: new Date\" app/api/company/\\[companyId\\]/purchases/\\[purchaseId\\]/post/route.ts'",
+      "file": "app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts"
     },
     {
-      "name": "warehouses — 200 with full context",
-      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/warehouses -b /tmp/solar_cookies.txt -H 'X-Company-Id: seed-company-solar-erp-demo'",
-      "what": "{\"data\":[...]} — warehouses load",
-      "file": "app/api/company/[companyId]/warehouse/movements/route.ts"
+      "name": "prisma — schema valid",
+      "what": "schema parses without errors",
+      "url": "npx prisma validate",
+      "file": "prisma/schema.prisma"
     },
     {
-      "name": "operation-types — 200 with full context",
-      "url": "curl -s http://localhost:3000/api/company/seed-company-solar-erp-demo/operation-types -b /tmp/solar_cookies.txt -H 'X-Company-Id: seed-company-solar-erp-demo'",
-      "what": "{\"data\":[...]} — operation types load",
-      "file": "app/api/company/[companyId]/operation-types/route.ts"
+      "name": "migration — SQL file present",
+      "what": "Prisma-convention migration directory exists with migration.sql",
+      "url": "bash -c 'test -f prisma/migrations/20260519_task68b2_financial_snapshot/migration.sql && echo OK'",
+      "file": "prisma/migrations/20260519_task68b2_financial_snapshot/migration.sql"
+    },
+    {
+      "name": "runtime — post DRAFT purchase returns 200 with accounting block",
+      "what": "POST /purchases/{id}/post returns 200 + journalEntryId + populated totals on the document row",
+      "url": "echo 'manual: post a DRAFT purchase via UI or curl, then verify SELECT id, status, totalNetAmount, totalVatAmount, totalGrossAmount, journalEntryId, postedAt FROM purchase_documents WHERE id=...'",
+      "file": "app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts"
+    },
+    {
+      "name": "runtime — double-post still blocked (409)",
+      "what": "second POST on same purchaseId returns 409 ALREADY_POSTED",
+      "url": "echo 'manual: repeat the POST above — expect HTTP 409 + {\"error\":\"Purchase already posted\"}'",
+      "file": "app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts"
+    },
+    {
+      "name": "invariant — DRAFT rows still NULL on snapshot fields",
+      "what": "existing DRAFT rows untouched — snapshot fields remain NULL",
+      "url": "echo 'manual: SELECT id, status, totalNetAmount, journalEntryId, postedAt FROM purchase_documents WHERE status=DRAFT LIMIT 5; — expect all NULL'",
+      "file": "purchase_documents table"
+    },
+    {
+      "name": "invariant — POSTED totalGrossAmount equals journal debit sum",
+      "what": "totalGrossAmount on document equals SUM(journal_lines.debit) for its journalEntryId — proves snapshot integrity",
+      "url": "echo 'manual: SELECT p.totalGrossAmount, (SELECT SUM(jl.debit) FROM journal_lines jl WHERE jl.journalEntryId=p.journalEntryId) FROM purchase_documents p WHERE p.status=POSTED LIMIT 5;'",
+      "file": "purchase_documents + journal_lines"
     }
+  ],
+  "not_included": [
+    "sales/[saleId]/post route — deferred to Task 68B.3",
+    "FIFO reverse on sales — Task 68B.3",
+    "VAT output on sales — Task 68B.3",
+    "invoice numbering governance — Task 69"
   ]
 }

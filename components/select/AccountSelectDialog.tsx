@@ -50,7 +50,7 @@ interface AccountSelectDialogProps {
 
 export function AccountSelectDialog({ companyId, open, onClose, onSelect, filterType }: AccountSelectDialogProps) {
   const fetchAccounts = useCallback(async (): Promise<AccountEntity[]> => {
-    const res = await fetch(`/api/company/${companyId}/accounts`, { cache: 'no-store' });
+    const res = await fetch(`/api/company/${companyId}/accounts`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } });
     if (!res.ok) return [];
     const json = await res.json();
     let accounts = (json.data || []).map((a: Record<string, unknown>) => ({

@@ -83,7 +83,10 @@ function QuickCreateOperationType({ companyId, module, onCreated, onCancel }: {
     try {
       const res = await fetch(`/api/company/${companyId}/operation-types`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        },
         body: JSON.stringify({
           name: name.trim(), code: code.trim(), module,
           debitAccountCode: debitAcc.trim() || undefined,
@@ -174,7 +177,7 @@ interface OperationTypeSelectDialogProps {
 
 export function OperationTypeSelectDialog({ companyId, open, onClose, onSelect, module = 'PURCHASE' }: OperationTypeSelectDialogProps) {
   const fetchTypes = useCallback(async (): Promise<OperationTypeEntity[]> => {
-    const res = await fetch(`/api/company/${companyId}/operation-types?module=${module}`, { cache: 'no-store' });
+    const res = await fetch(`/api/company/${companyId}/operation-types?module=${module}`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } });
     if (!res.ok) return [];
     const json = await res.json();
     return (json.data || []).map((d: Record<string, unknown>) => ({

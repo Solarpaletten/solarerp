@@ -56,7 +56,7 @@ export default function SaleEditorPage() {
   const fetchSale = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const res = await fetch(`/api/company/${companyId}/sales/${saleId}`, { cache: 'no-store' });
+      const res = await fetch(`/api/company/${companyId}/sales/${saleId}`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } });
       if (!res.ok) throw new Error('Sale not found');
       const json = await res.json();
       const d = json.data as SaleDocument;
@@ -82,7 +82,10 @@ export default function SaleEditorPage() {
     setSaving(true); setError(null); setSaveMsg(null);
     try {
       const res = await fetch(`/api/company/${companyId}/sales/${saleId}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH', headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        },
         body: JSON.stringify({ ...header, items: items.map(i => ({ itemName: i.itemName, itemCode: i.itemCode || null, quantity: i.quantity, priceWithoutVat: i.priceWithoutVat, vatRate: i.vatRate })) }),
       });
       if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Save failed'); }
@@ -101,12 +104,18 @@ export default function SaleEditorPage() {
     try {
       // Save first
       await fetch(`/api/company/${companyId}/sales/${saleId}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH', headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        },
         body: JSON.stringify({ ...header, items: items.map(i => ({ itemName: i.itemName, itemCode: i.itemCode || null, quantity: i.quantity, priceWithoutVat: i.priceWithoutVat, vatRate: i.vatRate })) }),
       });
       // Post (uses existing POST /sales endpoint which creates journal+stock+FIFO)
       const res = await fetch(`/api/company/${companyId}/sales`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        },
         body: JSON.stringify({
           saleDate: header.saleDate, series: sale?.series, number: sale?.number,
           clientName: header.clientName, clientCode: header.clientCode,
@@ -124,7 +133,7 @@ export default function SaleEditorPage() {
   // Copy
   const handleCopy = async () => {
     try {
-      const res = await fetch(`/api/company/${companyId}/sales/${saleId}/copy`, { method: 'POST' });
+      const res = await fetch(`/api/company/${companyId}/sales/${saleId}/copy`, { method: 'POST', headers: { 'X-Company-Id': companyId } });
       if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Copy failed'); }
       const json = await res.json();
       router.replace(`${base}/sales/${json.data.id}`);
@@ -135,7 +144,7 @@ export default function SaleEditorPage() {
   const handleCancel = async () => {
     if (!confirm(`Cancel ${sale?.series}-${sale?.number}? Creates reversal (STORNO).`)) return;
     try {
-      const res = await fetch(`/api/company/${companyId}/sales/${saleId}/cancel`, { method: 'POST' });
+      const res = await fetch(`/api/company/${companyId}/sales/${saleId}/cancel`, { method: 'POST', headers: { 'X-Company-Id': companyId } });
       if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Cancel failed'); }
       await fetchSale(); setSaveMsg('Cancelled (Storno)'); setTimeout(() => setSaveMsg(null), 3000);
     } catch (err) { setError(err instanceof Error ? err.message : 'Cancel failed'); }

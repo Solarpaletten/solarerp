@@ -35,7 +35,7 @@ export default function ProductEditorPage() {
   const loadProduct = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/company/${companyId}/products/${productId}`, { cache: 'no-store' });
+      const res = await fetch(`/api/company/${companyId}/products/${productId}`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } });
       if (!res.ok) throw new Error('Product not found');
       const json = await res.json();
       const d = json.data;
@@ -69,7 +69,10 @@ export default function ProductEditorPage() {
         minimumQuantity: data.minimumQuantity ? Number(data.minimumQuantity) : null,
       };
       const res = await fetch(`/api/company/${companyId}/products/${productId}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+        method: 'PATCH', headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        }, body: JSON.stringify(payload),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Save failed'); }
       setDirty(false); setSaveMsg('Saved'); setTimeout(() => setSaveMsg(null), 2500);
@@ -81,7 +84,7 @@ export default function ProductEditorPage() {
   const handleDelete = async () => {
     if (!confirm('Delete this product?')) return;
     try {
-      const res = await fetch(`/api/company/${companyId}/products/${productId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/company/${companyId}/products/${productId}`, { method: 'DELETE', headers: { 'X-Company-Id': companyId } });
       if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Delete failed'); }
       router.replace(`${base}/products`);
     } catch (err) { setError(err instanceof Error ? err.message : 'Delete failed'); }
@@ -90,7 +93,10 @@ export default function ProductEditorPage() {
   const handleCopy = async () => {
     try {
       const res = await fetch(`/api/company/${companyId}/products/${productId}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+        method: 'POST', headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        }, body: JSON.stringify({}),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Copy failed'); }
       const json = await res.json();

@@ -65,7 +65,10 @@ function QuickCreateWarehouse({ companyId, onCreated, onCancel }: {
     try {
       const res = await fetch(`/api/company/${companyId}/warehouses`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        },
         body: JSON.stringify({ name: name.trim(), code: code.trim() || undefined }),
       });
       if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Failed'); }
@@ -119,7 +122,7 @@ interface WarehouseSelectDialogProps {
 
 export function WarehouseSelectDialog({ companyId, open, onClose, onSelect }: WarehouseSelectDialogProps) {
   const fetchWarehouses = useCallback(async (): Promise<WarehouseEntity[]> => {
-    const res = await fetch(`/api/company/${companyId}/warehouses?isActive=true`, { cache: 'no-store' });
+    const res = await fetch(`/api/company/${companyId}/warehouses?isActive=true`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } });
     if (!res.ok) return [];
     const json = await res.json();
     return (json.data || []).map((w: Record<string, unknown>) => ({

@@ -34,7 +34,7 @@ async function fetchProducts(companyId: string): Promise<ProductOption[]> {
   const cached = productCache.get(companyId);
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
-  const res = await fetch(`/api/company/${companyId}/products?pageSize=100`, { cache: 'no-store' });
+  const res = await fetch(`/api/company/${companyId}/products?pageSize=100`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } });
   if (!res.ok) return [];
   const json = await res.json();
   const products: ProductOption[] = (json.data || []).map((p: Record<string, unknown>) => ({

@@ -28,8 +28,8 @@ export default function WarehouseDetailPage() {
     setLoading(true);
     try {
       const [balRes, movRes] = await Promise.all([
-        fetch(`/api/company/${companyId}/warehouse/balance?warehouse=${encodeURIComponent(warehouseId)}`, { cache: 'no-store' }),
-        fetch(`/api/company/${companyId}/warehouse/movements?warehouse=${encodeURIComponent(warehouseId)}&pageSize=100`, { cache: 'no-store' }),
+        fetch(`/api/company/${companyId}/warehouse/balance?warehouse=${encodeURIComponent(warehouseId)}`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } }),
+        fetch(`/api/company/${companyId}/warehouse/movements?warehouse=${encodeURIComponent(warehouseId)}&pageSize=100`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } }),
       ]);
       if (balRes.ok) { const d = await balRes.json(); setBalances(d.balances || []); }
       if (movRes.ok) { const d = await movRes.json(); setMovements(d.data || []); }

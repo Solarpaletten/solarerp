@@ -37,7 +37,7 @@ export default function WarehousePage() {
     setBalLoading(true);
     try {
       const whParam = selectedWh ? `?warehouse=${encodeURIComponent(selectedWh)}` : '';
-      const res = await fetch(`/api/company/${companyId}/warehouse/balance${whParam}`, { cache: 'no-store' });
+      const res = await fetch(`/api/company/${companyId}/warehouse/balance${whParam}`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       setBalances(data.balances || []);
@@ -53,7 +53,7 @@ export default function WarehousePage() {
       const qp = new URLSearchParams({ page: String(movPage), pageSize: '50' });
       if (selectedWh) qp.set('warehouse', selectedWh);
       if (searchMov) qp.set('search', searchMov);
-      const res = await fetch(`/api/company/${companyId}/warehouse/movements?${qp}`, { cache: 'no-store' });
+      const res = await fetch(`/api/company/${companyId}/warehouse/movements?${qp}`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       setMovements(data.data || []);

@@ -143,7 +143,7 @@ export function ClientForm({ companyId, clientId, onSuccess }: { companyId: stri
 
     const load = async () => {
       try {
-        const res = await fetch(`/api/company/${companyId}/clients/${clientId}`, { cache: 'no-store' });
+        const res = await fetch(`/api/company/${companyId}/clients/${clientId}`, { cache: 'no-store', headers: { 'X-Company-Id': companyId } });
         if (!res.ok) throw new Error('Client not found');
         const json = await res.json();
         const c = json.data;
@@ -289,7 +289,7 @@ export function ClientForm({ companyId, clientId, onSuccess }: { companyId: stri
 
     setSaving(true);
     try {
-      const res = await fetch(`/api/company/${companyId}/clients/${clientId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/company/${companyId}/clients/${clientId}`, { method: 'DELETE', headers: { 'X-Company-Id': companyId } });
       if (!res.ok) throw new Error('Failed to delete');
 
       setSuccess('Client deleted');

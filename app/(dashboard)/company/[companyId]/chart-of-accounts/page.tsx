@@ -95,7 +95,7 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
 
   const fetchAccounts = useCallback(async () => {
     try { setLoading(true); setError(null);
-      const res = await fetch(`/api/company/${companyId}/accounts`);
+      const res = await fetch(`/api/company/${companyId}/accounts`, { headers: { 'X-Company-Id': companyId } });
       if (res.status === 401) { window.location.href = '/login'; return; }
       if (!res.ok) throw new Error(`API returned ${res.status}`);
       const data = await res.json();
@@ -133,7 +133,7 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
     setImporting(true); setImportResult(null); setImportError(null);
     try {
       const confirmParam = mode === 'reset' ? '&confirm=RESET' : '';
-      const res = await fetch(`/api/company/${companyId}/chart-of-accounts/import/skr03?mode=${mode}${confirmParam}`, { method: 'POST' });
+      const res = await fetch(`/api/company/${companyId}/chart-of-accounts/import/skr03?mode=${mode}${confirmParam}`, { method: 'POST', headers: { 'X-Company-Id': companyId } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Import failed');
       setImportResult(data);
@@ -146,7 +146,7 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
     setImporting(true); setImportResult(null); setImportError(null);
     try {
       const text = await file.text();
-      const res = await fetch(`/api/company/${companyId}/chart-of-accounts/import`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: text });
+      const res = await fetch(`/api/company/${companyId}/chart-of-accounts/import`, { method: 'POST', headers: { 'Content-Type': 'text/plain', 'X-Company-Id': companyId }, body: text });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Import failed');
       setImportResult(data);
@@ -160,14 +160,20 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
   // ─── SMART DELETE ──────────────────────────────
   const handleDeleteSelectedClick = async () => {
     setCheckingUsage(true); setUsageCheck(null); setShowSmartDeleteModal(true);
-    try { const res = await fetch(`/api/company/${companyId}/accounts/bulk`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'check-usage', ids: [...selectedIds] }) }); if (!res.ok) throw new Error(); setUsageCheck(await res.json());
+    try { const res = await fetch(`/api/company/${companyId}/accounts/bulk`, { method: 'POST', headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        }, body: JSON.stringify({ action: 'check-usage', ids: [...selectedIds] }) }); if (!res.ok) throw new Error(); setUsageCheck(await res.json());
     } catch { setUsageCheck(null); setShowSmartDeleteModal(false); showBanner('Failed to check usage'); }
     finally { setCheckingUsage(false); }
   };
 
   const handleBulkDelete = async () => {
     setBulkDeleting(true);
-    try { const res = await fetch(`/api/company/${companyId}/accounts/bulk`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', ids: [...selectedIds] }) });
+    try { const res = await fetch(`/api/company/${companyId}/accounts/bulk`, { method: 'POST', headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        }, body: JSON.stringify({ action: 'delete', ids: [...selectedIds] }) });
       if (!res.ok) throw new Error(); const data = await res.json(); setShowSmartDeleteModal(false);
       const parts = [`Deleted ${data.deleted}`]; if (data.systemCount > 0) parts.push(`${data.systemCount} Stammkonten protected`); if (data.protectedCount > 0) parts.push(`${data.protectedCount} with entries skipped`);
       showBanner(parts.join(', ')); await fetchAccounts();
@@ -177,17 +183,23 @@ function ChartOfAccountsContent({ companyId }: { companyId: string }) {
 
   // ─── CRUD ──────────────────────────────────────
   const handleCreate = async (e: React.FormEvent) => { e.preventDefault(); setSaving(true); setFormError(null);
-    try { const res = await fetch(`/api/company/${companyId}/accounts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: formData.code, nameDe: formData.nameDe, nameEn: formData.nameEn || formData.nameDe, type: formData.type }) });
+    try { const res = await fetch(`/api/company/${companyId}/accounts`, { method: 'POST', headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        }, body: JSON.stringify({ code: formData.code, nameDe: formData.nameDe, nameEn: formData.nameEn || formData.nameDe, type: formData.type }) });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Failed'); } setShowCreateModal(false); setFormData({ code: '', nameDe: '', nameEn: '', type: 'ASSET' }); await fetchAccounts();
     } catch (err: unknown) { setFormError(err instanceof Error ? err.message : 'Failed'); } finally { setSaving(false); } };
 
   const handleUpdate = async (e: React.FormEvent) => { e.preventDefault(); if (!editingAccount) return; setSaving(true); setFormError(null);
-    try { const res = await fetch(`/api/company/${companyId}/accounts/${editingAccount.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: formData.code, nameDe: formData.nameDe, nameEn: formData.nameEn || formData.nameDe, type: formData.type }) });
+    try { const res = await fetch(`/api/company/${companyId}/accounts/${editingAccount.id}`, { method: 'PATCH', headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        }, body: JSON.stringify({ code: formData.code, nameDe: formData.nameDe, nameEn: formData.nameEn || formData.nameDe, type: formData.type }) });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Failed'); } setEditingAccount(null); setFormData({ code: '', nameDe: '', nameEn: '', type: 'ASSET' }); await fetchAccounts();
     } catch (err: unknown) { setFormError(err instanceof Error ? err.message : 'Failed'); } finally { setSaving(false); } };
 
   const handleDelete = async () => { if (!deleteTarget) return;
-    try { const res = await fetch(`/api/company/${companyId}/accounts/${deleteTarget.id}`, { method: 'DELETE' });
+    try { const res = await fetch(`/api/company/${companyId}/accounts/${deleteTarget.id}`, { method: 'DELETE', headers: { 'X-Company-Id': companyId } });
       if (res.status === 403) { const err = await res.json(); alert(err.error); setDeleteTarget(null); return; }
       if (!res.ok && res.status !== 204) throw new Error(); setDeleteTarget(null); await fetchAccounts();
     } catch { alert('Failed to delete account'); } };

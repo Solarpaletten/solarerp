@@ -1,10 +1,16 @@
 // components/purchases/PurchaseItemsEdit.tsx
 // ═══════════════════════════════════════════════════
 // Task 56_10 — Editable Items with Product Selector (OPTIMIZED)
+// Task 68B.5.1 — Runtime Proof Sprint: fix stale-closure binding bug
 // ═══════════════════════════════════════════════════
 // Optimization: Use totalsHelper as single source of truth
 // Removed: 120+ lines of duplicated calculation code
 // Benefit: DRY principle, single source of truth
+//
+// 68B.5.1 fix: handleProductSelect previously called updateItem() 4x in
+// sequence; each call read `items` from a stale closure and the last write
+// overwrote the previous ones, so product selection only persisted `price`.
+// Replaced with a single atomic updateItemFields() call.
 
 'use client';
 
@@ -48,6 +54,34 @@ export default function PurchaseItemsEdit({
         updated.map((item) => ({
           itemName: item.itemName,                          // ✅ ADDED
           itemCode: item.itemCode,                          // ✅ ADDED
+          quantity: item.quantity,
+          priceWithoutVat: item.priceWithoutVat,
+          vatRate: item.vatRate,
+        }))
+      );
+      onTotalsChange(totals);
+    }
+  };
+
+  // Task 68B.5.1 — atomic multi-field update. Use this when multiple fields
+  // need to change in a single event handler (e.g. product selection
+  // auto-filling name + code + vat + price together). Calling updateItem()
+  // multiple times in sequence within one handler suffers from React's
+  // batched-render stale-closure problem: each call reads the same pre-update
+  // `items` snapshot, so only the last write survives.
+  const updateItemFields = (index: number, partial: Partial<EditableItem>) => {
+    const updated = [...items];
+    updated[index] = {
+      ...updated[index],
+      ...partial,
+    };
+    onChange(updated);
+
+    if (onTotalsChange) {
+      const totals = calculateDocumentTotals(
+        updated.map((item) => ({
+          itemName: item.itemName,
+          itemCode: item.itemCode,
           quantity: item.quantity,
           priceWithoutVat: item.priceWithoutVat,
           vatRate: item.vatRate,
@@ -103,15 +137,22 @@ export default function PurchaseItemsEdit({
   };
 
   // Handle product selection — auto-fill item fields
+  // Task 68B.5.1: collapsed 4 sequential updateItem() calls into one atomic
+  // updateItemFields() call. Previous code lost everything except the last
+  // field (priceWithoutVat) because each updateItem read a stale `items`
+  // snapshot from closure.
   const handleProductSelect = (index: number, product: ProductOption) => {
-    updateItem(index, 'itemName', product.name);
-    updateItem(index, 'itemCode', product.code || product.name);
+    const partial: Partial<EditableItem> = {
+      itemName: product.name,
+      itemCode: product.code || product.name,
+    };
     if (product.vatRate !== null) {
-      updateItem(index, 'vatRate', product.vatRate);
+      partial.vatRate = product.vatRate;
     }
     if (product.priceWithoutVat !== null) {
-      updateItem(index, 'priceWithoutVat', product.priceWithoutVat);
+      partial.priceWithoutVat = product.priceWithoutVat;
     }
+    updateItemFields(index, partial);
   };
 
   return (

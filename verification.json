@@ -1,103 +1,103 @@
 {
-  "task": "task68b4-frontend-context-wiring",
-  "title": "Frontend Context Wiring Sprint — X-Company-Id on all remaining frontend calls",
-  "scope": "17 files, 41 fetch calls. Inline X-Company-Id header injection (same pattern as 68B.2-FU). After this sprint: NO naked fetch to /api/company/ anywhere in app/ or components/. apiClient consolidation deferred to optional Task 68B.5.",
+  "task": "task68b5-1-runtime-proof",
+  "title": "Runtime Proof Sprint — ProductSelector binding fix + The Golden POST verification",
+  "scope": "Single-file PATCH on components/purchases/PurchaseItemsEdit.tsx. Introduces updateItemFields() helper for atomic multi-field updates; rewrites handleProductSelect to use one atomic call instead of 4 sequential ones (which suffered from React's batched-render stale-closure bug). Goal of sprint: prove the complete Solar ERP business cycle through UI — Product → Purchase → POST → Warehouse movement → Journal linkage → Snapshot freeze.",
+  "hypothesis_tested": "PurchaseItemsEdit.handleProductSelect lost field bindings because 4 sequential updateItem() calls each read the same stale `items` closure within a single React batched render, causing last-write-wins behavior where only priceWithoutVat survived.",
+  "expected_outcome": "After patch, selecting a product from ProductSelector dropdown atomically populates itemName + itemCode + vatRate + priceWithoutVat in a single render cycle. This unblocks Purchase Save+POST cycle, which exercises the full accounting + warehouse stack.",
   "checks": [
     {
-      "name": "invariant — NO naked fetch to /api/company/ remaining",
-      "what": "Total fetch() calls in app/ + components/ must equal total X-Company-Id header occurrences. (Handlers calling fetch twice — like handlePost — are counted accordingly.)",
-      "url": "bash -c 'fc=$(grep -rn \"fetch.*api/company/\" --include=\"*.tsx\" --include=\"*.ts\" app/ components/ 2>/dev/null | wc -l); hc=$(grep -rn \"X-Company-Id\" --include=\"*.tsx\" --include=\"*.ts\" app/ components/ 2>/dev/null | wc -l); echo \"fetches=$fc headers=$hc (headers must be >= fetches)\"'",
-      "file": "—"
+      "name": "static — file structure preserved (no rename, no move)",
+      "what": "Patched file lives in same path as original",
+      "url": "bash -c 'test -f components/purchases/PurchaseItemsEdit.tsx && echo OK'",
+      "file": "components/purchases/PurchaseItemsEdit.tsx"
     },
     {
-      "name": "products — page has X-Company-Id on all 4 fetches",
-      "what": "4 fetch calls (load, save PATCH, delete DELETE, copy POST) all carry header",
-      "url": "bash -c 'grep -c \"X-Company-Id\" app/\\(dashboard\\)/company/\\[companyId\\]/products/\\[productId\\]/page.tsx'",
-      "file": "app/(dashboard)/company/[companyId]/products/[productId]/page.tsx"
+      "name": "static — new helper present",
+      "what": "updateItemFields helper is introduced exactly once",
+      "url": "bash -c 'grep -c \"const updateItemFields\" components/purchases/PurchaseItemsEdit.tsx'",
+      "file": "components/purchases/PurchaseItemsEdit.tsx"
     },
     {
-      "name": "sales — [saleId] page has X-Company-Id on all 6 fetches",
-      "what": "load, save PATCH, save-before-post PATCH, post POST, copy POST, cancel POST",
-      "url": "bash -c 'grep -c \"X-Company-Id\" app/\\(dashboard\\)/company/\\[companyId\\]/sales/\\[saleId\\]/page.tsx'",
-      "file": "app/(dashboard)/company/[companyId]/sales/[saleId]/page.tsx"
+      "name": "static — handleProductSelect uses single atomic call",
+      "what": "handleProductSelect contains exactly one updateItemFields call and zero updateItem calls",
+      "url": "bash -c 'fn=$(awk \"/const handleProductSelect/,/^  };/\" components/purchases/PurchaseItemsEdit.tsx); echo \"updateItem calls: $(echo \\\"$fn\\\" | grep -c \\\"updateItem(\\\")\"; echo \"updateItemFields calls: $(echo \\\"$fn\\\" | grep -c \\\"updateItemFields(\\\")\"'",
+      "file": "components/purchases/PurchaseItemsEdit.tsx"
     },
     {
-      "name": "warehouse — page + [warehouseId] have X-Company-Id",
-      "what": "balance + movements fetches on both pages carry header",
-      "url": "bash -c 'grep -c \"X-Company-Id\" app/\\(dashboard\\)/company/\\[companyId\\]/warehouse/page.tsx && grep -c \"X-Company-Id\" app/\\(dashboard\\)/company/\\[companyId\\]/warehouse/\\[warehouseId\\]/page.tsx'",
-      "file": "app/(dashboard)/company/[companyId]/warehouse/"
+      "name": "static — input handlers still use updateItem (no collateral damage)",
+      "what": "Single-field input onChange handlers still call updateItem (unchanged correct behavior)",
+      "url": "bash -c 'grep -c \"updateItem(index,\" components/purchases/PurchaseItemsEdit.tsx'",
+      "file": "components/purchases/PurchaseItemsEdit.tsx"
     },
     {
-      "name": "chart-of-accounts — all 8 fetches migrated",
-      "what": "accounts list, import skr03, import text, bulk check, bulk delete, create, edit, delete",
-      "url": "bash -c 'grep -c \"X-Company-Id\" app/\\(dashboard\\)/company/\\[companyId\\]/chart-of-accounts/page.tsx'",
-      "file": "app/(dashboard)/company/[companyId]/chart-of-accounts/page.tsx"
+      "name": "build — TypeScript scan clean",
+      "what": "Partial<EditableItem> is valid; tsc --noEmit produces zero errors",
+      "url": "echo 'SolarBox auto-runs this; expect ✅ No TypeScript errors'",
+      "file": "tsconfig.json"
     },
     {
-      "name": "select dialogs — all 8 components carry X-Company-Id",
-      "what": "Client, Warehouse, Product, OperationType, Employee, Account, VATRate dialogs",
-      "url": "bash -c 'for f in components/select/*Dialog.tsx; do c=$(grep -c \"X-Company-Id\" \"$f\"); echo \"$c — $f\"; done'",
-      "file": "components/select/"
+      "name": "build — pnpm build green",
+      "what": "Next.js production build succeeds",
+      "url": "echo 'SolarBox auto-runs this; expect ✅ Build PASSED'",
+      "file": "next.config.js"
     },
     {
-      "name": "form components — ClientForm, ClientSelector, ProductSelector",
-      "what": "Form components carry header on all 4 fetch calls",
-      "url": "bash -c 'grep -c \"X-Company-Id\" components/clients/ClientForm.tsx; grep -c \"X-Company-Id\" components/clients/ClientSelector.tsx; grep -c \"X-Company-Id\" components/products/ProductSelector.tsx'",
-      "file": "components/clients/ + components/products/"
+      "name": "runtime UI — product selection atomic",
+      "what": "Open purchase editor → click Item field → typeahead shows products → click 'oil' → Item Name, Code, VAT, Price all populated simultaneously (NOT just Price)",
+      "url": "echo 'manual: open purchase, select oil product — verify all 4 fields populate at once'",
+      "file": "components/purchases/PurchaseItemsEdit.tsx"
     },
     {
-      "name": "PostedAccountingView — has header",
-      "what": "the journal fetch carries X-Company-Id",
-      "url": "bash -c 'grep -c \"X-Company-Id\" components/purchases/PostedAccountingView.tsx'",
-      "file": "components/purchases/PostedAccountingView.tsx"
+      "name": "runtime UI — Save DRAFT succeeds",
+      "what": "After product selected, qty filled, Save button works and Saved confirmation appears",
+      "url": "echo 'manual: Save button → green Saved toast appears'",
+      "file": "app/(dashboard)/company/[companyId]/purchases/[purchaseId]/page.tsx"
     },
     {
-      "name": "runtime — Products list opens without error",
-      "what": "UI: open Products → no COMPANY_CONTEXT_MISSING banner",
-      "url": "echo 'manual: UI → Products — list loads correctly, no error'",
-      "file": "app/(dashboard)/company/[companyId]/products/"
+      "name": "runtime UI — POST succeeds",
+      "what": "Post button → status flips from DRAFT to POSTED, no error, accounting view appears",
+      "url": "echo 'manual: Post button → status badge becomes POSTED, no red error banner'",
+      "file": "app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts"
     },
     {
-      "name": "runtime — Product edit page loads + saves",
-      "what": "UI: open Product detail → edit field → Save → 'Saved' message",
-      "url": "echo 'manual: UI → Products → click product → edit field → Save'",
-      "file": "app/(dashboard)/company/[companyId]/products/[productId]/page.tsx"
+      "name": "DB — snapshot fields populated",
+      "what": "Posted purchase row has all 5 snapshot fields filled in",
+      "url": "echo 'manual SQL: SELECT id, status, \"totalNetAmount\", \"totalVatAmount\", \"totalGrossAmount\", \"journalEntryId\", \"postedAt\" FROM purchase_documents WHERE status=\\'POSTED\\' ORDER BY \"postedAt\" DESC LIMIT 1;'",
+      "file": "purchase_documents table"
     },
     {
-      "name": "runtime — SelectDialog (ClientSelectDialog) opens in Purchase editor",
-      "what": "UI: New Purchase → click Supplier field → dialog opens with clients list",
-      "url": "echo 'manual: UI → New Purchase → Supplier select — dialog must show client list without errors'",
-      "file": "components/select/ClientSelectDialog.tsx"
+      "name": "DB — journal entry created and balanced",
+      "what": "journal_lines for this purchase exist and sum(debit) = sum(credit)",
+      "url": "echo 'manual SQL: SELECT \"journalEntryId\", SUM(debit) AS d, SUM(credit) AS c FROM journal_lines WHERE \"journalEntryId\" = (SELECT \"journalEntryId\" FROM purchase_documents WHERE status=\\'POSTED\\' ORDER BY \"postedAt\" DESC LIMIT 1) GROUP BY \"journalEntryId\";'",
+      "file": "journal_lines table"
     },
     {
-      "name": "runtime — ProductSelector works in PurchaseItemsEdit",
-      "what": "UI: Purchase editor → Add Item → product selector opens and populates fields",
-      "url": "echo 'manual: UI → Purchase editor → Add Item → Select product — should show products list'",
-      "file": "components/products/ProductSelector.tsx"
+      "name": "DB — warehouse movement exists",
+      "what": "stock_movement row inserted for the posted purchase, qty matches",
+      "url": "echo 'manual SQL: SELECT * FROM stock_movements WHERE \"sourceDocumentId\" = (SELECT id FROM purchase_documents WHERE status=\\'POSTED\\' ORDER BY \"postedAt\" DESC LIMIT 1);'",
+      "file": "stock_movements table"
     },
     {
-      "name": "runtime — Full Purchase POST cycle (FINAL Task 68B.2 RUNTIME VERIFY)",
-      "what": "Create new purchase via UI → select Supplier/Warehouse/Product → Save → Post → status=POSTED → 5 snapshot fields populated",
-      "url": "echo 'manual: New Purchase → fill via dialogs → Save → Post → verify in DB: SELECT totalNetAmount, totalVatAmount, totalGrossAmount, journalEntryId, postedAt FROM purchase_documents WHERE id=...'",
-      "file": "end-to-end"
+      "name": "DB — stock balance updated",
+      "what": "stock_balance shows qty of oil in Main warehouse",
+      "url": "echo 'manual SQL: SELECT \"productName\", \"warehouseName\", quantity FROM stock_balance WHERE \"productName\"=\\'oil\\' AND \"warehouseName\"=\\'Main\\';'",
+      "file": "stock_balance table"
+    },
+    {
+      "name": "INVARIANT — golden snapshot match",
+      "what": "purchase_documents.totalGrossAmount EQUALS SUM(journal_lines.debit) for this purchase — proves snapshot consistency with journal",
+      "url": "echo 'manual SQL: SELECT p.\"totalGrossAmount\" AS snapshot_gross, (SELECT SUM(jl.debit) FROM journal_lines jl WHERE jl.\"journalEntryId\" = p.\"journalEntryId\") AS journal_sum FROM purchase_documents p WHERE p.status=\\'POSTED\\' ORDER BY p.\"postedAt\" DESC LIMIT 1;'",
+      "file": "purchase_documents + journal_lines"
     }
   ],
   "not_included": [
-    "Migration to apiClient (lib/api/apiClient.ts) — kept inline injection pattern for symmetry with 68B.2-FU. Optional Task 68B.5 if consolidation desired.",
-    "ESLint rule 'no-restricted-syntax for naked fetch /api/company/' — proposed for Task 68B.5",
-    "Sales POST endpoint (sales/[saleId]/post route.ts) — Task 68B.3 scope",
-    "SolarBox v3.11 auto-prisma-generate after schema patch — separate sprint"
+    "Sales POST endpoint — Task 68B.3 (next sprint after Golden POST proven)",
+    "Reports module frontend — separate sprint",
+    "Period close lifecycle — separate sprint",
+    "apiClient consolidation — Task 68B.5 (optional)",
+    "Technical debt cleanup (cookies.txt, .gitignore, empty backups) — separate micro-task",
+    "Legacy requireTenant migration on 4 remaining /api/company/ routes — separate micro-task"
   ],
-  "automation": {
-    "method": "Python script with regex-based pattern matching",
-    "patterns_handled": [
-      "fetch(url, { cache: 'no-store' }) → adds headers object",
-      "fetch(url, { method: 'X', headers: { 'Content-Type': '...' } }) → adds X-Company-Id key",
-      "fetch(url, { method: 'X' }) → adds headers object",
-      "fetch(url, { method: 'DELETE' }) → adds headers object",
-      "fetch(url) → adds full options block"
-    ],
-    "manual_intervention": 1,
-    "manual_files": ["chart-of-accounts/page.tsx (line 149 — text/plain Content-Type kept)"]
-  }
+  "rollback": "If patch causes regression, single-file rollback via .solar-backups/task68b5-1-runtime-proof/components/purchases/PurchaseItemsEdit.tsx",
+  "diff_summary": "+44 lines / -5 lines. Adds updateItemFields helper (atomic batch update). Rewrites handleProductSelect to use it. updateItem itself unchanged — still correct for single-field input onChange handlers."
 }

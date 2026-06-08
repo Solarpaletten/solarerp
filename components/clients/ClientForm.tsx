@@ -1,12 +1,21 @@
-// components/clients/ClientForm-FIXED.tsx
-// S
+// components/clients/ClientForm.tsx
 // ═══════════════════════════════════════════════════
-// Task 55_5 FIXED: Universal Client Form (ERP semantics)
+// Task 68B.5.1-FU: Client Save Path Fix
 // ═══════════════════════════════════════════════════
+// Sprint: Runtime Proof Sprint — Follow-Up
+//
 // CHANGES:
-
-// - receivableAccountCode → receivableAccountId
-// - payableAccountCode → payableAccountId
+// - Added X-Company-Id header to handleSave fetch (line ~263)
+// - Fixed 400 COMPANY_CONTEXT_MISSING when saving new client
+// - Closes leftover from Task 68B.4 regex migration which missed
+//   the `const endpoint = isNew ? ... : ...` indirection pattern
+//
+// PRIOR HISTORY:
+// - Task 68B.4: X-Company-Id added on LOAD (line 146) and DELETE (line 292)
+// - Task 55_5: Universal Client Form (ERP semantics)
+//     - receivableAccountCode → receivableAccountId
+//     - payableAccountCode → payableAccountId
+// ═══════════════════════════════════════════════════
 
 'use client';
 
@@ -255,7 +264,11 @@ export function ClientForm({ companyId, clientId, onSuccess }: { companyId: stri
 
       const res = await fetch(endpoint, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        // Task 68B.5.1-FU: X-Company-Id required by requireCompanyContext middleware
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Company-Id': companyId,
+        },
         body: JSON.stringify(payload),
       });
 

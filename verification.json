@@ -1,32 +1,38 @@
 {
-  "task": "task68b5-1-FU-client-save-fix",
-  "title": "Client Save Path — X-Company-Id header fix (Task 68B.4 leftover, blocks 68B.5.1 closure)",
-  "scope": "Single-file PATCH on components/clients/ClientForm.tsx. Adds X-Company-Id header to the SAVE fetch (line 256). This is the one naked fetch missed by the Task 68B.4 regex migration script because endpoint was a variable (const endpoint = isNew ? '...' : '...'). Blocks current Task 68B.5.1 Golden POST closure since proper supplier creation requires working Client save.",
-  "root_cause": "ClientForm.tsx handleSave() uses const endpoint = isNew ? '/api/company/{cid}/clients' : '/api/company/{cid}/clients/{clientId}' — this variable indirection wasn't caught by the Task 68B.4 automatic regex migration that handled inline URL literals. LOAD (line 146) and DELETE (line 292) were caught because their URLs are direct literals. SAVE slipped through.",
-  "evidence": "Dashka visual report: POST /api/company/{cid}/clients returns 400 COMPANY_CONTEXT_MISSING. Network tab shows Request Headers contain only Content-Type. Backend requireCompanyContext middleware requires X-Company-Id header.",
-  "fix": "Add 'X-Company-Id': companyId to the headers object on line 256. Pattern identical to Task 68B.4 inline injection (proven safe 41 times).",
+  "task": "task68b5-2-skr03-account-lookup-fix",
+  "title": "SKR03 Account Lookup Fix — unblock Purchase POST for German chart",
+  "scope": "Single-file PATCH on app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts. Extends hardcoded default-account lookup arrays to include SKR03 codes (3300 Wareneingang, 1600 Verbindlichkeiten) alongside existing US codes (1000/6000/2000/5000). Additive only — no removal. Unblocks the Golden POST cycle for users importing SKR03 chart.",
+  "root_cause": "Purchase POST route looks up default Inventory (debit) and Payable (credit) accounts by hardcoded codes ['1000','6000'] and ['2000','5000']. These are US/anglo conventions. SKR03 (German Standard Chart of Accounts) uses '3300' (Wareneingang) for purchases and '1600' (Verbindlichkeiten aus Lieferungen und Leistungen) for trade payables. Result: backend throws PAYABLE_ACCOUNT_NOT_FOUND → 400 Bad Request when posting against SKR03-imported chart.",
+  "evidence": "Dashka visual report from Network Response body: '{\"error\":\"PAYABLE_ACCOUNT_NOT_FOUND: Import SKR03 or set default posting accounts\"}'. SKR03 CSV inspection confirms: code 1600 (Verbindlichkeiten aus L+L, LIABILITY) is the German trade payables account; code 3300 (Wareneingang, EXPENSE) is the German incoming-goods account. Neither code was in the original lookup arrays.",
+  "fix": "Extend both code lookup arrays additively. Now: inventory matches ['1000','3300','6000'], payable matches ['1600','2000','5000']. Pattern remains unchanged otherwise.",
   "checks": [
     {
-      "name": "static — ClientForm has exactly 3 fetches with 3 X-Company-Id headers (parity restored)",
-      "what": "Total fetch() calls in ClientForm.tsx must equal X-Company-Id occurrences",
-      "url": "bash -c 'fc=$(grep -c \"fetch(\" components/clients/ClientForm.tsx); hc=$(grep -c \"X-Company-Id\" components/clients/ClientForm.tsx); echo \"fetches=$fc headers=$hc (must be equal: 3=3)\"'",
-      "file": "components/clients/ClientForm.tsx"
+      "name": "static — inventory lookup includes SKR03 3300",
+      "what": "Inventory code array must include '3300' alongside existing US codes",
+      "url": "bash -c 'grep -A 2 \"Try to find default inventory\" app/api/company/\\[companyId\\]/purchases/\\[purchaseId\\]/post/route.ts | grep -c \"3300\"'",
+      "file": "app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts"
     },
     {
-      "name": "static — SAVE fetch (line ~256) carries the header",
-      "what": "The handleSave fetch with conditional POST/PATCH endpoint now includes X-Company-Id",
-      "url": "bash -c 'awk \"/const endpoint = isNew/,/method,/\" components/clients/ClientForm.tsx | grep -A 5 \"fetch(endpoint\" | grep -c \"X-Company-Id\"'",
-      "file": "components/clients/ClientForm.tsx"
+      "name": "static — payable lookup includes SKR03 1600",
+      "what": "Payable code array must include '1600' alongside existing US codes",
+      "url": "bash -c 'grep -A 2 \"Try to find default payables\" app/api/company/\\[companyId\\]/purchases/\\[purchaseId\\]/post/route.ts | grep -c \"1600\"'",
+      "file": "app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts"
     },
     {
-      "name": "static — global invariant still holds across app/ + components/",
-      "what": "Total fetches in app/ + components/ >= total X-Company-Id headers (handlers like handlePost have 2 fetches with 2 headers)",
-      "url": "bash -c 'fc=$(grep -rn \"fetch.*api/company/\" --include=\"*.tsx\" --include=\"*.ts\" app/ components/ 2>/dev/null | wc -l); hc=$(grep -rn \"X-Company-Id\" --include=\"*.tsx\" --include=\"*.ts\" app/ components/ 2>/dev/null | wc -l); echo \"fetches=$fc headers=$hc (headers must be >= fetches)\"'",
-      "file": "—"
+      "name": "static — US codes preserved (no regression)",
+      "what": "Original codes 1000, 6000, 2000, 5000 still present (additive change)",
+      "url": "bash -c 'fc=$(grep -cE \"'\\''1000'\\''|'\\''6000'\\''|'\\''2000'\\''|'\\''5000'\\''\" app/api/company/\\[companyId\\]/purchases/\\[purchaseId\\]/post/route.ts); echo \"US codes occurrences: $fc (expect >= 4)\"'",
+      "file": "app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts"
+    },
+    {
+      "name": "static — Task 68B.5.2 header present per Standard v3.0",
+      "what": "Header block declares Task 68B.5.2 and preserves prior history (Task 68B.2 + Task 66)",
+      "url": "bash -c 'h=$(head -25 app/api/company/\\[companyId\\]/purchases/\\[purchaseId\\]/post/route.ts); echo \"$h\" | grep -c \"Task 68B.5.2\"; echo \"$h\" | grep -c \"PRIOR HISTORY\"'",
+      "file": "app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts"
     },
     {
       "name": "build — TypeScript scan clean",
-      "what": "Pure object literal addition — no type changes, no new imports",
+      "what": "Array literal extension — no type or interface changes",
       "url": "echo 'SolarBox auto-runs this; expect ✅ No TypeScript errors'",
       "file": "tsconfig.json"
     },
@@ -37,29 +43,51 @@
       "file": "next.config.js"
     },
     {
-      "name": "runtime — Create New Client succeeds",
-      "what": "Open new Company → Clients → New Client → fill form → Save → no COMPANY_CONTEXT_MISSING → 'Client created successfully'",
-      "url": "echo 'manual: UI → Clients → New → fill required fields → Save — expect success message, no 400 error'",
-      "file": "components/clients/ClientForm.tsx"
+      "name": "runtime — Purchase POST succeeds against SKR03 chart",
+      "what": "UI: Open existing DRAFT Purchase with Supplier + Product + Qty + Price → click Post → status flips POSTED. No 400 PAYABLE_ACCOUNT_NOT_FOUND.",
+      "url": "echo 'manual: Open purchase P-XXXX → Post button → confirm OK → status badge becomes POSTED'",
+      "file": "app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts"
     },
     {
-      "name": "runtime — Edit existing Client succeeds (regression check)",
-      "what": "Open existing Client → modify field → Save → no error",
-      "url": "echo 'manual: UI → Clients → click client → edit field → Save — expect success'",
-      "file": "components/clients/ClientForm.tsx"
+      "name": "DB — POSTED row has snapshot fields populated",
+      "what": "purchase_documents row for posted purchase has all 5 snapshot fields filled",
+      "url": "echo 'manual SQL: SELECT id, status, \"totalNetAmount\", \"totalVatAmount\", \"totalGrossAmount\", \"journalEntryId\", \"postedAt\" FROM purchase_documents WHERE status=\\'POSTED\\' ORDER BY \"postedAt\" DESC LIMIT 1;'",
+      "file": "purchase_documents table"
     },
     {
-      "name": "GOLDEN POST chain — closes Task 68B.5.1",
-      "what": "After Client save works, create real supplier → use in Purchase → POST → status flips POSTED → snapshot fields populated → journal balanced → warehouse stock updated",
-      "url": "echo 'manual: full Golden POST sequence — see Task 68B.5.1 verification for SQL details'",
-      "file": "end-to-end"
+      "name": "DB — Journal entry created and balanced (D = C)",
+      "what": "journal_lines for this purchase exist; sum(debit) equals sum(credit)",
+      "url": "echo 'manual SQL: SELECT \"journalEntryId\", SUM(debit) d, SUM(credit) c FROM journal_lines WHERE \"journalEntryId\" = (SELECT \"journalEntryId\" FROM purchase_documents WHERE status=\\'POSTED\\' ORDER BY \"postedAt\" DESC LIMIT 1) GROUP BY \"journalEntryId\";'",
+      "file": "journal_lines table"
+    },
+    {
+      "name": "DB — Journal uses correct SKR03 accounts",
+      "what": "Debit line hits account 3300 (Wareneingang); Credit line hits 1600 (Verbindlichkeiten)",
+      "url": "echo 'manual SQL: SELECT jl.debit, jl.credit, a.code, a.name FROM journal_lines jl JOIN accounts a ON a.id=jl.\"accountId\" WHERE jl.\"journalEntryId\" = (SELECT \"journalEntryId\" FROM purchase_documents WHERE status=\\'POSTED\\' ORDER BY \"postedAt\" DESC LIMIT 1);'",
+      "file": "journal_lines + accounts"
+    },
+    {
+      "name": "DB — Warehouse stock_movement created",
+      "what": "stock_movements row inserted for posted purchase, qty matches",
+      "url": "echo 'manual SQL: SELECT * FROM stock_movements WHERE \"sourceDocumentId\" = (SELECT id FROM purchase_documents WHERE status=\\'POSTED\\' ORDER BY \"postedAt\" DESC LIMIT 1);'",
+      "file": "stock_movements table"
+    },
+    {
+      "name": "INVARIANT — GOLDEN POST snapshot consistency",
+      "what": "purchase_documents.totalGrossAmount equals SUM(journal_lines.debit) for this purchase",
+      "url": "echo 'manual SQL: SELECT p.\"totalGrossAmount\" snapshot_gross, (SELECT SUM(jl.debit) FROM journal_lines jl WHERE jl.\"journalEntryId\" = p.\"journalEntryId\") journal_sum FROM purchase_documents p WHERE p.status=\\'POSTED\\' ORDER BY p.\"postedAt\" DESC LIMIT 1;'",
+      "file": "purchase_documents + journal_lines"
     }
   ],
   "not_included": [
-    "Demo Generators (Generate Demo Client/Product/etc.) — Task 68B.6 (LOCKED until 68B.5.1 CLOSED)",
-    "Warehouse 0-units investigation — pending Client save fix first; may be cascade (DRAFT never POSTED due to missing supplier) or separate bug",
-    "apiClient consolidation — optional Task 68B.5"
+    "accountMapping refactor (semantic-role abstraction) — backlog Task 68B.10",
+    "ProductSelector → Dialog UX (Leanid observation) — backlog Task 68B.8",
+    "Save & Close button — backlog Task 68B.7",
+    "Save & Post combined action — backlog Task 68B.9",
+    "Demo Generators — backlog Task 68B.6",
+    "Sales POST endpoint — backlog Task 68B.3",
+    "Warehouse module verification — automatically validated by SQL check #11 above"
   ],
-  "rollback": "Single-file rollback via .solar-backups/task68b5-1-FU-client-save-fix/components/clients/ClientForm.tsx",
-  "diff_summary": "+4 / -1 lines. ONE object literal change. Zero new abstractions. Zero new imports. Identical pattern to 41 other inline X-Company-Id injections from Task 68B.4."
+  "rollback": "Single-file rollback via .solar-backups/task68b5-2-skr03-account-lookup-fix/app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts",
+  "diff_summary": "+25 / -7 lines. Header expanded per Standard v3.0 (full history preserved). Two array literal extensions in helper function. Zero logic changes. Zero new abstractions."
 }

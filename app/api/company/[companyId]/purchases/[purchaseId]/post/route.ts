@@ -1,8 +1,27 @@
 // app/api/company/[companyId]/purchases/[purchaseId]/post/route.ts
-// ═══════════════════════════════════════════════════════════════════════════
-// TASK 66 — migrated to requireCompanyContext
-// TASK 68B.2 — financial snapshot freeze on posting
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+// Task 68B.5.2: SKR03 Account Lookup Fix
+// ═══════════════════════════════════════════════════
+// Sprint: Runtime Proof Sprint — Follow-Up #2
+//
+// CHANGES:
+// - Extended default account lookup arrays to include SKR03 codes
+//   without removing existing US/anglo codes (additive only)
+// - Inventory debit: added '3300' (SKR03 Wareneingang)
+// - Payable credit: added '1600' (SKR03 Verbindlichkeiten aus L+L)
+// - Fixes 400 PAYABLE_ACCOUNT_NOT_FOUND when posting against SKR03 chart
+//
+// PRIOR HISTORY:
+// - Task 68B.2: Financial snapshot freeze on posting
+//     - totalNetAmount, totalVatAmount, totalGrossAmount
+//     - journalEntryId, postedAt
+// - Task 66: Migrated to requireCompanyContext
+//
+// ARCHITECTURAL NOTE:
+// - Hardcoded code-array lookup is intentionally kept simple here.
+// - Proper accountMapping abstraction (semantic roles instead of literal
+//   codes) → backlog Task 68B.10. Not in scope for Runtime Proof Sprint.
+// ═══════════════════════════════════════════════════
 // Single transaction creates:
 //   1. JournalEntry (DR Inventory / CR Accounts Payable)
 //   2. JournalLines (balanced)
@@ -42,11 +61,12 @@ async function resolvePostingAccounts(
   let debitAccountId = purchase.debitAccountId; // Might be pre-set
   if (!debitAccountId) {
     // Try to find default inventory/input account
+    // Task 68B.5.2: added '3300' (SKR03 Wareneingang) to support German charts
     const inventoryAccount = await tx.account.findFirst({
       where: {
         companyId,
         type: { in: ['ASSET', 'EXPENSE'] },
-        code: { in: ['1000', '6000'] }, // Common codes for inventory/input
+        code: { in: ['1000', '3300', '6000'] }, // US: 1000/6000, SKR03: 3300
       },
       select: { id: true },
     });
@@ -60,11 +80,12 @@ async function resolvePostingAccounts(
   let creditAccountId = purchase.creditAccountId; // Might be pre-set
   if (!creditAccountId) {
     // Try to find default payables account
+    // Task 68B.5.2: added '1600' (SKR03 Verbindlichkeiten aus L+L) to support German charts
     const payableAccount = await tx.account.findFirst({
       where: {
         companyId,
         type: 'LIABILITY',
-        code: { in: ['2000', '5000'] }, // Common codes for payables
+        code: { in: ['1600', '2000', '5000'] }, // US: 2000/5000, SKR03: 1600
       },
       select: { id: true },
     });
